@@ -21,7 +21,44 @@ namespace RiMCP.Data
             int colonistCount = map.mapPawns.FreeColonistsSpawned.Count;
             int slaveCount = map.mapPawns.SlavesOfColonySpawned.Count;
             int prisonerCount = map.mapPawns.PrisonersOfColonySpawned.Count;
-            int animalCount = map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer).Count(p => p.RaceProps != null && p.RaceProps.Animal);
+            int corePawnCount = colonistCount + slaveCount + prisonerCount;
+            int colonyAnimalCount = 0;
+            int wildAnimalCount = 0;
+            int visitorCount = 0;
+            int hostilePawnCount = 0;
+            int hostileAnimalCount = 0;
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            {
+                bool isAnimal = pawn.RaceProps != null && pawn.RaceProps.Animal;
+                bool isHostile = pawn.HostileTo(Faction.OfPlayer);
+                if (isAnimal)
+                {
+                    if (isHostile)
+                    {
+                        hostileAnimalCount++;
+                    }
+                    else if (pawn.Faction == Faction.OfPlayer)
+                    {
+                        colonyAnimalCount++;
+                    }
+                    else
+                    {
+                        wildAnimalCount++;
+                    }
+                    continue;
+                }
+
+                if (isHostile)
+                {
+                    hostilePawnCount++;
+                }
+                else if (pawn.RaceProps != null && pawn.RaceProps.Humanlike && pawn.Faction != Faction.OfPlayer && !IsCorePawn(pawn, map))
+                {
+                    visitorCount++;
+                }
+            }
+
+            int threatCount = hostilePawnCount + hostileAnimalCount;
             int storedResourceTypes = map.resourceCounter.AllCountedAmounts.Count(pair => pair.Key != null && pair.Value > 0);
             string currentResearch = CurrentResearchDefName();
 
@@ -29,13 +66,23 @@ namespace RiMCP.Data
                 Json.Prop("mapId", Json.String(map.uniqueID.ToString())),
                 Json.Prop("mapName", Json.String(map.Parent == null ? "Unknown" : map.Parent.LabelCap)),
                 Json.Prop("biome", Json.String(map.Biome == null ? null : map.Biome.defName)),
-                Json.Prop("colonistCount", Json.Number(colonistCount)),
-                Json.Prop("slaveCount", Json.Number(slaveCount)),
-                Json.Prop("prisonerCount", Json.Number(prisonerCount)),
-                Json.Prop("animalCount", Json.Number(animalCount)),
+                Json.Prop("pawns", Json.Object(
+                    Json.Prop("core", Json.Object(
+                        Json.Prop("colonists", Json.Number(colonistCount)),
+                        Json.Prop("slaves", Json.Number(slaveCount)),
+                        Json.Prop("prisoners", Json.Number(prisonerCount)),
+                        Json.Prop("total", Json.Number(corePawnCount)))),
+                    Json.Prop("animals", Json.Object(
+                        Json.Prop("colony", Json.Number(colonyAnimalCount)),
+                        Json.Prop("wild", Json.Number(wildAnimalCount)))),
+                    Json.Prop("visitors", Json.Object(
+                        Json.Prop("humanlike", Json.Number(visitorCount)))),
+                    Json.Prop("threats", Json.Object(
+                        Json.Prop("hostilePawns", Json.Number(hostilePawnCount)),
+                        Json.Prop("hostileAnimals", Json.Number(hostileAnimalCount)),
+                        Json.Prop("total", Json.Number(threatCount)))))),
                 Json.Prop("storedResourceTypes", Json.Number(storedResourceTypes)),
-                Json.Prop("currentResearch", Json.String(currentResearch)),
-                Json.Prop("readOnly", Json.Bool(true)));
+                Json.Prop("currentResearch", Json.String(currentResearch)));
 
             return BridgeResponse.Json(200, body);
         }
@@ -196,6 +243,13 @@ namespace RiMCP.Data
             {
                 yield return new CorePawn(pawn, "prisoner");
             }
+        }
+
+        private static bool IsCorePawn(Pawn pawn, Map map)
+        {
+            return map.mapPawns.FreeColonistsSpawned.Contains(pawn) ||
+                   map.mapPawns.SlavesOfColonySpawned.Contains(pawn) ||
+                   map.mapPawns.PrisonersOfColonySpawned.Contains(pawn);
         }
 
         private static IEnumerable<Pawn> Animals(Map map)
