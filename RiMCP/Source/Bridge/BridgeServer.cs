@@ -1,0 +1,180 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
+using RiMCP.Util;
+
+namespace RiMCP.Bridge
+{
+    internal sealed class BridgeServer
+    {
+        private readonly Func<string, BridgeResponse> dispatchRead;
+        private readonly RecentLog log;
+        private readonly HashSet<string> recentClients = new HashSet<string>();
+        private HttpListener listener;
+        private Thread thread;
+        private volatile bool stopping;
+        private string token;
+
+        public BridgeServer(int port, string token, Func<string, BridgeResponse> dispatchRead, RecentLog log)
+        {
+            Port = port;
+            this.token = token;
+            this.dispatchRead = dispatchRead;
+            this.log = log;
+        }
+
+        public int Port { get; private set; }
+        public bool IsRunning { get; private set; }
+        public DateTime? LastRequestUtc { get; private set; }
+
+        public int RecentClientCount
+        {
+            get
+            {
+                lock (recentClients)
+                {
+                    return recentClients.Count;
+                }
+            }
+        }
+
+        public void UpdateToken(string newToken)
+        {
+            token = newToken;
+        }
+
+        public void Start()
+        {
+            stopping = false;
+            listener = new HttpListener();
+            listener.Prefixes.Add("http://127.0.0.1:" + Port + "/");
+            listener.Start();
+            IsRunning = true;
+            log.Add("Bridge started on 127.0.0.1:" + Port);
+
+            thread = new Thread(ListenLoop);
+            thread.IsBackground = true;
+            thread.Name = "RiMCP";
+            thread.Start();
+        }
+
+        public void Stop()
+        {
+            stopping = true;
+            IsRunning = false;
+            try
+            {
+                if (listener != null)
+                {
+                    listener.Close();
+                }
+            }
+            catch
+            {
+            }
+            log.Add("Bridge stopped");
+        }
+
+        private void ListenLoop()
+        {
+            while (!stopping)
+            {
+                try
+                {
+                    HttpListenerContext context = listener.GetContext();
+                    ThreadPool.QueueUserWorkItem(_ => HandleContext(context));
+                }
+                catch
+                {
+                    if (!stopping)
+                    {
+                        log.Add("Bridge listener error");
+                    }
+                }
+            }
+        }
+
+        private void HandleContext(HttpListenerContext context)
+        {
+            LastRequestUtc = DateTime.UtcNow;
+            string client = context.Request.RemoteEndPoint == null ? "unknown" : context.Request.RemoteEndPoint.Address.ToString();
+            lock (recentClients)
+            {
+                recentClients.Add(client);
+            }
+
+            BridgeResponse response;
+            try
+            {
+                if (!IsOriginAllowed(context.Request.Headers["Origin"]))
+                {
+                    response = BridgeResponse.Error(403, "Origin is not allowed.");
+                }
+                else if (!IsAuthorized(context.Request))
+                {
+                    response = BridgeResponse.Error(401, "Missing or invalid bearer token.");
+                }
+                else if (context.Request.HttpMethod != "GET")
+                {
+                    response = BridgeResponse.Error(405, "This bridge currently accepts read-only GET requests.");
+                }
+                else if (context.Request.Url.AbsolutePath == "/health")
+                {
+                    response = BridgeResponse.Json(200, Json.Object(
+                        Json.Prop("status", Json.String("ok")),
+                        Json.Prop("readOnly", Json.Bool(true)),
+                        Json.Prop("port", Json.Number(Port))));
+                }
+                else
+                {
+                    response = dispatchRead(context.Request.Url.AbsolutePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                response = BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
+            }
+
+            WriteResponse(context, response);
+            log.Add(context.Request.HttpMethod + " " + context.Request.Url.AbsolutePath + " -> " + response.StatusCode);
+        }
+
+        private bool IsAuthorized(HttpListenerRequest request)
+        {
+            string header = request.Headers["Authorization"];
+            return !string.IsNullOrEmpty(token) && header == "Bearer " + token;
+        }
+
+        private static bool IsOriginAllowed(string origin)
+        {
+            if (string.IsNullOrEmpty(origin))
+            {
+                return true;
+            }
+
+            Uri uri;
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out uri))
+            {
+                return false;
+            }
+
+            return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void WriteResponse(HttpListenerContext context, BridgeResponse response)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(response.Body ?? string.Empty);
+            context.Response.StatusCode = response.StatusCode;
+            context.Response.ContentType = response.ContentType + "; charset=utf-8";
+            context.Response.ContentLength64 = bytes.Length;
+            using (Stream output = context.Response.OutputStream)
+            {
+                output.Write(bytes, 0, bytes.Length);
+            }
+        }
+    }
+}
