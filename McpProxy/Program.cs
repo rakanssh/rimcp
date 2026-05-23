@@ -251,7 +251,8 @@ internal static class ToolCatalog
             new("list_inventory", "List stored colony resources as shown by RimWorld's resource readout.", empty, _ => "v1/inventory"),
             new("list_bills", "List production bills on colony workbenches.", empty, _ => "v1/bills"),
             new("list_alerts", "List recent visible letters and alerts available to RiMCP.", empty, _ => "v1/alerts"),
-            new("list_animals", "List player-faction animals on the active map.", empty, _ => "v1/animals")
+            new("list_animals", "List player-faction animals on the active map.", empty, _ => "v1/animals"),
+            new("list_hostiles", "List spawned hostile threats on the active map.", empty, _ => "v1/hostiles")
         };
     }
 

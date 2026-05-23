@@ -206,6 +206,17 @@ namespace RiMCP.Data
             return BridgeResponse.Json(200, Json.Object(Json.Prop("animals", Json.Array(Animals(map).Select(SerializeAnimal)))));
         }
 
+        public static BridgeResponse ListHostiles()
+        {
+            Map map = CurrentMap();
+            if (map == null)
+            {
+                return BridgeResponse.Error(409, "No active map is loaded.");
+            }
+
+            return BridgeResponse.Json(200, Json.Object(Json.Prop("hostiles", Json.Array(Hostiles(map).Select(SerializeHostile)))));
+        }
+
         private static Map CurrentMap()
         {
             return Find.CurrentMap ?? (Find.Maps == null ? null : Find.Maps.FirstOrDefault());
@@ -256,6 +267,13 @@ namespace RiMCP.Data
         {
             return map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer)
                 .Where(p => p.RaceProps != null && p.RaceProps.Animal)
+                .OrderBy(p => p.LabelShortCap);
+        }
+
+        private static IEnumerable<Pawn> Hostiles(Map map)
+        {
+            return map.mapPawns.AllPawnsSpawned
+                .Where(p => p.HostileTo(Faction.OfPlayer))
                 .OrderBy(p => p.LabelShortCap);
         }
 
@@ -369,6 +387,38 @@ namespace RiMCP.Data
                 Json.Prop("gender", Json.String(pawn.gender.ToString())),
                 Json.Prop("position", SerializeCell(pawn.Position)),
                 Json.Prop("downed", Json.Bool(pawn.Downed)));
+        }
+
+        private static string SerializeHostile(Pawn pawn)
+        {
+            return Json.Object(
+                Json.Prop("id", Json.String(pawn.ThingID)),
+                Json.Prop("loadId", Json.String(pawn.GetUniqueLoadID())),
+                Json.Prop("name", Json.String(pawn.Name == null ? pawn.LabelShortCap : pawn.Name.ToStringFull)),
+                Json.Prop("label", Json.String(pawn.LabelShortCap)),
+                Json.Prop("defName", Json.String(pawn.def == null ? null : pawn.def.defName)),
+                Json.Prop("threatKind", Json.String(ThreatKind(pawn))),
+                Json.Prop("faction", Json.String(pawn.Faction == null ? null : pawn.Faction.Name)),
+                Json.Prop("factionDefName", Json.String(pawn.Faction == null || pawn.Faction.def == null ? null : pawn.Faction.def.defName)),
+                Json.Prop("position", SerializeCell(pawn.Position)),
+                Json.Prop("downed", Json.Bool(pawn.Downed)));
+        }
+
+        private static string ThreatKind(Pawn pawn)
+        {
+            if (pawn.RaceProps == null)
+            {
+                return "unknown";
+            }
+            if (pawn.RaceProps.Animal)
+            {
+                return "animal";
+            }
+            if (pawn.RaceProps.Humanlike)
+            {
+                return "humanlike";
+            }
+            return "other";
         }
 
         private static string SerializeCell(IntVec3 cell)

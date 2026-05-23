@@ -17,6 +17,7 @@ Current tools:
 - `list_bills`
 - `list_alerts`
 - `list_animals`
+- `list_hostiles`
 
 ## Using The Mod
 

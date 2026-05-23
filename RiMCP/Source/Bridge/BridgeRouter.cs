@@ -47,6 +47,10 @@ namespace RiMCP.Bridge
                 {
                     return ColonyDataService.ListAnimals();
                 }
+                if (path == "/v1/hostiles")
+                {
+                    return ColonyDataService.ListHostiles();
+                }
 
                 return BridgeResponse.Error(404, "Unknown endpoint.");
             }
