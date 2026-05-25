@@ -298,6 +298,12 @@ namespace RiMCP.Read
             return thing == null ? null : (thing.ThingID ?? thing.GetUniqueLoadID());
         }
 
+        public static string QualityLabel(Thing thing)
+        {
+            QualityCategory quality;
+            return thing != null && QualityUtility.TryGetQuality(thing, out quality) ? quality.ToString() : null;
+        }
+
         public static string PawnName(Pawn pawn)
         {
             if (pawn == null)

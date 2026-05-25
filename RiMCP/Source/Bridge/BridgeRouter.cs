@@ -34,6 +34,7 @@ namespace RiMCP.Bridge
                 if (path == "/v1/research") return ResearchReadService.GetResearch(context);
                 if (path == "/v1/quests") return QuestWorldReadService.ListQuests(context);
                 if (path == "/v1/buildings") return BuildingReadService.ListBuildings(context);
+                if (path.StartsWith("/v1/buildings/", StringComparison.Ordinal)) return BuildingReadService.GetBuilding(context, PathPart(path, 3));
                 if (path == "/v1/world") return QuestWorldReadService.ListWorld(context);
                 if (path == "/v1/defs/search") return DefReadService.SearchDefs(context);
                 if (path.StartsWith("/v1/defs/", StringComparison.Ordinal)) return DefReadService.GetDef(context, PathPart(path, 3));

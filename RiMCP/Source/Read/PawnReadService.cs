@@ -438,13 +438,7 @@ namespace RiMCP.Read
                 Dto.Field("label", thing.LabelCap),
                 Dto.Field("stackCount", thing.stackCount),
                 Dto.Field("hitPoints", thing.HitPoints),
-                Dto.Field("quality", QualityLabel(thing)));
-        }
-
-        private static string QualityLabel(Thing thing)
-        {
-            CompQuality quality = thing == null ? null : thing.TryGetComp<CompQuality>();
-            return quality == null ? null : quality.Quality.ToString();
+                Dto.Field("quality", ReadUtil.QualityLabel(thing)));
         }
 
         internal sealed class PawnRole

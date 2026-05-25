@@ -25,12 +25,39 @@ namespace RiMCP.Read
                 .OrderBy(building => building.def.defName)
                 .ThenBy(building => building.ThingID);
             Page<Building> page = new Page<Building>(source, context.Request);
+            bool includeContents = context.Request.Wants("contents");
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("category", category),
-                Dto.Field("buildings", page.Items.Select(building => SerializeBuilding(building, context.Request.Detail)).ToArray())),
+                Dto.Field("buildings", page.Items.Select(building => SerializeBuilding(building, context.Request.Detail, includeContents)).ToArray())),
                 page.Truncated,
                 page.NextCursor);
+        }
+
+        public static BridgeResponse GetBuilding(ReadContext context, string id)
+        {
+            if (context.Map == null)
+            {
+                return BridgeResponse.Error(409, "No active map is loaded.");
+            }
+
+            Building building = FindBuilding(context.Map, id);
+            if (building == null)
+            {
+                return BridgeResponse.Error(404, "Building not found.");
+            }
+
+            return ReadEnvelope.Ok(context, SerializeBuilding(building, ReadDetail.Full, true));
+        }
+
+        public static Building FindBuilding(Map map, string id)
+        {
+            if (map == null || string.IsNullOrWhiteSpace(id) || map.listerBuildings == null)
+            {
+                return null;
+            }
+            return map.listerBuildings.allBuildingsColonist
+                .FirstOrDefault(building => building.ThingID == id || building.GetUniqueLoadID() == id);
         }
 
         private static bool MatchesCategory(Building building, string category)
@@ -54,10 +81,14 @@ namespace RiMCP.Read
             {
                 return building is Building_Bed;
             }
+            if (normalized == "storage")
+            {
+                return building is ISlotGroupParent;
+            }
             return building.def.defName.ToLowerInvariant().Contains(normalized);
         }
 
-        private static object SerializeBuilding(Building building, ReadDetail detail)
+        private static object SerializeBuilding(Building building, ReadDetail detail, bool includeContents)
         {
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("ids", ReadUtil.ThingIds(building)),
@@ -86,7 +117,49 @@ namespace RiMCP.Read
                     Dto.Field("targetFuelLevel", fuel.TargetFuelLevel));
                 dto["billGiver"] = building is IBillGiver;
             }
+            if (includeContents)
+            {
+                dto["contents"] = SerializeContents(building);
+            }
             return dto;
+        }
+
+        private static object SerializeContents(Building building)
+        {
+            ISlotGroupParent storage = building as ISlotGroupParent;
+            if (storage == null)
+            {
+                return Dto.Obj(
+                    Dto.Field("supported", false),
+                    Dto.Field("items", new object[0]));
+            }
+
+            SlotGroup slotGroup = storage.GetSlotGroup();
+            object[] items = slotGroup == null
+                ? new object[0]
+                : slotGroup.HeldThings
+                    .Where(thing => thing != null)
+                    .OrderBy(thing => thing.def == null ? "" : thing.def.defName)
+                    .ThenBy(thing => thing.ThingID)
+                    .Select(SerializeContainedItem)
+                    .ToArray();
+
+            return Dto.Obj(
+                Dto.Field("supported", true),
+                Dto.Field("items", items));
+        }
+
+        private static object SerializeContainedItem(Thing thing)
+        {
+            return Dto.Obj(
+                Dto.Field("ids", ReadUtil.ThingIds(thing)),
+                Dto.Field("def", ReadUtil.Def(thing.def)),
+                Dto.Field("label", thing.LabelCap),
+                Dto.Field("stackCount", thing.stackCount),
+                Dto.Field("hitPoints", thing.HitPoints),
+                Dto.Field("forbidden", thing.IsForbidden(Faction.OfPlayer)),
+                Dto.Field("position", ReadUtil.Cell(thing.Position)),
+                Dto.Field("quality", ReadUtil.QualityLabel(thing)));
         }
     }
 }

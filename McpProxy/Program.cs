@@ -272,7 +272,8 @@ internal static class ToolCatalog
             Tool("list_threats", "List active threats such as hostile pawns, manhunters, predators, and fires.", Input(), args => QueryPath("v1/threats", args)),
             Tool("get_research", "Get current research and paged loaded research projects.", Input(), args => QueryPath("v1/research", args)),
             Tool("list_quests", "List active quests and quest state exposed by RimWorld.", Input(), args => QueryPath("v1/quests", args)),
-            Tool("list_buildings", "List colony buildings, optionally filtered by category such as production, power, or bed.", Input(Prop("category", Str("Optional building category or defName substring."))), args => QueryPath("v1/buildings", args, "category")),
+            Tool("list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", Input(Prop("category", BuildingCategory())), args => QueryPath("v1/buildings", args, "category")),
+            Tool("get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", Required(Prop("id", Str("Building ThingID or load id from list_buildings."))), PathWithId("v1/buildings", "id")),
             Tool("list_world", "List world-level context: factions and world objects.", Input(), args => QueryPath("v1/world", args)),
             Tool("search_defs", "Search loaded game defs by kind, query, and category. Useful for mod-aware game knowledge.", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), args => QueryPath("v1/defs/search", args, "kind", "query", "category")),
             Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), PathWithId("v1/defs", "defName", "kind"))
@@ -373,13 +374,13 @@ internal static class ToolCatalog
             {
                 ["type"] = "string",
                 ["enum"] = new JsonArray("summary", "normal", "full"),
-                ["description"] = "Payload detail level. Defaults to summary."
+                ["description"] = "Payload detail level. Defaults to summary. full also includes tool-specific expensive sections."
             },
             ["include"] = new JsonObject
             {
                 ["type"] = "array",
                 ["items"] = new JsonObject { ["type"] = "string" },
-                ["description"] = "Optional expensive sections to include without requesting full detail."
+                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, gear, relations, and contents."
             },
             ["limit"] = new JsonObject
             {
@@ -424,6 +425,16 @@ internal static class ToolCatalog
             ["type"] = "string",
             ["enum"] = new JsonArray("thing", "recipe", "research", "workType", "stat", "terrain", "biome", "pawnKind", "designation", "job", "weather"),
             ["description"] = "Loaded def kind to search or retrieve."
+        };
+    }
+
+    private static JsonObject BuildingCategory()
+    {
+        return new JsonObject
+        {
+            ["type"] = "string",
+            ["description"] = "Optional building category or defName substring. Known categories: production, power, bed, storage.",
+            ["examples"] = new JsonArray("production", "power", "bed", "storage", "Shelf")
         };
     }
 
