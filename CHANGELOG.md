@@ -18,7 +18,7 @@ All notable changes to this project are documented in this file.
 - Simplified MCP proxy endpoint definitions with templated paths for command tools.
 - Moved map resolution into a neutral bridge helper shared by reads and commands.
 
-## [0.2.0] - 2026-05-26
+## [0.2.0] - 2026-05-25
 
 ### Added
 
