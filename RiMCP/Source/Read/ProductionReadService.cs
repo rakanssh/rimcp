@@ -8,8 +8,9 @@ namespace RiMCP.Read
 {
     internal static class ProductionReadService
     {
-        public static BridgeResponse ListProduction(ReadContext context)
+        public static BridgeResponse ListProduction(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
@@ -30,8 +31,9 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
-        public static BridgeResponse ListWorkshops(ReadContext context)
+        public static BridgeResponse ListWorkshops(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
@@ -53,8 +55,10 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
-        public static BridgeResponse GetWorkshop(ReadContext context, string id)
+        public static BridgeResponse GetWorkshop(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
+            string id = route["id"];
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
@@ -69,8 +73,10 @@ namespace RiMCP.Read
             return ReadEnvelope.Ok(context, SerializeWorkshop(record, ReadDetail.Full, true));
         }
 
-        public static BridgeResponse GetBill(ReadContext context, string id)
+        public static BridgeResponse GetBill(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
+            string id = route["id"];
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");

@@ -17,8 +17,9 @@ namespace RiMCP.Read
         };
         private static readonly HashSet<string> SupportedFilterLookup = new HashSet<string>(SupportedFilters, StringComparer.OrdinalIgnoreCase);
 
-        public static BridgeResponse ListPawns(ReadContext context)
+        public static BridgeResponse ListPawns(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
@@ -50,8 +51,10 @@ namespace RiMCP.Read
                 Dto.Field("pawns", pawns)), page.Truncated, page.NextCursor);
         }
 
-        public static BridgeResponse GetPawn(ReadContext context, string id)
+        public static BridgeResponse GetPawn(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
+            string id = route["id"];
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");

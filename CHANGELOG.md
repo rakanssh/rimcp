@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Typed command tools for drafting pawns, setting work priorities, and changing the current research project.
+- PUT command endpoints for pawn draft state, pawn work priority, and current research.
+- MCP tool annotations for read-only reads and idempotent command tools.
+- Shared bridge route table with method-aware path matching and named route captures.
+- Request body size limit for bridge command payloads.
+
+### Changed
+
+- Routed read and command endpoints through a unified bridge dispatcher.
+- Simplified MCP proxy endpoint definitions with templated paths for command tools.
+- Moved map resolution into a neutral bridge helper shared by reads and commands.
+
 ## [0.2.0] - 2026-05-26
 
 ### Added

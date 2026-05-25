@@ -9,8 +9,9 @@ namespace RiMCP.Read
 {
     internal static class QuestWorldReadService
     {
-        public static BridgeResponse ListQuests(ReadContext context)
+        public static BridgeResponse ListQuests(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (!ReadUtil.ChangedSince(context))
             {
                 return ReadEnvelope.NotChanged(context);
@@ -25,8 +26,9 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
-        public static BridgeResponse ListWorld(ReadContext context)
+        public static BridgeResponse ListWorld(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (!ReadUtil.ChangedSince(context))
             {
                 return ReadEnvelope.NotChanged(context);

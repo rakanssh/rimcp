@@ -7,8 +7,9 @@ namespace RiMCP.Read
 {
     internal static class WorkReadService
     {
-        public static BridgeResponse ListWork(ReadContext context)
+        public static BridgeResponse ListWork(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");

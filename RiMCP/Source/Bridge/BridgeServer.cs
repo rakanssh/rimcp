@@ -10,7 +10,9 @@ namespace RiMCP.Bridge
 {
     internal sealed class BridgeServer
     {
-        private readonly Func<Uri, BridgeResponse> dispatchRead;
+        private const int MaxRequestBodyBytes = 16 * 1024;
+
+        private readonly Func<BridgeRequest, BridgeResponse> dispatch;
         private readonly RecentLog log;
         private readonly HashSet<string> recentClients = new HashSet<string>();
         private HttpListener listener;
@@ -18,11 +20,11 @@ namespace RiMCP.Bridge
         private volatile bool stopping;
         private string token;
 
-        public BridgeServer(int port, string token, Func<Uri, BridgeResponse> dispatchRead, RecentLog log)
+        public BridgeServer(int port, string token, Func<BridgeRequest, BridgeResponse> dispatch, RecentLog log)
         {
             Port = port;
             this.token = token;
-            this.dispatchRead = dispatchRead;
+            this.dispatch = dispatch;
             this.log = log;
         }
 
@@ -117,21 +119,22 @@ namespace RiMCP.Bridge
                 {
                     response = BridgeResponse.Error(401, "Missing or invalid bearer token.");
                 }
-                else if (context.Request.HttpMethod != "GET")
-                {
-                    response = BridgeResponse.Error(405, "This bridge currently accepts read-only GET requests.");
-                }
-                else if (context.Request.Url.AbsolutePath == "/health")
+                else if (context.Request.HttpMethod == "GET" && context.Request.Url.AbsolutePath == "/health")
                 {
                     response = BridgeResponse.Json(200, Json.Object(
                         Json.Prop("status", Json.String("ok")),
-                        Json.Prop("readOnly", Json.Bool(true)),
+                        Json.Prop("readOnly", Json.Bool(false)),
+                        Json.Prop("commands", Json.Bool(true)),
                         Json.Prop("port", Json.Number(Port))));
                 }
                 else
                 {
-                    response = dispatchRead(context.Request.Url);
+                    response = dispatch(new BridgeRequest(context.Request.HttpMethod, context.Request.Url, ReadBody(context.Request)));
                 }
+            }
+            catch (RequestBodyTooLargeException ex)
+            {
+                response = BridgeResponse.Error(413, ex.Message);
             }
             catch (Exception ex)
             {
@@ -140,6 +143,43 @@ namespace RiMCP.Bridge
 
             WriteResponse(context, response);
             log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode);
+        }
+
+        private static string ReadBody(HttpListenerRequest request)
+        {
+            if (request.HttpMethod == "GET" || request.InputStream == null)
+            {
+                return null;
+            }
+            if (request.ContentLength64 > MaxRequestBodyBytes)
+            {
+                throw new RequestBodyTooLargeException("Request body is too large.");
+            }
+
+            Encoding encoding = request.ContentEncoding ?? Encoding.UTF8;
+            using (MemoryStream body = new MemoryStream())
+            {
+                byte[] buffer = new byte[4096];
+                int total = 0;
+                int read;
+                while ((read = request.InputStream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    total += read;
+                    if (total > MaxRequestBodyBytes)
+                    {
+                        throw new RequestBodyTooLargeException("Request body is too large.");
+                    }
+                    body.Write(buffer, 0, read);
+                }
+                return encoding.GetString(body.ToArray());
+            }
+        }
+
+        private sealed class RequestBodyTooLargeException : Exception
+        {
+            public RequestBodyTooLargeException(string message) : base(message)
+            {
+            }
         }
 
         private bool IsAuthorized(HttpListenerRequest request)

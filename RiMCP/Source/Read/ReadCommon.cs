@@ -181,6 +181,12 @@ namespace RiMCP.Read
             Map = map;
             Tick = Find.TickManager == null ? 0 : Find.TickManager.TicksGame;
         }
+
+        public static ReadContext From(BridgeRequest bridgeRequest)
+        {
+            ReadRequest request = ReadRequest.FromUri(bridgeRequest.Uri);
+            return new ReadContext(request, GameContext.ResolveMap(request.MapId));
+        }
     }
 
     internal static class Dto
@@ -241,15 +247,7 @@ namespace RiMCP.Read
     {
         public static Map ResolveMap(ReadRequest request)
         {
-            if (Find.Maps == null || Find.Maps.Count == 0)
-            {
-                return null;
-            }
-            if (!string.IsNullOrWhiteSpace(request.MapId))
-            {
-                return Find.Maps.FirstOrDefault(map => map.uniqueID.ToString() == request.MapId);
-            }
-            return Find.CurrentMap ?? Find.Maps.FirstOrDefault();
+            return GameContext.ResolveMap(request == null ? null : request.MapId);
         }
 
         public static object Cell(IntVec3 cell)

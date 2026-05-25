@@ -48,9 +48,9 @@ namespace RiMCP.Bridge
             settings = newSettings;
         }
 
-        public static BridgeResponse DispatchRead(Uri uri)
+        public static BridgeResponse Dispatch(BridgeRequest request)
         {
-            return Dispatcher.Invoke(() => BridgeRouter.Handle(uri), MainThreadWaitMs);
+            return Dispatcher.Invoke(() => BridgeRouter.Handle(request), MainThreadWaitMs);
         }
 
         public static void ProcessMainThreadQueue()
@@ -80,7 +80,7 @@ namespace RiMCP.Bridge
             }
 
             Stop();
-            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, DispatchRead, RecentLog);
+            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, Dispatch, RecentLog);
             try
             {
                 newServer.Start();

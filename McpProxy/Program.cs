@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -105,7 +106,7 @@ async Task HandleToolCall(JsonNode? id, JsonObject? parameters)
     }
 
     var arguments = parameters?["arguments"] as JsonObject;
-    var path = tool.BuildPath(arguments);
+    var path = tool.Endpoint.BuildPath(arguments);
     if (path == null)
     {
         WriteResult(id, ToolError("Missing required argument."));
@@ -116,7 +117,13 @@ async Task HandleToolCall(JsonNode? id, JsonObject? parameters)
     string text;
     try
     {
-        response = await http.GetAsync(path);
+        using var request = new HttpRequestMessage(new HttpMethod(tool.Endpoint.Method), path);
+        var body = tool.Endpoint.BuildBody(arguments);
+        if (body != null)
+        {
+            request.Content = new StringContent(body.ToJsonString(new JsonSerializerOptions { WriteIndented = false }), Encoding.UTF8, "application/json");
+        }
+        response = await http.SendAsync(request);
         text = await response.Content.ReadAsStringAsync();
     }
     catch (Exception ex)
@@ -175,6 +182,14 @@ static string SummarizeToolResult(string toolName, JsonNode? structured, bool su
     }
 
     var tick = structured?["tick"]?.GetValue<int?>();
+    var changed = structured?["changed"]?.GetValue<bool?>();
+    if (changed.HasValue)
+    {
+        return tick.HasValue
+            ? toolName + ": command completed at tick " + tick.Value + " changed=" + changed.Value.ToString().ToLowerInvariant() + "."
+            : toolName + ": command completed changed=" + changed.Value.ToString().ToLowerInvariant() + ".";
+    }
+
     var truncated = structured?["truncated"]?.GetValue<bool?>() == true ? " truncated" : "";
     var notModified = structured?["notModified"]?.GetValue<bool?>() == true;
     if (notModified)
@@ -236,16 +251,65 @@ internal sealed record McpTool(
     string Name,
     string Description,
     JsonObject InputSchema,
-    Func<JsonObject?, string?> BuildPath)
+    ToolEndpoint Endpoint,
+    JsonObject Annotations)
 {
     public JsonObject ToJson()
     {
-        return new JsonObject
+        var json = new JsonObject
         {
             ["name"] = Name,
             ["description"] = Description,
             ["inputSchema"] = InputSchema.DeepClone()
         };
+        if (Annotations.Count > 0)
+        {
+            json["annotations"] = Annotations.DeepClone();
+        }
+        return json;
+    }
+}
+
+internal sealed record ToolEndpoint(
+    string Method,
+    Func<JsonObject?, string?> BuildPath,
+    Func<JsonObject?, JsonObject?> BuildBody)
+{
+    public static ToolEndpoint Get(Func<JsonObject?, string?> buildPath)
+    {
+        return new ToolEndpoint("GET", buildPath, _ => null);
+    }
+
+    public static ToolEndpoint Put(Func<JsonObject?, string?> buildPath, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return new ToolEndpoint("PUT", buildPath, buildBody);
+    }
+
+    public static ToolEndpoint Put(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return new ToolEndpoint("PUT", args => ExpandPath(pathTemplate, args), buildBody);
+    }
+
+    private static string? ExpandPath(string pathTemplate, JsonObject? args)
+    {
+        var segments = pathTemplate.Split('/');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            if (segment.Length <= 2 || segment[0] != '{' || segment[^1] != '}')
+            {
+                continue;
+            }
+
+            var key = segment[1..^1];
+            var value = args?[key]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+            segments[i] = Uri.EscapeDataString(value);
+        }
+        return string.Join("/", segments);
     }
 }
 
@@ -257,34 +321,51 @@ internal static class ToolCatalog
     {
         return new List<McpTool>
         {
-            Tool("get_game_context", "Get game-wide context: current map, time, storyteller/difficulty, loaded mods, and map ids.", Input(), args => QueryPath("v1/game-context", args)),
-            Tool("get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", Input(), args => QueryPath("v1/colony-status", args)),
-            Tool("list_pawns", "List pawns by validated filter.", Input(Prop("filter", PawnFilter())), args => QueryPath("v1/pawns", args, "filter")),
-            Tool("get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", Required(Prop("id", Str("Pawn ThingID or load id."))), PathWithId("v1/pawns", "id")),
-            Tool("list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context.", Input(), args => QueryPath("v1/resources", args)),
-            Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), args => QueryPath("v1/work", args)),
-            Tool("list_production", "List production bills across colony bill givers.", Input(), args => QueryPath("v1/production", args)),
-            Tool("get_bill", "Get full details for one production bill by bill id.", Required(Prop("id", Str("Bill id returned by list_production."))), PathWithId("v1/bills", "id")),
-            Tool("list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", Input(), args => QueryPath("v1/workshops", args)),
-            Tool("get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops."))), PathWithId("v1/workshops", "id")),
-            Tool("list_zones", "List stockpiles, growing zones, and allowed areas.", Input(), args => QueryPath("v1/zones", args)),
-            Tool("get_zone", "Get full details for one zone or area by id.", Required(Prop("id", Str("Zone id returned by list_zones."))), PathWithId("v1/zones", "id")),
-            Tool("get_environment", "Get weather, season, game conditions, room temperature summaries, and hazards.", Input(), args => QueryPath("v1/environment", args)),
-            Tool("get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", Input(), args => QueryPath("v1/power", args)),
-            Tool("list_threats", "List active threats such as hostile pawns, manhunters, predators, and fires.", Input(), args => QueryPath("v1/threats", args)),
-            Tool("get_research", "Get current research and paged loaded research projects.", Input(), args => QueryPath("v1/research", args)),
-            Tool("list_quests", "List active quests and quest state exposed by RimWorld.", Input(), args => QueryPath("v1/quests", args)),
-            Tool("list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", Input(Prop("category", BuildingCategory())), args => QueryPath("v1/buildings", args, "category")),
-            Tool("get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", Required(Prop("id", Str("Building ThingID or load id from list_buildings."))), PathWithId("v1/buildings", "id")),
-            Tool("list_world", "List world-level context: factions and world objects.", Input(), args => QueryPath("v1/world", args)),
-            Tool("search_defs", "Search loaded game defs by kind, query, and category. Useful for mod-aware game knowledge.", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), args => QueryPath("v1/defs/search", args, "kind", "query", "category")),
-            Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), PathWithId("v1/defs", "defName", "kind"))
+            Tool("get_game_context", "Get game-wide context: current map, time, storyteller/difficulty, loaded mods, and map ids.", Input(), ToolEndpoint.Get(args => QueryPath("v1/game-context", args)), ReadOnly()),
+            Tool("get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", Input(), ToolEndpoint.Get(args => QueryPath("v1/colony-status", args)), ReadOnly()),
+            Tool("list_pawns", "List pawns by validated filter.", Input(Prop("filter", PawnFilter())), ToolEndpoint.Get(args => QueryPath("v1/pawns", args, "filter")), ReadOnly()),
+            Tool("get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", Required(Prop("id", Str("Pawn ThingID or load id."))), ToolEndpoint.Get(PathWithId("v1/pawns", "id")), ReadOnly()),
+            Tool("list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context.", Input(), ToolEndpoint.Get(args => QueryPath("v1/resources", args)), ReadOnly()),
+            Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), ToolEndpoint.Get(args => QueryPath("v1/work", args)), ReadOnly()),
+            Tool("list_production", "List production bills across colony bill givers.", Input(), ToolEndpoint.Get(args => QueryPath("v1/production", args)), ReadOnly()),
+            Tool("get_bill", "Get full details for one production bill by bill id.", Required(Prop("id", Str("Bill id returned by list_production."))), ToolEndpoint.Get(PathWithId("v1/bills", "id")), ReadOnly()),
+            Tool("list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", Input(), ToolEndpoint.Get(args => QueryPath("v1/workshops", args)), ReadOnly()),
+            Tool("get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops."))), ToolEndpoint.Get(PathWithId("v1/workshops", "id")), ReadOnly()),
+            Tool("list_zones", "List stockpiles, growing zones, and allowed areas.", Input(), ToolEndpoint.Get(args => QueryPath("v1/zones", args)), ReadOnly()),
+            Tool("get_zone", "Get full details for one zone or area by id.", Required(Prop("id", Str("Zone id returned by list_zones."))), ToolEndpoint.Get(PathWithId("v1/zones", "id")), ReadOnly()),
+            Tool("get_environment", "Get weather, season, game conditions, room temperature summaries, and hazards.", Input(), ToolEndpoint.Get(args => QueryPath("v1/environment", args)), ReadOnly()),
+            Tool("get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", Input(), ToolEndpoint.Get(args => QueryPath("v1/power", args)), ReadOnly()),
+            Tool("list_threats", "List active threats such as hostile pawns, manhunters, predators, and fires.", Input(), ToolEndpoint.Get(args => QueryPath("v1/threats", args)), ReadOnly()),
+            Tool("get_research", "Get current research and paged loaded research projects.", Input(), ToolEndpoint.Get(args => QueryPath("v1/research", args)), ReadOnly()),
+            Tool("list_quests", "List active quests and quest state exposed by RimWorld.", Input(), ToolEndpoint.Get(args => QueryPath("v1/quests", args)), ReadOnly()),
+            Tool("list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", Input(Prop("category", BuildingCategory())), ToolEndpoint.Get(args => QueryPath("v1/buildings", args, "category")), ReadOnly()),
+            Tool("get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", Required(Prop("id", Str("Building ThingID or load id from list_buildings."))), ToolEndpoint.Get(PathWithId("v1/buildings", "id")), ReadOnly()),
+            Tool("list_world", "List world-level context: factions and world objects.", Input(), ToolEndpoint.Get(args => QueryPath("v1/world", args)), ReadOnly()),
+            Tool("search_defs", "Search loaded game defs by kind, query, and category. Useful for mod-aware game knowledge.", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), ToolEndpoint.Get(args => QueryPath("v1/defs/search", args, "kind", "query", "category")), ReadOnly()),
+            Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), ToolEndpoint.Get(PathWithId("v1/defs", "defName", "kind")), ReadOnly()),
+            Tool("set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), ToolEndpoint.Put("v1/pawns/{pawnId}/drafted", Body("mapId", "drafted")), IdempotentMutation()),
+            Tool("set_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), ToolEndpoint.Put("v1/pawns/{pawnId}/work/{workTypeDefName}", Body("mapId", "priority")), IdempotentMutation()),
+            Tool("set_research_project", "Set the current research project by ResearchProjectDef defName.", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), ToolEndpoint.Put(_ => "v1/research/current", Body("projectDefName")), IdempotentMutation())
         };
     }
 
-    private static McpTool Tool(string name, string description, JsonObject schema, Func<JsonObject?, string?> buildPath)
+    private static McpTool Tool(string name, string description, JsonObject schema, ToolEndpoint endpoint, JsonObject annotations)
     {
-        return new McpTool(name, description, schema, buildPath);
+        return new McpTool(name, description, schema, endpoint, annotations);
+    }
+
+    private static JsonObject ReadOnly()
+    {
+        return new JsonObject { ["readOnlyHint"] = true };
+    }
+
+    private static JsonObject IdempotentMutation()
+    {
+        return new JsonObject
+        {
+            ["readOnlyHint"] = false,
+            ["idempotentHint"] = true
+        };
     }
 
     private static Func<JsonObject?, string?> PathWithId(string prefix, string idName, params string[] extraQuery)
@@ -322,6 +403,25 @@ internal static class ToolCatalog
         return query.Count == 0 ? path : path + "?" + string.Join("&", query);
     }
 
+    private static Func<JsonObject?, JsonObject?> Body(params string[] keys)
+    {
+        return args =>
+        {
+            var body = new JsonObject();
+            if (args != null)
+            {
+                foreach (var key in keys)
+                {
+                    if (args.TryGetPropertyValue(key, out var value) && value != null)
+                    {
+                        body[key] = value.DeepClone();
+                    }
+                }
+            }
+            return body;
+        };
+    }
+
     private static string EncodeValue(JsonNode value)
     {
         if (value is JsonArray array)
@@ -339,6 +439,33 @@ internal static class ToolCatalog
     private static JsonObject Required(JsonObject requiredProperty, params JsonObject[] optionalProperties)
     {
         return Input(new[] { requiredProperty["name"]!.GetValue<string>() }, new[] { requiredProperty }.Concat(optionalProperties).ToArray());
+    }
+
+    private static JsonObject RequiredWithMap(params JsonObject[] properties)
+    {
+        return InputWithOptionalMap(true, properties.Select(property => property["name"]!.GetValue<string>()).ToArray(), properties);
+    }
+
+    private static JsonObject RequiredOnly(params JsonObject[] properties)
+    {
+        return InputWithOptionalMap(false, properties.Select(property => property["name"]!.GetValue<string>()).ToArray(), properties);
+    }
+
+    private static JsonObject InputWithOptionalMap(bool includeMapId, string[] required, params JsonObject[] properties)
+    {
+        var props = includeMapId ? MapProperty() : new JsonObject();
+        foreach (var property in properties)
+        {
+            var name = property["name"]!.GetValue<string>();
+            props[name] = property["schema"]!.DeepClone();
+        }
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = props,
+            ["required"] = new JsonArray(required.Select(item => JsonValue.Create(item)).ToArray()),
+            ["additionalProperties"] = false
+        };
     }
 
     private static JsonObject Input(string[]? required, params JsonObject[] properties)
@@ -411,11 +538,39 @@ internal static class ToolCatalog
         };
     }
 
+    private static JsonObject MapProperty()
+    {
+        return new JsonObject
+        {
+            ["mapId"] = Str("Optional RimWorld map id. Defaults to current map.")
+        };
+    }
+
     private static JsonObject Str(string description)
     {
         return new JsonObject
         {
             ["type"] = "string",
+            ["description"] = description
+        };
+    }
+
+    private static JsonObject Bool(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "boolean",
+            ["description"] = description
+        };
+    }
+
+    private static JsonObject Int(string description, int minimum, int maximum)
+    {
+        return new JsonObject
+        {
+            ["type"] = "integer",
+            ["minimum"] = minimum,
+            ["maximum"] = maximum,
             ["description"] = description
         };
     }

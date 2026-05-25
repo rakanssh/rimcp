@@ -12,8 +12,9 @@ namespace RiMCP.Read
         // RimWorld keeps the current project private; keep this compatibility touchpoint local.
         private static readonly FieldInfo CurrentProjectField = typeof(ResearchManager).GetField("currentProj", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
-        public static BridgeResponse GetResearch(ReadContext context)
+        public static BridgeResponse GetResearch(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (!ReadUtil.ChangedSince(context))
             {
                 return ReadEnvelope.NotChanged(context);

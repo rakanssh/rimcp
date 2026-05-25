@@ -10,8 +10,9 @@ namespace RiMCP.Read
 {
     internal static class DefReadService
     {
-        public static BridgeResponse SearchDefs(ReadContext context)
+        public static BridgeResponse SearchDefs(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             string kind = context.Request.Get("kind") ?? "thing";
             string query = context.Request.Get("query") ?? "";
             string category = context.Request.Get("category");
@@ -30,8 +31,10 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
-        public static BridgeResponse GetDef(ReadContext context, string defName)
+        public static BridgeResponse GetDef(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
+            string defName = route["defName"];
             string kind = context.Request.Get("kind");
             Def def = string.IsNullOrWhiteSpace(kind)
                 ? AllSupportedDefs().FirstOrDefault(item => item.defName == defName)

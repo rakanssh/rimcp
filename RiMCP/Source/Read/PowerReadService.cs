@@ -8,8 +8,9 @@ namespace RiMCP.Read
 {
     internal static class PowerReadService
     {
-        public static BridgeResponse GetPower(ReadContext context)
+        public static BridgeResponse GetPower(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");

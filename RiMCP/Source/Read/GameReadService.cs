@@ -11,8 +11,9 @@ namespace RiMCP.Read
 {
     internal static class GameReadService
     {
-        public static BridgeResponse GetGameContext(ReadContext context)
+        public static BridgeResponse GetGameContext(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             object maps = Find.Maps == null
                 ? new object[0]
                 : Find.Maps.Select(ReadUtil.MapSummary).ToArray();
@@ -27,8 +28,9 @@ namespace RiMCP.Read
                 Dto.Field("mods", SerializeMods())));
         }
 
-        public static BridgeResponse GetColonyStatus(ReadContext context)
+        public static BridgeResponse GetColonyStatus(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");

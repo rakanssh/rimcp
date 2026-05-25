@@ -8,8 +8,9 @@ namespace RiMCP.Read
 {
     internal static class BuildingReadService
     {
-        public static BridgeResponse ListBuildings(ReadContext context)
+        public static BridgeResponse ListBuildings(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
@@ -34,8 +35,10 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
-        public static BridgeResponse GetBuilding(ReadContext context, string id)
+        public static BridgeResponse GetBuilding(BridgeRequest request, RouteMatch route)
         {
+            ReadContext context = ReadContext.From(request);
+            string id = route["id"];
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
