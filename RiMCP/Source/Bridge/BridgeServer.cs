@@ -10,7 +10,7 @@ namespace RiMCP.Bridge
 {
     internal sealed class BridgeServer
     {
-        private readonly Func<string, BridgeResponse> dispatchRead;
+        private readonly Func<Uri, BridgeResponse> dispatchRead;
         private readonly RecentLog log;
         private readonly HashSet<string> recentClients = new HashSet<string>();
         private HttpListener listener;
@@ -18,7 +18,7 @@ namespace RiMCP.Bridge
         private volatile bool stopping;
         private string token;
 
-        public BridgeServer(int port, string token, Func<string, BridgeResponse> dispatchRead, RecentLog log)
+        public BridgeServer(int port, string token, Func<Uri, BridgeResponse> dispatchRead, RecentLog log)
         {
             Port = port;
             this.token = token;
@@ -130,7 +130,7 @@ namespace RiMCP.Bridge
                 }
                 else
                 {
-                    response = dispatchRead(context.Request.Url.AbsolutePath);
+                    response = dispatchRead(context.Request.Url);
                 }
             }
             catch (Exception ex)
@@ -139,7 +139,7 @@ namespace RiMCP.Bridge
             }
 
             WriteResponse(context, response);
-            log.Add(context.Request.HttpMethod + " " + context.Request.Url.AbsolutePath + " -> " + response.StatusCode);
+            log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode);
         }
 
         private bool IsAuthorized(HttpListenerRequest request)

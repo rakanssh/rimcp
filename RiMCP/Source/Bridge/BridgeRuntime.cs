@@ -48,9 +48,9 @@ namespace RiMCP.Bridge
             settings = newSettings;
         }
 
-        public static BridgeResponse DispatchRead(string path)
+        public static BridgeResponse DispatchRead(Uri uri)
         {
-            return Dispatcher.Invoke(() => BridgeRouter.Handle(path), MainThreadWaitMs);
+            return Dispatcher.Invoke(() => BridgeRouter.Handle(uri), MainThreadWaitMs);
         }
 
         public static void ProcessMainThreadQueue()

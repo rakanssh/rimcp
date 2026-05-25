@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Collections;
 using System.Text;
 
 namespace RiMCP.Util
@@ -118,6 +119,107 @@ namespace RiMCP.Util
         {
             return value ? "true" : "false";
         }
+
+        public static string Serialize(object value)
+        {
+            StringBuilder builder = new StringBuilder();
+            WriteValue(builder, value);
+            return builder.ToString();
+        }
+
+        private static void WriteValue(StringBuilder builder, object value)
+        {
+            if (value == null)
+            {
+                builder.Append("null");
+                return;
+            }
+
+            string text = value as string;
+            if (text != null)
+            {
+                builder.Append(String(text));
+                return;
+            }
+
+            if (value is bool)
+            {
+                builder.Append((bool)value ? "true" : "false");
+                return;
+            }
+
+            if (value is int || value is long || value is short || value is byte ||
+                value is uint || value is ulong || value is ushort || value is sbyte ||
+                value is float || value is double || value is decimal)
+            {
+                builder.Append(System.Convert.ToString(value, CultureInfo.InvariantCulture));
+                return;
+            }
+
+            if (value is System.Enum)
+            {
+                builder.Append(String(value.ToString()));
+                return;
+            }
+
+            IDictionary dictionary = value as IDictionary;
+            if (dictionary != null)
+            {
+                WriteDictionary(builder, dictionary);
+                return;
+            }
+
+            IEnumerable enumerable = value as IEnumerable;
+            if (enumerable != null)
+            {
+                WriteEnumerable(builder, enumerable);
+                return;
+            }
+
+            builder.Append(String(value.ToString()));
+        }
+
+        private static void WriteDictionary(StringBuilder builder, IDictionary dictionary)
+        {
+            builder.Append('{');
+            bool first = true;
+            foreach (DictionaryEntry entry in dictionary)
+            {
+                if (entry.Key == null || ShouldOmit(entry.Value))
+                {
+                    continue;
+                }
+                if (!first)
+                {
+                    builder.Append(',');
+                }
+                first = false;
+                builder.Append(String(entry.Key.ToString()));
+                builder.Append(':');
+                WriteValue(builder, entry.Value);
+            }
+            builder.Append('}');
+        }
+
+        private static void WriteEnumerable(StringBuilder builder, IEnumerable enumerable)
+        {
+            builder.Append('[');
+            bool first = true;
+            foreach (object item in enumerable)
+            {
+                if (!first)
+                {
+                    builder.Append(',');
+                }
+                first = false;
+                WriteValue(builder, item);
+            }
+            builder.Append(']');
+        }
+
+        private static bool ShouldOmit(object value)
+        {
+            return value == null;
+        }
     }
 }
-
