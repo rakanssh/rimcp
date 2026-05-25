@@ -287,7 +287,27 @@ internal sealed record ToolEndpoint(
 
     public static ToolEndpoint Put(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
     {
-        return new ToolEndpoint("PUT", args => ExpandPath(pathTemplate, args), buildBody);
+        return Put(args => ExpandPath(pathTemplate, args), buildBody);
+    }
+
+    public static ToolEndpoint Post(Func<JsonObject?, string?> buildPath, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return new ToolEndpoint("POST", buildPath, buildBody);
+    }
+
+    public static ToolEndpoint Post(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return Post(args => ExpandPath(pathTemplate, args), buildBody);
+    }
+
+    public static ToolEndpoint Delete(Func<JsonObject?, string?> buildPath, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return new ToolEndpoint("DELETE", buildPath, buildBody);
+    }
+
+    public static ToolEndpoint Delete(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
+    {
+        return Delete(args => ExpandPath(pathTemplate, args), buildBody);
     }
 
     private static string? ExpandPath(string pathTemplate, JsonObject? args)
@@ -344,7 +364,7 @@ internal static class ToolCatalog
             Tool("search_defs", "Search loaded game defs by kind, query, and category. Useful for mod-aware game knowledge.", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), ToolEndpoint.Get(args => QueryPath("v1/defs/search", args, "kind", "query", "category")), ReadOnly()),
             Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), ToolEndpoint.Get(PathWithId("v1/defs", "defName", "kind")), ReadOnly()),
             Tool("set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), ToolEndpoint.Put("v1/pawns/{pawnId}/drafted", Body("mapId", "drafted")), IdempotentMutation()),
-            Tool("set_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), ToolEndpoint.Put("v1/pawns/{pawnId}/work/{workTypeDefName}", Body("mapId", "priority")), IdempotentMutation()),
+            Tool("set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), ToolEndpoint.Put("v1/pawns/{pawnId}/work/{workTypeDefName}", Body("mapId", "priority")), IdempotentMutation()),
             Tool("set_research_project", "Set the current research project by ResearchProjectDef defName.", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), ToolEndpoint.Put(_ => "v1/research/current", Body("projectDefName")), IdempotentMutation())
         };
     }
@@ -356,15 +376,36 @@ internal static class ToolCatalog
 
     private static JsonObject ReadOnly()
     {
-        return new JsonObject { ["readOnlyHint"] = true };
+        return new JsonObject
+        {
+            ["readOnlyHint"] = true,
+            ["openWorldHint"] = false
+        };
     }
 
     private static JsonObject IdempotentMutation()
     {
+        return Mutation(idempotent: true, destructive: false);
+    }
+
+    private static JsonObject AdditiveMutation()
+    {
+        return Mutation(idempotent: false, destructive: false);
+    }
+
+    private static JsonObject DestructiveMutation()
+    {
+        return Mutation(idempotent: false, destructive: true);
+    }
+
+    private static JsonObject Mutation(bool idempotent, bool destructive)
+    {
         return new JsonObject
         {
             ["readOnlyHint"] = false,
-            ["idempotentHint"] = true
+            ["idempotentHint"] = idempotent,
+            ["destructiveHint"] = destructive,
+            ["openWorldHint"] = false
         };
     }
 

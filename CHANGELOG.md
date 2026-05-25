@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file.
 
 - Typed command tools for drafting pawns, setting work priorities, and changing the current research project.
 - PUT command endpoints for pawn draft state, pawn work priority, and current research.
-- MCP tool annotations for read-only reads and idempotent command tools.
+- MCP tool annotations for read-only reads, idempotent command tools, and closed-world/non-destructive command behavior.
 - Shared bridge route table with method-aware path matching and named route captures.
 - Request body size limit for bridge command payloads.
 

@@ -46,6 +46,16 @@ namespace RiMCP.Bridge
             return new BridgeRoute("PUT", template, handle);
         }
 
+        public static BridgeRoute Post(string template, Handler handle)
+        {
+            return new BridgeRoute("POST", template, handle);
+        }
+
+        public static BridgeRoute Delete(string template, Handler handle)
+        {
+            return new BridgeRoute("DELETE", template, handle);
+        }
+
         public bool MethodMatches(string method)
         {
             return string.Equals(Method, method, StringComparison.OrdinalIgnoreCase);

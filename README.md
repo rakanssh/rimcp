@@ -33,7 +33,7 @@ Current MCP tools:
 - `search_defs`
 - `get_def`
 - `set_pawn_drafted`
-- `set_work_priority`
+- `set_pawn_work_priority`
 - `set_research_project`
 
 Most tools accept the same optional read controls:
