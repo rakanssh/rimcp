@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-05-26
+
+### Added
+
+- HTTP read endpoints for production workshops and available bills
+- MCP tools for production workshops and available bills
+
 ## [0.1.0] - 2026-05-25
 
 ### Added

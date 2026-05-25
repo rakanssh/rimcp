@@ -18,6 +18,8 @@ Current MCP tools:
 - `list_work`
 - `list_production`
 - `get_bill`
+- `list_workshops`
+- `get_workshop`
 - `list_zones`
 - `get_zone`
 - `get_environment`
@@ -55,6 +57,8 @@ Tool responses use a shared envelope:
 The MCP proxy returns the full payload as `structuredContent` and also mirrors the JSON in text content for clients that do not read structured tool results yet.
 
 Building reads support `category` values `production`, `power`, `bed`, and `storage`, plus defName substring matching. Use `include: ["contents"]` to include shelf/storage contents in `list_buildings`, or `get_building` to inspect a single building by id.
+
+Workshop reads expose colony bill givers separately from generic buildings. Use `list_workshops` for available workbenches and `get_workshop` to inspect one bench's current bills plus recipes that can be added there.
 
 ## Using The Mod
 

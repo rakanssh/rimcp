@@ -30,6 +30,45 @@ namespace RiMCP.Read
                 page.NextCursor);
         }
 
+        public static BridgeResponse ListWorkshops(ReadContext context)
+        {
+            if (context.Map == null)
+            {
+                return BridgeResponse.Error(409, "No active map is loaded.");
+            }
+            if (!ReadUtil.ChangedSince(context))
+            {
+                return ReadEnvelope.NotChanged(context);
+            }
+
+            IEnumerable<WorkshopRecord> records = WorkshopRecords(context.Map)
+                .OrderBy(record => record.Workbench.def.defName)
+                .ThenBy(record => record.Workbench.ThingID);
+            Page<WorkshopRecord> page = new Page<WorkshopRecord>(records, context.Request);
+            bool includeRecipes = context.Request.Wants("recipes");
+
+            return ReadEnvelope.Ok(context, Dto.Obj(
+                Dto.Field("workshops", page.Items.Select(record => SerializeWorkshop(record, context.Request.Detail, includeRecipes)).ToArray())),
+                page.Truncated,
+                page.NextCursor);
+        }
+
+        public static BridgeResponse GetWorkshop(ReadContext context, string id)
+        {
+            if (context.Map == null)
+            {
+                return BridgeResponse.Error(409, "No active map is loaded.");
+            }
+
+            WorkshopRecord record = WorkshopRecords(context.Map)
+                .FirstOrDefault(item => item.Workbench.ThingID == id || item.Workbench.GetUniqueLoadID() == id);
+            if (record == null)
+            {
+                return BridgeResponse.Error(404, "Workshop not found.");
+            }
+            return ReadEnvelope.Ok(context, SerializeWorkshop(record, ReadDetail.Full, true));
+        }
+
         public static BridgeResponse GetBill(ReadContext context, string id)
         {
             if (context.Map == null)
@@ -61,6 +100,53 @@ namespace RiMCP.Read
             }
         }
 
+        private static IEnumerable<WorkshopRecord> WorkshopRecords(Map map)
+        {
+            foreach (Building building in map.listerBuildings.allBuildingsColonist)
+            {
+                IBillGiver giver = building as IBillGiver;
+                if (giver == null || giver.BillStack == null)
+                {
+                    continue;
+                }
+                yield return new WorkshopRecord(building, giver);
+            }
+        }
+
+        private static object SerializeWorkshop(WorkshopRecord record, ReadDetail detail, bool includeRecipes)
+        {
+            List<RecipeDef> recipes = AvailableRecipes(record.Workbench.def)
+                .OrderBy(recipe => recipe.defName)
+                .ToList();
+            List<Bill> bills = record.Giver.BillStack == null
+                ? new List<Bill>()
+                : record.Giver.BillStack.Bills.ToList();
+
+            Dictionary<string, object> dto = Dto.Obj(
+                Dto.Field("ids", ReadUtil.ThingIds(record.Workbench)),
+                Dto.Field("def", ReadUtil.Def(record.Workbench.def)),
+                Dto.Field("label", record.Workbench.LabelCap),
+                Dto.Field("position", ReadUtil.Cell(record.Workbench.Position)),
+                Dto.Field("usableForBills", CurrentlyUsableForBills(record.Giver)),
+                Dto.Field("usableAfterFueling", UsableForBillsAfterFueling(record.Giver)),
+                Dto.Field("currentBillCount", bills.Count),
+                Dto.Field("availableRecipeCount", recipes.Count));
+
+            if (detail != ReadDetail.Summary)
+            {
+                dto["currentBills"] = bills
+                    .Select(bill => SerializeBill(new BillRecord(record.Workbench, record.Giver, bill), detail))
+                    .ToArray();
+            }
+            if (includeRecipes)
+            {
+                dto["availableRecipes"] = recipes
+                    .Select(recipe => SerializeRecipe(recipe, detail))
+                    .ToArray();
+            }
+            return dto;
+        }
+
         private static object SerializeBill(BillRecord record, ReadDetail detail)
         {
             Bill_Production production = record.Bill as Bill_Production;
@@ -89,24 +175,123 @@ namespace RiMCP.Read
                 dto["allowedSkillRange"] = Dto.Obj(
                     Dto.Field("min", record.Bill.allowedSkillRange.min),
                     Dto.Field("max", record.Bill.allowedSkillRange.max));
-                dto["products"] = record.Bill.recipe == null || record.Bill.recipe.products == null
-                    ? new object[0]
-                    : record.Bill.recipe.products.Select(product => Dto.Obj(
-                        Dto.Field("defName", product.thingDef == null ? null : product.thingDef.defName),
-                        Dto.Field("label", ReadUtil.DefLabel(product.thingDef)),
-                        Dto.Field("count", product.count))).ToArray();
-                dto["ingredients"] = record.Bill.recipe == null || record.Bill.recipe.ingredients == null
-                    ? new object[0]
-                    : record.Bill.recipe.ingredients.Select(ingredient => Dto.Obj(
-                        Dto.Field("count", IngredientCountValue(ingredient)),
-                        Dto.Field("filterSummary", ingredient.filter == null ? null : ingredient.filter.Summary))).ToArray();
+                dto["products"] = SerializeRecipeProducts(record.Bill.recipe);
+                dto["ingredients"] = SerializeRecipeIngredients(record.Bill.recipe);
             }
             return dto;
+        }
+
+        private static IEnumerable<RecipeDef> AvailableRecipes(ThingDef workbenchDef)
+        {
+            IEnumerable<RecipeDef> recipes = null;
+            try
+            {
+                recipes = workbenchDef == null ? null : workbenchDef.AllRecipes;
+            }
+            catch
+            {
+            }
+            if (recipes == null)
+            {
+                yield break;
+            }
+
+            foreach (RecipeDef recipe in recipes)
+            {
+                if (recipe == null)
+                {
+                    continue;
+                }
+                bool available = false;
+                try
+                {
+                    available = recipe.AvailableNow;
+                }
+                catch
+                {
+                }
+                if (available)
+                {
+                    yield return recipe;
+                }
+            }
+        }
+
+        private static object SerializeRecipe(RecipeDef recipe, ReadDetail detail)
+        {
+            Dictionary<string, object> dto = Dto.Obj(
+                Dto.Field("defName", recipe.defName),
+                Dto.Field("label", ReadUtil.DefLabel(recipe)),
+                Dto.Field("workAmount", recipe.WorkAmountTotal(null)),
+                Dto.Field("workSkill", recipe.workSkill == null ? null : recipe.workSkill.defName),
+                Dto.Field("workSpeedStat", recipe.workSpeedStat == null ? null : recipe.workSpeedStat.defName),
+                Dto.Field("products", SerializeRecipeProducts(recipe)));
+
+            if (detail != ReadDetail.Summary)
+            {
+                dto["ingredients"] = SerializeRecipeIngredients(recipe);
+            }
+            return dto;
+        }
+
+        private static object SerializeRecipeProducts(RecipeDef recipe)
+        {
+            return recipe == null || recipe.products == null
+                ? new object[0]
+                : recipe.products.Select(product => Dto.Obj(
+                    Dto.Field("defName", product.thingDef == null ? null : product.thingDef.defName),
+                    Dto.Field("label", ReadUtil.DefLabel(product.thingDef)),
+                    Dto.Field("count", product.count))).ToArray();
+        }
+
+        private static object SerializeRecipeIngredients(RecipeDef recipe)
+        {
+            return recipe == null || recipe.ingredients == null
+                ? new object[0]
+                : recipe.ingredients.Select(ingredient => Dto.Obj(
+                    Dto.Field("count", IngredientCountValue(ingredient)),
+                    Dto.Field("filterSummary", ingredient.filter == null ? null : ingredient.filter.Summary))).ToArray();
+        }
+
+        private static object CurrentlyUsableForBills(IBillGiver giver)
+        {
+            try
+            {
+                return giver.CurrentlyUsableForBills();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object UsableForBillsAfterFueling(IBillGiver giver)
+        {
+            try
+            {
+                return giver.UsableForBillsAfterFueling();
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static object IngredientCountValue(IngredientCount ingredient)
         {
             return ingredient.GetBaseCount();
+        }
+
+        private sealed class WorkshopRecord
+        {
+            public readonly Building Workbench;
+            public readonly IBillGiver Giver;
+
+            public WorkshopRecord(Building workbench, IBillGiver giver)
+            {
+                Workbench = workbench;
+                Giver = giver;
+            }
         }
 
         private sealed class BillRecord

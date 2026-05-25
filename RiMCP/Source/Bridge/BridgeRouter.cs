@@ -26,6 +26,8 @@ namespace RiMCP.Bridge
                 if (path == "/v1/work") return WorkReadService.ListWork(context);
                 if (path == "/v1/production") return ProductionReadService.ListProduction(context);
                 if (path.StartsWith("/v1/bills/", StringComparison.Ordinal)) return ProductionReadService.GetBill(context, PathPart(path, 3));
+                if (path == "/v1/workshops") return ProductionReadService.ListWorkshops(context);
+                if (path.StartsWith("/v1/workshops/", StringComparison.Ordinal)) return ProductionReadService.GetWorkshop(context, PathPart(path, 3));
                 if (path == "/v1/zones") return ZoneReadService.ListZones(context);
                 if (path.StartsWith("/v1/zones/", StringComparison.Ordinal)) return ZoneReadService.GetZone(context, PathPart(path, 3));
                 if (path == "/v1/environment") return EnvironmentReadService.GetEnvironment(context);

@@ -55,7 +55,7 @@ while ((line = Console.ReadLine()) != null)
                     ["serverInfo"] = new JsonObject
                     {
                         ["name"] = "rimcp",
-                        ["version"] = "0.1.0"
+                        ["version"] = "0.2.0"
                     }
                 });
                 break;
@@ -265,6 +265,8 @@ internal static class ToolCatalog
             Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), args => QueryPath("v1/work", args)),
             Tool("list_production", "List production bills across colony bill givers.", Input(), args => QueryPath("v1/production", args)),
             Tool("get_bill", "Get full details for one production bill by bill id.", Required(Prop("id", Str("Bill id returned by list_production."))), PathWithId("v1/bills", "id")),
+            Tool("list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", Input(), args => QueryPath("v1/workshops", args)),
+            Tool("get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops."))), PathWithId("v1/workshops", "id")),
             Tool("list_zones", "List stockpiles, growing zones, and allowed areas.", Input(), args => QueryPath("v1/zones", args)),
             Tool("get_zone", "Get full details for one zone or area by id.", Required(Prop("id", Str("Zone id returned by list_zones."))), PathWithId("v1/zones", "id")),
             Tool("get_environment", "Get weather, season, game conditions, room temperature summaries, and hazards.", Input(), args => QueryPath("v1/environment", args)),
@@ -380,7 +382,7 @@ internal static class ToolCatalog
             {
                 ["type"] = "array",
                 ["items"] = new JsonObject { ["type"] = "string" },
-                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, gear, relations, and contents."
+                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, gear, relations, contents, and recipes."
             },
             ["limit"] = new JsonObject
             {
