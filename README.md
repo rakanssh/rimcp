@@ -34,13 +34,17 @@ Current MCP tools:
 - `get_def`
 - `set_pawn_drafted`
 - `set_pawn_work_priority`
+- `set_pawn_schedule`
+- `set_prisoner_interaction`
+- `designate_animal`
+- `set_animal_training`
 - `set_research_project`
 
 Most tools accept the same optional read controls:
 
 - `mapId`: select a specific loaded map; defaults to the current map.
 - `detail`: `summary`, `normal`, or `full`; defaults to compact `summary`.
-- `include`: request specific heavier sections without switching to full detail.
+- `include`: request specific heavier sections without switching to full detail, such as animal `training`.
 - `limit` and `cursor`: page large lists deterministically.
 - `sinceTick`: return `notModified` when the game has not advanced.
 - `idsOnly`: return identifiers only when supported by the list tool.
@@ -80,6 +84,10 @@ Current command HTTP endpoints:
 
 - `PUT /v1/pawns/{pawnId}/drafted`
 - `PUT /v1/pawns/{pawnId}/work/{workTypeDefName}`
+- `PUT /v1/pawns/{pawnId}/schedule`
+- `PUT /v1/prisoners/{pawnId}/interaction`
+- `PUT /v1/animals/{pawnId}/designation`
+- `PUT /v1/animals/{pawnId}/training`
 - `PUT /v1/research/current`
 
 ## Connection Model

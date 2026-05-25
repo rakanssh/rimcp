@@ -32,6 +32,10 @@ namespace RiMCP.Bridge
             BridgeRoute.Get("/v1/defs/{defName}", DefReadService.GetDef),
             BridgeRoute.Put("/v1/pawns/{pawnId}/drafted", PawnCommandService.SetDrafted),
             BridgeRoute.Put("/v1/pawns/{pawnId}/work/{workTypeDefName}", PawnCommandService.SetWorkPriority),
+            BridgeRoute.Put("/v1/pawns/{pawnId}/schedule", PawnCommandService.SetSchedule),
+            BridgeRoute.Put("/v1/prisoners/{pawnId}/interaction", PrisonerCommandService.SetInteraction),
+            BridgeRoute.Put("/v1/animals/{pawnId}/designation", AnimalCommandService.SetDesignation),
+            BridgeRoute.Put("/v1/animals/{pawnId}/training", AnimalCommandService.SetTraining),
             BridgeRoute.Put("/v1/research/current", ResearchCommandService.SetCurrent)
         };
 

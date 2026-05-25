@@ -6,17 +6,16 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Typed command tools for drafting pawns, setting work priorities, and changing the current research project.
-- PUT command endpoints for pawn draft state, pawn work priority, and current research.
-- MCP tool annotations for read-only reads, idempotent command tools, and closed-world/non-destructive command behavior.
-- Shared bridge route table with method-aware path matching and named route captures.
-- Request body size limit for bridge command payloads.
+- Typed MCP command tools and PUT endpoints for pawn drafting, work priorities, schedules, prisoner interaction modes, animal designations, animal training, and current research selection.
+- MCP tool annotations for read-only reads, idempotent commands, destructive commands, and closed-world bridge behavior.
+- Animal training details in pawn reads when requested with full detail or `include=["training"]`.
+- Request body size limit for command payloads.
 
 ### Changed
 
-- Routed read and command endpoints through a unified bridge dispatcher.
-- Simplified MCP proxy endpoint definitions with templated paths for command tools.
-- Moved map resolution into a neutral bridge helper shared by reads and commands.
+- Refactored bridge dispatch to a unified method-aware route table shared by read and command endpoints.
+- Simplified MCP proxy endpoint definitions with method-aware metadata and templated paths.
+- Moved map, pawn, and def resolution into shared command helpers where appropriate.
 
 ## [0.2.0] - 2026-05-25
 

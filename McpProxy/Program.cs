@@ -365,6 +365,10 @@ internal static class ToolCatalog
             Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), ToolEndpoint.Get(PathWithId("v1/defs", "defName", "kind")), ReadOnly()),
             Tool("set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), ToolEndpoint.Put("v1/pawns/{pawnId}/drafted", Body("mapId", "drafted")), IdempotentMutation()),
             Tool("set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), ToolEndpoint.Put("v1/pawns/{pawnId}/work/{workTypeDefName}", Body("mapId", "priority")), IdempotentMutation()),
+            Tool("set_pawn_schedule", "Set one player-controlled pawn's timetable assignments across half-open hour ranges.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("assignments", ScheduleAssignments())), ToolEndpoint.Put("v1/pawns/{pawnId}/schedule", Body("mapId", "assignments")), IdempotentMutation()),
+            Tool("set_prisoner_interaction", "Set one colony prisoner's exclusive interaction mode by PrisonerInteractionModeDef defName.", RequiredWithMap(Prop("pawnId", Str("Prisoner pawn ThingID or load id.")), Prop("interactionModeDefName", Str("PrisonerInteractionModeDef defName, such as AttemptRecruit, ReduceResistance, Convert, or Release."))), ToolEndpoint.Put("v1/prisoners/{pawnId}/interaction", Body("mapId", "interactionModeDefName")), IdempotentMutation()),
+            Tool("designate_animal", "Set or clear one animal's hunt, tame, or slaughter designation.", RequiredWithMap(Prop("pawnId", Str("Animal pawn ThingID or load id.")), Prop("action", AnimalDesignationAction())), ToolEndpoint.Put("v1/animals/{pawnId}/designation", Body("mapId", "action")), IdempotentDestructiveMutation()),
+            Tool("set_animal_training", "Set desired training flags for one colony animal by TrainableDef defName.", RequiredWithMap(Prop("pawnId", Str("Colony animal pawn ThingID or load id.")), Prop("assignments", TrainingAssignments())), ToolEndpoint.Put("v1/animals/{pawnId}/training", Body("mapId", "assignments")), IdempotentMutation()),
             Tool("set_research_project", "Set the current research project by ResearchProjectDef defName.", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), ToolEndpoint.Put(_ => "v1/research/current", Body("projectDefName")), IdempotentMutation())
         };
     }
@@ -386,6 +390,11 @@ internal static class ToolCatalog
     private static JsonObject IdempotentMutation()
     {
         return Mutation(idempotent: true, destructive: false);
+    }
+
+    private static JsonObject IdempotentDestructiveMutation()
+    {
+        return Mutation(idempotent: true, destructive: true);
     }
 
     private static JsonObject AdditiveMutation()
@@ -550,7 +559,7 @@ internal static class ToolCatalog
             {
                 ["type"] = "array",
                 ["items"] = new JsonObject { ["type"] = "string" },
-                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, gear, relations, contents, and recipes."
+                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, training, gear, relations, contents, and recipes."
             },
             ["limit"] = new JsonObject
             {
@@ -613,6 +622,59 @@ internal static class ToolCatalog
             ["minimum"] = minimum,
             ["maximum"] = maximum,
             ["description"] = description
+        };
+    }
+
+    private static JsonObject ScheduleAssignments()
+    {
+        return new JsonObject
+        {
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["description"] = "Schedule assignment ranges. Ranges are half-open, non-overlapping, and use hours 0 through 24.",
+            ["items"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["startHour"] = Int("Inclusive start hour from 0 to 23.", 0, 23),
+                    ["endHour"] = Int("Exclusive end hour from 1 to 24.", 1, 24),
+                    ["assignmentDefName"] = Str("TimeAssignmentDef defName, such as Anything, Work, Joy, Sleep, or Meditate.")
+                },
+                ["required"] = new JsonArray("startHour", "endHour", "assignmentDefName"),
+                ["additionalProperties"] = false
+            }
+        };
+    }
+
+    private static JsonObject TrainingAssignments()
+    {
+        return new JsonObject
+        {
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["description"] = "Training desired-state changes for one colony animal.",
+            ["items"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["trainableDefName"] = Str("TrainableDef defName, such as Tameness, Obedience, or Release."),
+                    ["wanted"] = Bool("Whether this trainable should be wanted.")
+                },
+                ["required"] = new JsonArray("trainableDefName", "wanted"),
+                ["additionalProperties"] = false
+            }
+        };
+    }
+
+    private static JsonObject AnimalDesignationAction()
+    {
+        return new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("hunt", "tame", "slaughter", "none"),
+            ["description"] = "Animal designation action. none clears hunt, tame, and slaughter designations."
         };
     }
 

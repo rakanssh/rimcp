@@ -84,6 +84,83 @@ namespace RiMCP.Command
             }
         }
 
+        public static Pawn ResolveSpawnedPawn(CommandContext context, string pawnId)
+        {
+            Pawn pawn = PawnReadService.FindPawn(context.Map, pawnId);
+            if (pawn == null)
+            {
+                throw new CommandException(404, "Pawn not found.");
+            }
+            if (pawn.Dead || !pawn.Spawned)
+            {
+                throw new CommandException(409, "Pawn is not alive and spawned.");
+            }
+            return pawn;
+        }
+
+        public static Pawn ResolvePlayerControlledPawn(CommandContext context, string pawnId)
+        {
+            Pawn pawn = ResolveSpawnedPawn(context, pawnId);
+            RequirePlayerControlled(pawn);
+            return pawn;
+        }
+
+        public static void RequirePlayerControlled(Pawn pawn)
+        {
+            if (pawn == null || !pawn.IsPlayerControlled)
+            {
+                throw new CommandException(409, "Pawn is not player-controlled.");
+            }
+        }
+
+        public static void RequireColonyPrisoner(Pawn pawn)
+        {
+            if (pawn == null || pawn.guest == null || !pawn.IsPrisonerOfColony)
+            {
+                throw new CommandException(409, "Pawn is not a colony prisoner.");
+            }
+        }
+
+        public static void RequireAnimal(Pawn pawn)
+        {
+            if (pawn == null || !pawn.IsAnimal)
+            {
+                throw new CommandException(409, "Pawn is not an animal.");
+            }
+        }
+
+        public static void RequireColonyAnimal(Pawn pawn)
+        {
+            if (pawn == null || !pawn.IsColonyAnimal)
+            {
+                throw new CommandException(409, "Pawn is not a colony animal.");
+            }
+        }
+
+        public static T ResolveDef<T>(string defName, string fieldName, string kind) where T : Def
+        {
+            if (string.IsNullOrWhiteSpace(defName))
+            {
+                throw new CommandException(400, "Missing required field '" + fieldName + "'.");
+            }
+
+            T def = DefDatabase<T>.GetNamedSilentFail(defName);
+            if (def == null)
+            {
+                throw new CommandException(404, kind + " not found.");
+            }
+            return def;
+        }
+
+        public static object DefSummary(Def def)
+        {
+            return def == null
+                ? null
+                : Dto.Obj(
+                    Dto.Field("defName", def.defName),
+                    Dto.Field("label", ReadUtil.DefLabel(def)));
+        }
+
         public static object PawnSummary(Pawn pawn)
         {
             return Dto.Obj(

@@ -181,6 +181,10 @@ namespace RiMCP.Read
                 dto["work"] = SerializePawnWork(pawn);
                 dto["schedule"] = SerializeSchedule(pawn);
             }
+            if (detail == ReadDetail.Full || request.Wants("training"))
+            {
+                dto["training"] = SerializeTraining(pawn);
+            }
             if (detail == ReadDetail.Full || request.Wants("gear"))
             {
                 dto["gear"] = SerializeGear(pawn);
@@ -375,6 +379,57 @@ namespace RiMCP.Read
                 Dto.Field("allowedArea", area == null ? null : Dto.Obj(
                     Dto.Field("label", area.Label),
                     Dto.Field("id", area.ID.ToString()))));
+        }
+
+        public static object SerializeTraining(Pawn pawn)
+        {
+            return SerializeTraining(pawn, null);
+        }
+
+        public static object SerializeTraining(Pawn pawn, Dictionary<string, bool> wantedOverride)
+        {
+            if (pawn == null || pawn.training == null || !pawn.IsAnimal)
+            {
+                return null;
+            }
+
+            return DefDatabase<TrainableDef>.AllDefsListForReading
+                .OrderBy(def => def.listPriority)
+                .ThenBy(def => def.defName)
+                .Select(def => SerializeTrainable(pawn, def, wantedOverride))
+                .ToArray();
+        }
+
+        private static object SerializeTrainable(Pawn pawn, TrainableDef trainable, Dictionary<string, bool> wantedOverride)
+        {
+            bool wanted;
+            if (wantedOverride == null || !wantedOverride.TryGetValue(trainable.defName, out wanted))
+            {
+                wanted = pawn.training.GetWanted(trainable);
+            }
+
+            bool canBeTrained = false;
+            bool assignable = false;
+            string rejectionReason = null;
+            try
+            {
+                canBeTrained = pawn.training.CanBeTrained(trainable);
+                AcceptanceReport report = pawn.training.CanAssignToTrain(trainable);
+                assignable = report.Accepted;
+                rejectionReason = report.Accepted ? null : report.Reason;
+            }
+            catch
+            {
+            }
+
+            return Dto.Obj(
+                Dto.Field("defName", trainable.defName),
+                Dto.Field("label", ReadUtil.DefLabel(trainable)),
+                Dto.Field("wanted", wanted),
+                Dto.Field("learned", pawn.training.HasLearned(trainable)),
+                Dto.Field("canBeTrained", canBeTrained),
+                Dto.Field("assignable", assignable),
+                Dto.Field("rejectionReason", rejectionReason));
         }
 
         public static object SerializeGear(Pawn pawn)
