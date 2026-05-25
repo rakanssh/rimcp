@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using RimWorld;
 using RiMCP.Bridge;
 using Verse;
@@ -8,6 +9,9 @@ namespace RiMCP.Read
 {
     internal static class ResearchReadService
     {
+        // RimWorld keeps the current project private; keep this compatibility touchpoint local.
+        private static readonly FieldInfo CurrentProjectField = typeof(ResearchManager).GetField("currentProj", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
         public static BridgeResponse GetResearch(ReadContext context)
         {
             if (!ReadUtil.ChangedSince(context))
@@ -30,7 +34,7 @@ namespace RiMCP.Read
 
         public static ResearchProjectDef CurrentProject()
         {
-            return Find.ResearchManager == null ? null : Reflect.Read(Find.ResearchManager, "currentProj") as ResearchProjectDef;
+            return Find.ResearchManager == null || CurrentProjectField == null ? null : CurrentProjectField.GetValue(Find.ResearchManager) as ResearchProjectDef;
         }
 
         public static object SerializeProject(ResearchProjectDef project, ReadDetail detail)
@@ -65,19 +69,7 @@ namespace RiMCP.Read
 
         private static float Progress(ResearchProjectDef project)
         {
-            object progress = Reflect.Invoke(Find.ResearchManager, "GetProgress", project);
-            if (progress == null)
-            {
-                return 0f;
-            }
-            try
-            {
-                return System.Convert.ToSingle(progress, System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return 0f;
-            }
+            return Find.ResearchManager == null ? 0f : Find.ResearchManager.GetProgress(project);
         }
     }
 }

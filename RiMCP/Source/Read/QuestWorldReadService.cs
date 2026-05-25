@@ -16,9 +16,9 @@ namespace RiMCP.Read
                 return ReadEnvelope.NotChanged(context);
             }
 
-            IEnumerable<object> source = Reflect.ReadEnumerable(Find.QuestManager, "QuestsListForReading")
-                .OrderBy(quest => Reflect.ReadString(quest, "name") ?? Reflect.ReadString(quest, "ID") ?? "");
-            Page<object> page = new Page<object>(source, context.Request);
+            IEnumerable<Quest> source = (Find.QuestManager == null ? Enumerable.Empty<Quest>() : Find.QuestManager.QuestsListForReading)
+                .OrderBy(quest => quest.name ?? quest.id.ToString());
+            Page<Quest> page = new Page<Quest>(source, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("quests", page.Items.Select(quest => SerializeQuest(quest, context.Request.Detail)).ToArray())),
                 page.Truncated,
@@ -38,24 +38,23 @@ namespace RiMCP.Read
                 Dto.Field("worldObjects", SerializeWorldObjects(context.Request))));
         }
 
-        private static object SerializeQuest(object quest, ReadDetail detail)
+        private static object SerializeQuest(Quest quest, ReadDetail detail)
         {
             Dictionary<string, object> dto = Dto.Obj(
-                Dto.Field("id", Reflect.Read(quest, "id") ?? Reflect.Read(quest, "ID")),
-                Dto.Field("name", Reflect.ReadString(quest, "name")),
-                Dto.Field("state", Reflect.Read(quest, "State") == null ? null : Reflect.Read(quest, "State").ToString()),
-                Dto.Field("root", Reflect.ReadString(Reflect.Read(quest, "root"), "defName")),
-                Dto.Field("accepted", Reflect.Read(quest, "accepted")));
+                Dto.Field("id", quest.id),
+                Dto.Field("name", quest.name),
+                Dto.Field("state", quest.State.ToString()),
+                Dto.Field("root", quest.root == null ? null : quest.root.defName),
+                Dto.Field("accepted", quest.EverAccepted));
             if (detail != ReadDetail.Summary)
             {
-                dto["description"] = Reflect.ReadString(quest, "description");
-                dto["ticksUntilAcceptanceExpiry"] = Reflect.Read(quest, "ticksUntilAcceptanceExpiry");
-                dto["hidden"] = Reflect.Read(quest, "hidden");
-                dto["parts"] = Reflect.ReadEnumerable(quest, "parts")
+                dto["description"] = quest.description.ToString();
+                dto["ticksUntilAcceptanceExpiry"] = quest.TicksUntilExpiry;
+                dto["hidden"] = quest.hidden;
+                dto["parts"] = quest.PartsListForReading
                     .Select(part => Dto.Obj(
                         Dto.Field("kind", part.GetType().Name),
-                        Dto.Field("label", Reflect.ReadString(part, "Label")),
-                        Dto.Field("state", Reflect.Read(part, "State") == null ? null : Reflect.Read(part, "State").ToString())))
+                        Dto.Field("label", part.DescriptionPart)))
                     .ToArray();
             }
             return dto;

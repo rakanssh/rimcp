@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Util;
@@ -220,9 +218,21 @@ namespace RiMCP.Read
 
         public Page(IEnumerable<T> source, ReadRequest request)
         {
-            List<T> all = source.ToList();
-            Items = all.Skip(request.Cursor).Take(request.Limit).ToList();
-            Truncated = request.Cursor + request.Limit < all.Count;
+            Items = new List<T>();
+            int seen = 0;
+            foreach (T item in source)
+            {
+                if (seen++ < request.Cursor)
+                {
+                    continue;
+                }
+                if (Items.Count >= request.Limit)
+                {
+                    Truncated = true;
+                    break;
+                }
+                Items.Add(item);
+            }
             NextCursor = Truncated ? (request.Cursor + request.Limit).ToString() : null;
         }
     }
@@ -310,76 +320,6 @@ namespace RiMCP.Read
         public static bool ChangedSince(ReadContext context)
         {
             return !context.Request.SinceTick.HasValue || context.Tick > context.Request.SinceTick.Value;
-        }
-    }
-
-    internal static class Reflect
-    {
-        public static object Read(object instance, string name)
-        {
-            if (instance == null || string.IsNullOrEmpty(name))
-            {
-                return null;
-            }
-            Type type = instance is Type ? (Type)instance : instance.GetType();
-            object target = instance is Type ? null : instance;
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
-            PropertyInfo property = type.GetProperty(name, flags);
-            if (property != null && property.GetIndexParameters().Length == 0)
-            {
-                return property.GetValue(target, null);
-            }
-            FieldInfo field = type.GetField(name, flags);
-            return field == null ? null : field.GetValue(target);
-        }
-
-        public static object Invoke(object instance, string name, params object[] args)
-        {
-            if (instance == null || string.IsNullOrEmpty(name))
-            {
-                return null;
-            }
-            Type type = instance is Type ? (Type)instance : instance.GetType();
-            object target = instance is Type ? null : instance;
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
-            MethodInfo method = type.GetMethod(name, flags);
-            return method == null ? null : method.Invoke(target, args);
-        }
-
-        public static string ReadString(object instance, string name)
-        {
-            object value = Read(instance, name);
-            return value == null ? null : value.ToString();
-        }
-
-        public static float ReadFloat(object instance, string name)
-        {
-            object value = Read(instance, name);
-            if (value == null)
-            {
-                return 0f;
-            }
-            try
-            {
-                return Convert.ToSingle(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return 0f;
-            }
-        }
-
-        public static IEnumerable<object> ReadEnumerable(object instance, string name)
-        {
-            IEnumerable enumerable = Read(instance, name) as IEnumerable;
-            if (enumerable == null)
-            {
-                yield break;
-            }
-            foreach (object item in enumerable)
-            {
-                yield return item;
-            }
         }
     }
 }

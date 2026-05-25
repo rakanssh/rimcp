@@ -81,14 +81,14 @@ namespace RiMCP.Read
 
             if (detail != ReadDetail.Summary)
             {
-                dto["pauseWhenSatisfied"] = production == null ? null : Reflect.Read(production, "pauseWhenSatisfied");
-                dto["unpauseWhenYouHave"] = production == null ? null : Reflect.Read(production, "unpauseWhenYouHave");
-                dto["ingredientSearchRadius"] = production == null ? null : Reflect.Read(production, "ingredientSearchRadius");
-                dto["storeMode"] = Reflect.Read(record.Bill, "billStoreMode") == null ? null : Reflect.Read(record.Bill, "billStoreMode").ToString();
-                object allowedSkillRange = Reflect.Read(record.Bill, "allowedSkillRange");
+                BillStoreModeDef storeMode = record.Bill.GetStoreMode();
+                dto["pauseWhenSatisfied"] = production == null ? null : (object)production.pauseWhenSatisfied;
+                dto["unpauseWhenYouHave"] = production == null ? null : (object)production.unpauseWhenYouHave;
+                dto["ingredientSearchRadius"] = record.Bill.ingredientSearchRadius;
+                dto["storeMode"] = storeMode == null ? null : storeMode.defName;
                 dto["allowedSkillRange"] = Dto.Obj(
-                    Dto.Field("min", allowedSkillRange == null ? null : Reflect.Read(allowedSkillRange, "min")),
-                    Dto.Field("max", allowedSkillRange == null ? null : Reflect.Read(allowedSkillRange, "max")));
+                    Dto.Field("min", record.Bill.allowedSkillRange.min),
+                    Dto.Field("max", record.Bill.allowedSkillRange.max));
                 dto["products"] = record.Bill.recipe == null || record.Bill.recipe.products == null
                     ? new object[0]
                     : record.Bill.recipe.products.Select(product => Dto.Obj(
@@ -106,7 +106,7 @@ namespace RiMCP.Read
 
         private static object IngredientCountValue(IngredientCount ingredient)
         {
-            return Reflect.Read(ingredient, "count") ?? Reflect.Read(ingredient, "Count");
+            return ingredient.GetBaseCount();
         }
 
         private sealed class BillRecord

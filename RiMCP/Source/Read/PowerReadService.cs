@@ -19,8 +19,8 @@ namespace RiMCP.Read
                 return ReadEnvelope.NotChanged(context);
             }
 
-            IEnumerable<object> source = PowerNets(context.Map).OrderByDescending(net => ReadFloatOrInvoke(net, "CurrentStoredEnergy"));
-            Page<object> page = new Page<object>(source, context.Request);
+            IEnumerable<PowerNet> source = PowerNets(context.Map).OrderByDescending(net => net.CurrentStoredEnergy());
+            Page<PowerNet> page = new Page<PowerNet>(source, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("summary", SummarizePower(context.Map)),
                 Dto.Field("grids", page.Items.Select(SerializePowerNet).ToArray()),
@@ -35,9 +35,9 @@ namespace RiMCP.Read
             {
                 return null;
             }
-            List<object> nets = PowerNets(map).ToList();
-            float generationRate = nets.Sum(net => ReadFloatOrInvoke(net, "CurrentEnergyGainRate"));
-            float stored = nets.Sum(net => ReadFloatOrInvoke(net, "CurrentStoredEnergy"));
+            List<PowerNet> nets = PowerNets(map).ToList();
+            float generationRate = nets.Sum(net => net.CurrentEnergyGainRate());
+            float stored = nets.Sum(net => net.CurrentStoredEnergy());
             int componentCount = 0;
             int poweredOff = 0;
             foreach (Building building in map.listerBuildings.allBuildingsColonist)
@@ -61,13 +61,13 @@ namespace RiMCP.Read
                 Dto.Field("poweredOff", poweredOff));
         }
 
-        private static object SerializePowerNet(object net)
+        private static object SerializePowerNet(PowerNet net)
         {
             return Dto.Obj(
-                Dto.Field("storedEnergy", ReadFloatOrInvoke(net, "CurrentStoredEnergy")),
-                Dto.Field("energyGainRate", ReadFloatOrInvoke(net, "CurrentEnergyGainRate")),
-                Dto.Field("powerComps", Reflect.ReadEnumerable(net, "powerComps").Count()),
-                Dto.Field("batteryComps", Reflect.ReadEnumerable(net, "batteryComps").Count()));
+                Dto.Field("storedEnergy", net.CurrentStoredEnergy()),
+                Dto.Field("energyGainRate", net.CurrentEnergyGainRate()),
+                Dto.Field("powerComps", net.powerComps.Count),
+                Dto.Field("batteryComps", net.batteryComps.Count));
         }
 
         private static object SerializePowerComponents(Map map)
@@ -94,33 +94,15 @@ namespace RiMCP.Read
             return components;
         }
 
-        private static IEnumerable<object> PowerNets(Map map)
+        private static IEnumerable<PowerNet> PowerNets(Map map)
         {
-            object manager = map == null ? null : map.powerNetManager;
-            foreach (object net in Reflect.ReadEnumerable(manager, "AllNetsListForReading"))
+            if (map == null || map.powerNetManager == null)
+            {
+                yield break;
+            }
+            foreach (PowerNet net in map.powerNetManager.AllNetsListForReading)
             {
                 yield return net;
-            }
-        }
-
-        private static float ReadFloatOrInvoke(object instance, string name)
-        {
-            object value = Reflect.Invoke(instance, name);
-            if (value == null)
-            {
-                value = Reflect.Read(instance, name);
-            }
-            if (value == null)
-            {
-                return 0f;
-            }
-            try
-            {
-                return System.Convert.ToSingle(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return 0f;
             }
         }
     }

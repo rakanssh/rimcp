@@ -225,16 +225,13 @@ namespace RiMCP.Read
             if (detail == ReadDetail.Full)
             {
                 List<object> thoughts = new List<object>();
-                // RimWorld exposes active memory thoughts through nested handlers, but parts
-                // of that path have moved between versions; keep the reflection localized.
-                object memories = Reflect.Read(Reflect.Read(pawn.needs.mood, "thoughts"), "memories");
-                foreach (object memory in Reflect.ReadEnumerable(memories, "Memories"))
+                MemoryThoughtHandler memories = pawn.needs.mood.thoughts == null ? null : pawn.needs.mood.thoughts.memories;
+                foreach (Thought_Memory memory in memories == null ? Enumerable.Empty<Thought_Memory>() : memories.Memories)
                 {
-                    object def = Reflect.Read(memory, "def");
                     thoughts.Add(Dto.Obj(
-                        Dto.Field("defName", Reflect.ReadString(def, "defName")),
-                        Dto.Field("label", Reflect.ReadString(memory, "LabelCap") ?? memory.ToString()),
-                        Dto.Field("moodOffset", Reflect.ReadFloat(memory, "MoodOffset"))));
+                        Dto.Field("defName", memory.def == null ? null : memory.def.defName),
+                        Dto.Field("label", memory.LabelCap),
+                        Dto.Field("moodOffset", memory.MoodOffset())));
                 }
                 mood["thoughts"] = thoughts;
             }
@@ -338,7 +335,7 @@ namespace RiMCP.Read
 
         public static object SerializeSchedule(Pawn pawn)
         {
-            object timetable = pawn.timetable;
+            Pawn_TimetableTracker timetable = pawn.timetable;
             if (timetable == null)
             {
                 return null;
@@ -346,17 +343,17 @@ namespace RiMCP.Read
             List<object> hours = new List<object>();
             for (int hour = 0; hour < 24; hour++)
             {
-                object assignment = Reflect.Invoke(timetable, "GetAssignment", hour);
+                TimeAssignmentDef assignment = timetable.GetAssignment(hour);
                 hours.Add(Dto.Obj(
                     Dto.Field("hour", hour),
-                    Dto.Field("assignment", assignment == null ? null : Reflect.ReadString(Reflect.Read(assignment, "def"), "defName") ?? assignment.ToString())));
+                    Dto.Field("assignment", assignment == null ? null : assignment.defName)));
             }
-            object area = pawn.playerSettings == null ? null : Reflect.Read(pawn.playerSettings, "AreaRestrictionInPawnCurrentMap");
+            Area area = pawn.playerSettings == null ? null : pawn.playerSettings.AreaRestrictionInPawnCurrentMap;
             return Dto.Obj(
                 Dto.Field("hours", hours),
                 Dto.Field("allowedArea", area == null ? null : Dto.Obj(
-                    Dto.Field("label", Reflect.ReadString(area, "Label")),
-                    Dto.Field("id", Reflect.ReadString(area, "ID")))));
+                    Dto.Field("label", area.Label),
+                    Dto.Field("id", area.ID.ToString()))));
         }
 
         public static object SerializeGear(Pawn pawn)

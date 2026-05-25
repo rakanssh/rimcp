@@ -37,9 +37,9 @@ namespace RiMCP.Read
             float outdoorTemp = map.mapTemperature == null ? 0f : map.mapTemperature.OutdoorTemp;
             int hotRooms = 0;
             int coldRooms = 0;
-            foreach (object room in Rooms(map))
+            foreach (Room room in Rooms(map))
             {
-                float temp = Reflect.ReadFloat(room, "Temperature");
+                float temp = room.Temperature;
                 if (temp > 45f)
                 {
                     hotRooms++;
@@ -84,25 +84,26 @@ namespace RiMCP.Read
 
         private static object SerializeRooms(Map map, ReadRequest request)
         {
-            IEnumerable<object> source = Rooms(map)
-                .OrderByDescending(room => System.Math.Abs(Reflect.ReadFloat(room, "Temperature") - 21f));
-            Page<object> page = new Page<object>(source, request);
+            IEnumerable<Room> source = Rooms(map)
+                .OrderByDescending(room => System.Math.Abs(room.Temperature - 21f));
+            Page<Room> page = new Page<Room>(source, request);
             return Dto.Obj(
                 Dto.Field("truncated", page.Truncated),
                 Dto.Field("nextCursor", page.NextCursor),
-                Dto.Field("items", page.Items.Select(SerializeRoom).ToArray()));
+                Dto.Field("items", page.Items.Select(room => SerializeRoom(map, room)).ToArray()));
         }
 
-        private static object SerializeRoom(object room)
+        private static object SerializeRoom(Map map, Room room)
         {
-            object role = Reflect.Read(room, "Role");
-            object firstCell = Reflect.Read(room, "FirstRegion") == null ? null : Reflect.Read(Reflect.Read(room, "FirstRegion"), "AnyCell");
+            RoomRoleDef role = room.Role;
+            Region firstRegion = room.FirstRegion;
+            IntVec3? firstCell = firstRegion == null ? (IntVec3?)null : firstRegion.AnyCell;
             return Dto.Obj(
-                Dto.Field("id", firstCell is IntVec3 ? ReadUtil.StableSessionId("room", 0, (IntVec3)firstCell, Reflect.ReadString(role, "defName")) : null),
-                Dto.Field("role", role == null ? null : Reflect.ReadString(role, "defName")),
-                Dto.Field("cellCount", Reflect.Read(room, "CellCount")),
-                Dto.Field("temperatureC", Reflect.ReadFloat(room, "Temperature")),
-                Dto.Field("usesOutdoorTemperature", Reflect.Read(room, "UsesOutdoorTemperature")));
+                Dto.Field("id", firstCell.HasValue ? ReadUtil.StableSessionId("room", map.uniqueID, firstCell.Value, role == null ? null : role.defName) : null),
+                Dto.Field("role", role == null ? null : role.defName),
+                Dto.Field("cellCount", room.CellCount),
+                Dto.Field("temperatureC", room.Temperature),
+                Dto.Field("usesOutdoorTemperature", room.UsesOutdoorTemperature));
         }
 
         private static object SerializeHazards(Map map)
@@ -114,26 +115,22 @@ namespace RiMCP.Read
                     Dto.Field("kind", "fire"),
                     Dto.Field("position", ReadUtil.Cell(fire.Position))));
             }
-            object pollutionGrid = Reflect.Read(map, "pollutionGrid");
-            object pollutedCount = Reflect.Read(pollutionGrid, "TotalPollutionPercent");
-            if (pollutedCount != null)
+            if (map.pollutionGrid != null)
             {
                 hazards.Add(Dto.Obj(
                     Dto.Field("kind", "pollution"),
-                    Dto.Field("percent", pollutedCount)));
+                    Dto.Field("percent", map.pollutionGrid.TotalPollutionPercent)));
             }
             return hazards;
         }
 
-        private static IEnumerable<object> Rooms(Map map)
+        private static IEnumerable<Room> Rooms(Map map)
         {
-            object rooms = map == null || map.regionGrid == null ? null : Reflect.Read(map.regionGrid, "allRooms");
-            System.Collections.IEnumerable enumerable = rooms as System.Collections.IEnumerable;
-            if (enumerable == null)
+            if (map == null || map.regionGrid == null)
             {
                 yield break;
             }
-            foreach (object room in enumerable)
+            foreach (Room room in map.regionGrid.AllRooms)
             {
                 if (room != null)
                 {

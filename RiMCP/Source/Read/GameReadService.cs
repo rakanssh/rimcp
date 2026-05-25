@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
+using RimWorld.Planet;
 using RiMCP.Bridge;
 using UnityEngine;
 using Verse;
@@ -74,15 +75,14 @@ namespace RiMCP.Read
             List<object> alerts = new List<object>();
             try
             {
-                object letterStack = Reflect.Read(typeof(Find), "LetterStack");
-                List<object> letters = Reflect.ReadEnumerable(letterStack, "LettersListForReading").ToList();
-                foreach (object letter in letters.Skip(Math.Max(0, letters.Count - limit)))
+                List<Letter> letters = Find.LetterStack == null ? new List<Letter>() : Find.LetterStack.LettersListForReading;
+                foreach (Letter letter in letters.Skip(Math.Max(0, letters.Count - limit)))
                 {
                     alerts.Add(Dto.Obj(
                         Dto.Field("kind", "letter"),
-                        Dto.Field("label", ReadStringMember(letter, "Label", "label")),
-                        Dto.Field("text", ReadStringMember(letter, "Text", "text")),
-                        Dto.Field("defName", Reflect.ReadString(Reflect.Read(letter, "def"), "defName"))));
+                        Dto.Field("label", letter.Label.ToString()),
+                        Dto.Field("text", LetterText(letter)),
+                        Dto.Field("defName", letter.def == null ? null : letter.def.defName)));
                 }
             }
             catch
@@ -93,23 +93,24 @@ namespace RiMCP.Read
 
         private static object SerializeWorldInfo()
         {
-            object worldInfo = Find.World == null ? null : Reflect.Read(Find.World, "info");
+            WorldInfo worldInfo = Find.World == null ? null : Find.World.info;
             return Dto.Obj(
-                Dto.Field("name", Reflect.ReadString(worldInfo, "name")),
-                Dto.Field("seedString", Reflect.ReadString(worldInfo, "seedString")));
+                Dto.Field("name", worldInfo == null ? null : worldInfo.name),
+                Dto.Field("seedString", worldInfo == null ? null : worldInfo.seedString));
         }
 
         private static object SerializeStoryteller()
         {
-            object storyteller = Find.Storyteller;
-            object difficulty = Reflect.Read(storyteller, "difficulty");
+            Storyteller storyteller = Find.Storyteller;
+            Difficulty difficulty = storyteller == null ? null : storyteller.difficulty;
+            DifficultyDef difficultyDef = storyteller == null ? null : storyteller.difficultyDef;
             return Dto.Obj(
-                Dto.Field("defName", Reflect.ReadString(Reflect.Read(storyteller, "def"), "defName")),
-                Dto.Field("label", Reflect.ReadString(Reflect.Read(storyteller, "def"), "label")),
+                Dto.Field("defName", storyteller == null || storyteller.def == null ? null : storyteller.def.defName),
+                Dto.Field("label", storyteller == null || storyteller.def == null ? null : storyteller.def.label),
                 Dto.Field("difficulty", Dto.Obj(
-                    Dto.Field("defName", Reflect.ReadString(Reflect.Read(difficulty, "def"), "defName")),
-                    Dto.Field("label", Reflect.ReadString(Reflect.Read(difficulty, "def"), "label")),
-                    Dto.Field("threatScale", Reflect.ReadFloat(difficulty, "threatScale")))));
+                    Dto.Field("defName", difficultyDef == null ? null : difficultyDef.defName),
+                    Dto.Field("label", difficultyDef == null ? null : difficultyDef.label),
+                    Dto.Field("threatScale", difficulty == null ? 0f : difficulty.threatScale))));
         }
 
         private static object SerializeMods()
@@ -206,15 +207,17 @@ namespace RiMCP.Read
                 Dto.Field("nextRead", nextRead));
         }
 
-        private static string ReadStringMember(object instance, params string[] names)
+        private static string LetterText(Letter letter)
         {
-            foreach (string name in names)
+            StandardLetter standard = letter as StandardLetter;
+            if (standard != null)
             {
-                string value = Reflect.ReadString(instance, name);
-                if (value != null)
-                {
-                    return value;
-                }
+                return standard.Text.ToString();
+            }
+            ChoiceLetter choice = letter as ChoiceLetter;
+            if (choice != null)
+            {
+                return choice.Text.ToString();
             }
             return null;
         }

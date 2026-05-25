@@ -128,12 +128,7 @@ namespace RiMCP.Read
 
         public static float NutritionPerUnit(ThingDef def)
         {
-            object ingestible = def == null ? null : Reflect.Read(def, "ingestible");
-            if (ingestible == null)
-            {
-                return 0f;
-            }
-            return Reflect.ReadFloat(ingestible, "CachedNutrition");
+            return def == null || def.ingestible == null ? 0f : def.ingestible.CachedNutrition;
         }
 
         public sealed class ResourceGroup
@@ -176,15 +171,12 @@ namespace RiMCP.Read
 
             private static bool IsDefMedicine(ThingDef def)
             {
-                object medicine = Reflect.Read(def, "medicine");
-                return medicine != null;
+                return def.IsMedicine;
             }
 
             private static bool IsDefMeal(ThingDef def)
             {
-                object ingestible = Reflect.Read(def, "ingestible");
-                object taste = Reflect.Read(ingestible, "tasteThought");
-                return taste != null && NutritionPerUnit(def) >= 0.5f;
+                return def.ingestible != null && def.ingestible.IsMeal;
             }
         }
     }

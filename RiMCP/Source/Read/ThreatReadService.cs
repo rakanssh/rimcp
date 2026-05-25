@@ -48,13 +48,14 @@ namespace RiMCP.Read
             int hostiles = map.mapPawns.AllPawnsSpawned.Count(pawn => pawn.HostileTo(Faction.OfPlayer));
             int manhunters = map.mapPawns.AllPawnsSpawned.Count(IsManhunter);
             int hungryPredators = map.mapPawns.AllPawnsSpawned.Count(IsPredator);
+            int threatPawns = map.mapPawns.AllPawnsSpawned.Count(IsThreatPawn);
             int fires = Fires(map).Count();
             return Dto.Obj(
                 Dto.Field("hostiles", hostiles),
                 Dto.Field("manhunters", manhunters),
                 Dto.Field("predators", hungryPredators),
                 Dto.Field("fires", fires),
-                Dto.Field("total", hostiles + manhunters + fires));
+                Dto.Field("total", threatPawns + fires));
         }
 
         private static bool IsThreatPawn(Pawn pawn)
@@ -73,8 +74,7 @@ namespace RiMCP.Read
             {
                 return false;
             }
-            object predator = Reflect.Read(pawn.RaceProps, "predator");
-            return predator is bool && (bool)predator;
+            return pawn.RaceProps.predator;
         }
 
         private static object SerializeThreatPawn(Map map, Pawn pawn, ReadDetail detail)

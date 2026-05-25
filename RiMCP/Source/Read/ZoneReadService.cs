@@ -51,7 +51,7 @@ namespace RiMCP.Read
                 yield return ZoneRecord.ForZone(map, zone);
             }
 
-            foreach (object area in Reflect.ReadEnumerable(map.areaManager, "AllAreas"))
+            foreach (Area area in map.areaManager.AllAreas)
             {
                 ZoneRecord record = ZoneRecord.ForArea(map, area);
                 if (record != null)
@@ -80,17 +80,17 @@ namespace RiMCP.Read
             if (record.Zone is Zone_Growing)
             {
                 Zone_Growing growing = (Zone_Growing)record.Zone;
-                ThingDef plant = Reflect.Invoke(growing, "GetPlantDefToGrow") as ThingDef;
+                ThingDef plant = growing.GetPlantDefToGrow();
                 dto["growing"] = Dto.Obj(
                     Dto.Field("plant", ReadUtil.Def(plant)),
-                    Dto.Field("allowSow", Reflect.Read(growing, "allowSow")),
-                    Dto.Field("allowCut", Reflect.Read(growing, "allowCut")));
+                    Dto.Field("allowSow", growing.allowSow),
+                    Dto.Field("allowCut", growing.allowCut));
             }
             if (record.Area != null)
             {
                 dto["area"] = Dto.Obj(
-                    Dto.Field("assignable", Reflect.Read(record.Area, "AssignableAsAllowed")),
-                    Dto.Field("color", Reflect.Read(record.Area, "Color")));
+                    Dto.Field("assignable", record.Area.AssignableAsAllowed()),
+                    Dto.Field("color", record.Area.Color));
             }
 
             if (detail == ReadDetail.Full)
@@ -110,7 +110,7 @@ namespace RiMCP.Read
             public IntVec3? RepresentativeCell;
             public List<IntVec3> Cells;
             public Zone Zone;
-            public object Area;
+            public Area Area;
 
             public static ZoneRecord ForZone(Map map, Zone zone)
             {
@@ -119,7 +119,7 @@ namespace RiMCP.Read
                 string kind = zone is Zone_Stockpile ? "stockpile" : zone is Zone_Growing ? "growing" : "zone";
                 return new ZoneRecord
                 {
-                    Id = "zone:" + map.uniqueID + ":" + Reflect.Read(zone, "ID"),
+                    Id = "zone:" + map.uniqueID + ":" + zone.ID,
                     Kind = kind,
                     Label = zone.label,
                     CellCount = cells.Count,
@@ -129,21 +129,20 @@ namespace RiMCP.Read
                 };
             }
 
-            public static ZoneRecord ForArea(Map map, object area)
+            public static ZoneRecord ForArea(Map map, Area area)
             {
                 if (area == null)
                 {
                     return null;
                 }
-                List<IntVec3> cells = Reflect.ReadEnumerable(area, "ActiveCells").OfType<IntVec3>().ToList();
+                List<IntVec3> cells = area.ActiveCells.ToList();
                 IntVec3 representative = cells.Count == 0 ? IntVec3.Invalid : cells[0];
-                string label = Reflect.ReadString(area, "Label");
                 return new ZoneRecord
                 {
-                    Id = "area:" + map.uniqueID + ":" + Reflect.Read(area, "ID"),
+                    Id = "area:" + map.uniqueID + ":" + area.ID,
                     Kind = "area",
-                    Label = label,
-                    CellCount = cells.Count == 0 ? System.Convert.ToInt32(Reflect.Read(area, "TrueCount") ?? 0) : cells.Count,
+                    Label = area.Label,
+                    CellCount = cells.Count == 0 ? area.TrueCount : cells.Count,
                     RepresentativeCell = representative.IsValid ? (IntVec3?)representative : null,
                     Cells = cells,
                     Area = area

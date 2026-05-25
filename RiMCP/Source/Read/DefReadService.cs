@@ -230,7 +230,7 @@ namespace RiMCP.Read
                 dto["ingredients"] = recipe.ingredients == null
                     ? new object[0]
                     : recipe.ingredients.Select(ingredient => Dto.Obj(
-                        Dto.Field("count", Reflect.Read(ingredient, "count") ?? Reflect.Read(ingredient, "Count")),
+                        Dto.Field("count", ingredient.GetBaseCount()),
                         Dto.Field("filterSummary", ingredient.filter == null ? null : ingredient.filter.Summary))).ToArray();
             }
             return dto;
