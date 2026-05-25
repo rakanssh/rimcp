@@ -259,8 +259,8 @@ internal static class ToolCatalog
         {
             Tool("get_game_context", "Get game-wide context: current map, time, storyteller/difficulty, loaded mods, and map ids.", Input(), args => QueryPath("v1/game-context", args)),
             Tool("get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", Input(), args => QueryPath("v1/colony-status", args)),
-            Tool("list_pawns", "List pawns by filter. Filters include core, colonist, slave, prisoner, guest, colonyAnimal, wildAnimal, hostile, animals, wildlife, threats, and all.", Input(Prop("filter", Str("Pawn filter to list."))), args => QueryPath("v1/pawns", args, "filter")),
-            Tool("get_pawn", "Get full details for one pawn by ThingID or load id.", Required(Prop("id", Str("Pawn ThingID or load id."))), PathWithId("v1/pawns", "id")),
+            Tool("list_pawns", "List pawns by validated filter.", Input(Prop("filter", PawnFilter())), args => QueryPath("v1/pawns", args, "filter")),
+            Tool("get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", Required(Prop("id", Str("Pawn ThingID or load id."))), PathWithId("v1/pawns", "id")),
             Tool("list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context.", Input(), args => QueryPath("v1/resources", args)),
             Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), args => QueryPath("v1/work", args)),
             Tool("list_production", "List production bills across colony bill givers.", Input(), args => QueryPath("v1/production", args)),
@@ -424,6 +424,16 @@ internal static class ToolCatalog
             ["type"] = "string",
             ["enum"] = new JsonArray("thing", "recipe", "research", "workType", "stat", "terrain", "biome", "pawnKind", "designation", "job", "weather"),
             ["description"] = "Loaded def kind to search or retrieve."
+        };
+    }
+
+    private static JsonObject PawnFilter()
+    {
+        return new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("core", "colonist", "colonists", "slave", "slaves", "prisoner", "prisoners", "guest", "guests", "colonyAnimal", "colonyAnimals", "wildAnimal", "wildAnimals", "hostile", "hostiles", "animals", "wildlife", "threats", "other", "others", "all"),
+            ["description"] = "Pawn filter to list. Defaults to core."
         };
     }
 }

@@ -9,6 +9,14 @@ namespace RiMCP.Read
 {
     internal static class PawnReadService
     {
+        private static readonly string[] SupportedFilters =
+        {
+            "core", "colonist", "colonists", "slave", "slaves", "prisoner", "prisoners",
+            "guest", "guests", "colonyAnimal", "colonyAnimals", "wildAnimal", "wildAnimals",
+            "hostile", "hostiles", "animals", "wildlife", "threats", "other", "others", "all"
+        };
+        private static readonly HashSet<string> SupportedFilterLookup = new HashSet<string>(SupportedFilters, StringComparer.OrdinalIgnoreCase);
+
         public static BridgeResponse ListPawns(ReadContext context)
         {
             if (context.Map == null)
@@ -20,7 +28,16 @@ namespace RiMCP.Read
                 return ReadEnvelope.NotChanged(context);
             }
 
-            string filter = context.Request.Get("filter") ?? "core";
+            string filter = context.Request.Get("filter");
+            if (string.IsNullOrWhiteSpace(filter))
+            {
+                filter = "core";
+            }
+            if (!SupportedFilterLookup.Contains(filter))
+            {
+                return BridgeResponse.Error(400, "Unknown pawn filter '" + filter + "'. Supported filters: " + string.Join(", ", SupportedFilters) + ".");
+            }
+
             IEnumerable<PawnRole> source = PawnsForFilter(context.Map, filter);
             source = source.OrderBy(p => p.Role).ThenBy(p => p.Pawn.LabelShortCap);
             Page<PawnRole> page = new Page<PawnRole>(source, context.Request);
@@ -69,10 +86,11 @@ namespace RiMCP.Read
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
                 string role = RoleForPawn(map, pawn);
+                string roleKey = role.ToLowerInvariant();
                 if (normalized == "all" ||
                     normalized == "core" && IsCoreRole(role) ||
-                    normalized == role ||
-                    normalized == role + "s" ||
+                    normalized == roleKey ||
+                    normalized == roleKey + "s" ||
                     normalized == "animals" && role == "colonyAnimal" ||
                     normalized == "wildlife" && role == "wildAnimal" ||
                     normalized == "threats" && role == "hostile")
@@ -189,7 +207,7 @@ namespace RiMCP.Read
             }
             return Dto.Obj(
                 Dto.Field("defName", jobDef.defName),
-                Dto.Field("label", jobDef.LabelCap),
+                Dto.Field("label", ReadUtil.DefLabel(jobDef)),
                 Dto.Field("report", report));
         }
 
@@ -266,7 +284,7 @@ namespace RiMCP.Read
                     .OrderBy(def => def.defName)
                     .Select(def => Dto.Obj(
                         Dto.Field("defName", def.defName),
-                        Dto.Field("label", def.LabelCap),
+                        Dto.Field("label", ReadUtil.DefLabel(def)),
                         Dto.Field("level", pawn.health.capacities.GetLevel(def))))
                     .ToArray();
             }
@@ -283,7 +301,7 @@ namespace RiMCP.Read
                 .OrderBy(skill => skill.def.defName)
                 .Select(skill => Dto.Obj(
                     Dto.Field("defName", skill.def.defName),
-                    Dto.Field("label", skill.def.LabelCap),
+                    Dto.Field("label", ReadUtil.DefLabel(skill.def)),
                     Dto.Field("level", skill.Level),
                     Dto.Field("passion", skill.passion.ToString())))
                 .ToArray();
@@ -324,7 +342,7 @@ namespace RiMCP.Read
                 }
                 work.Add(Dto.Obj(
                     Dto.Field("defName", workType.defName),
-                    Dto.Field("label", workType.LabelCap),
+                    Dto.Field("label", ReadUtil.DefLabel(workType)),
                     Dto.Field("naturalPriority", workType.naturalPriority),
                     Dto.Field("disabled", disabled),
                     Dto.Field("active", active),

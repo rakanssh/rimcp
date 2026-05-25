@@ -69,7 +69,7 @@ namespace RiMCP.Read
                 Dto.Field("label", record.Bill.Label),
                 Dto.Field("recipe", record.Bill.recipe == null ? null : Dto.Obj(
                     Dto.Field("defName", record.Bill.recipe.defName),
-                    Dto.Field("label", record.Bill.recipe.LabelCap))),
+                    Dto.Field("label", ReadUtil.DefLabel(record.Bill.recipe)))),
                 Dto.Field("suspended", record.Bill.suspended),
                 Dto.Field("workbench", Dto.Obj(
                     Dto.Field("ids", ReadUtil.ThingIds(record.Workbench)),
@@ -93,7 +93,7 @@ namespace RiMCP.Read
                     ? new object[0]
                     : record.Bill.recipe.products.Select(product => Dto.Obj(
                         Dto.Field("defName", product.thingDef == null ? null : product.thingDef.defName),
-                        Dto.Field("label", product.thingDef == null ? null : product.thingDef.LabelCap),
+                        Dto.Field("label", ReadUtil.DefLabel(product.thingDef)),
                         Dto.Field("count", product.count))).ToArray();
                 dto["ingredients"] = record.Bill.recipe == null || record.Bill.recipe.ingredients == null
                     ? new object[0]

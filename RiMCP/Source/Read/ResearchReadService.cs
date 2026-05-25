@@ -46,7 +46,7 @@ namespace RiMCP.Read
 
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("defName", project.defName),
-                Dto.Field("label", project.LabelCap),
+                Dto.Field("label", ReadUtil.DefLabel(project)),
                 Dto.Field("tab", project.tab == null ? null : project.tab.defName),
                 Dto.Field("techLevel", project.techLevel.ToString()),
                 Dto.Field("baseCost", project.baseCost),

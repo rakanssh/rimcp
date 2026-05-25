@@ -268,7 +268,18 @@ namespace RiMCP.Read
             }
             return Dto.Obj(
                 Dto.Field("defName", def.defName),
-                Dto.Field("label", def.LabelCap));
+                Dto.Field("label", DefLabel(def)));
+        }
+
+        public static string DefLabel(Def def)
+        {
+            if (def == null)
+            {
+                return null;
+            }
+
+            string label = def.LabelCap.ToString();
+            return string.IsNullOrWhiteSpace(label) ? def.defName : label;
         }
 
         public static object ThingIds(Thing thing)

@@ -151,7 +151,7 @@ namespace RiMCP.Read
             public ResourceGroup(ThingDef def)
             {
                 DefName = def.defName;
-                Label = def.LabelCap;
+                Label = ReadUtil.DefLabel(def);
                 ThingCategories = def.thingCategories == null
                     ? new object[0]
                     : def.thingCategories.Select(category => category.defName).OrderBy(name => name).ToArray();

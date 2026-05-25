@@ -139,7 +139,7 @@ namespace RiMCP.Read
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("kind", KindForDef(def)),
                 Dto.Field("defName", def.defName),
-                Dto.Field("label", def.LabelCap),
+                Dto.Field("label", ReadUtil.DefLabel(def)),
                 Dto.Field("description", detail == ReadDetail.Summary ? null : def.description));
 
             ThingDef thing = def as ThingDef;

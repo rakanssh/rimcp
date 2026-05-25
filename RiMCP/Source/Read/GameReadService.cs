@@ -106,10 +106,10 @@ namespace RiMCP.Read
             DifficultyDef difficultyDef = storyteller == null ? null : storyteller.difficultyDef;
             return Dto.Obj(
                 Dto.Field("defName", storyteller == null || storyteller.def == null ? null : storyteller.def.defName),
-                Dto.Field("label", storyteller == null || storyteller.def == null ? null : storyteller.def.label),
+                Dto.Field("label", ReadUtil.DefLabel(storyteller == null ? null : storyteller.def)),
                 Dto.Field("difficulty", Dto.Obj(
                     Dto.Field("defName", difficultyDef == null ? null : difficultyDef.defName),
-                    Dto.Field("label", difficultyDef == null ? null : difficultyDef.label),
+                    Dto.Field("label", ReadUtil.DefLabel(difficultyDef)),
                     Dto.Field("threatScale", difficulty == null ? 0f : difficulty.threatScale))));
         }
 

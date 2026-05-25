@@ -28,7 +28,7 @@ namespace RiMCP.Read
                     .OrderBy(def => def.naturalPriority)
                     .Select(def => Dto.Obj(
                         Dto.Field("defName", def.defName),
-                        Dto.Field("label", def.LabelCap),
+                        Dto.Field("label", ReadUtil.DefLabel(def)),
                         Dto.Field("naturalPriority", def.naturalPriority)))
                     .ToArray()),
                 Dto.Field("pawns", page.Items.Select(role => SerializeWorkPawn(role.Pawn, role.Role, context.Request)).ToArray())),

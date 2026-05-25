@@ -76,7 +76,7 @@ namespace RiMCP.Read
                 .OrderBy(condition => condition.def.defName)
                 .Select(condition => Dto.Obj(
                     Dto.Field("defName", condition.def.defName),
-                    Dto.Field("label", condition.LabelCap),
+                    Dto.Field("label", ReadUtil.DefLabel(condition.def)),
                     Dto.Field("durationTicks", condition.Duration),
                     Dto.Field("ticksLeft", condition.TicksLeft)))
                 .ToArray();
