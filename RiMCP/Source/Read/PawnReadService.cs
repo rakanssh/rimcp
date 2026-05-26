@@ -24,10 +24,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             string filter = context.Request.Get("filter");
             if (string.IsNullOrWhiteSpace(filter))

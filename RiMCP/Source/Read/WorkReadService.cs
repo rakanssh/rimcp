@@ -14,10 +14,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             var pawns = PawnReadService.PawnsForFilter(context.Map, "core")
                 .OrderBy(role => role.Pawn.LabelShortCap);

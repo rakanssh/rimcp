@@ -15,10 +15,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             IEnumerable<PowerNet> source = PowerNets(context.Map).OrderByDescending(net => net.CurrentStoredEnergy());
             Page<PowerNet> page = new Page<PowerNet>(source, context.Request);

@@ -191,11 +191,6 @@ static string SummarizeToolResult(string toolName, JsonNode? structured, bool su
     }
 
     var truncated = structured?["truncated"]?.GetValue<bool?>() == true ? " truncated" : "";
-    var notModified = structured?["notModified"]?.GetValue<bool?>() == true;
-    if (notModified)
-    {
-        return toolName + ": no changes since requested tick.";
-    }
     return tick.HasValue
         ? toolName + ": returned structured data at tick " + tick.Value + truncated + "."
         : toolName + ": returned structured data.";
@@ -335,7 +330,7 @@ internal sealed record ToolEndpoint(
 
 internal static class ToolCatalog
 {
-    private static readonly string[] SharedKeys = { "mapId", "detail", "include", "limit", "cursor", "sinceTick", "idsOnly" };
+    private static readonly string[] SharedKeys = { "mapId", "detail", "include", "limit", "cursor", "idsOnly" };
 
     public static List<McpTool> Create()
     {
@@ -640,12 +635,6 @@ internal static class ToolCatalog
                 ["type"] = "integer",
                 ["minimum"] = 0,
                 ["description"] = "Cursor returned by a previous paged response."
-            },
-            ["sinceTick"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["minimum"] = 0,
-                ["description"] = "Return notModified when the game tick has not advanced past this value."
             },
             ["idsOnly"] = new JsonObject
             {

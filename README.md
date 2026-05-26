@@ -47,7 +47,6 @@ Most tools accept the same optional read controls:
 - `detail`: `summary`, `normal`, or `full`; defaults to compact `summary`.
 - `include`: request specific heavier sections without switching to full detail, such as animal `training`.
 - `limit` and `cursor`: page large lists deterministically.
-- `sinceTick`: return `notModified` when the game has not advanced.
 - `idsOnly`: return identifiers only when supported by the list tool.
 
 Tool responses use a shared envelope:

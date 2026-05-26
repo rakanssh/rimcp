@@ -35,22 +35,19 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             List<PawnReadService.PawnRole> pawns = PawnReadService.PawnsForFilter(context.Map, "all").ToList();
             List<Pawn> core = pawns.Where(role => PawnReadService.IsCoreRole(role.Role)).Select(role => role.Pawn).ToList();
             List<Pawn> hostiles = pawns.Where(role => role.Role == "hostile").Select(role => role.Pawn).ToList();
-            List<object> risks = BuildRisks(context.Map, core, hostiles);
+            List<ResourceReadService.ResourceGroup> resources = ResourceReadService.CollectResources(context.Map).ToList();
+            List<object> risks = BuildRisks(core, hostiles, resources);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("map", ReadUtil.MapSummary(context.Map)),
                 Dto.Field("time", SerializeTime(context.Tick, context.Map)),
                 Dto.Field("topRisks", risks),
                 Dto.Field("pawns", CountPawns(pawns)),
-                Dto.Field("resources", ResourceReadService.SummarizeResources(context.Map)),
+                Dto.Field("resources", ResourceReadService.SummarizeResources(resources)),
                 Dto.Field("medical", MedicalSummary(core)),
                 Dto.Field("mood", MoodSummary(core)),
                 Dto.Field("threats", ThreatReadService.SummarizeThreats(context.Map)),
@@ -174,7 +171,7 @@ namespace RiMCP.Read
                     Dto.Field("mood", pawn.needs.mood.CurLevelPercentage))).ToArray()));
         }
 
-        private static List<object> BuildRisks(Map map, List<Pawn> core, List<Pawn> hostiles)
+        private static List<object> BuildRisks(List<Pawn> core, List<Pawn> hostiles, List<ResourceReadService.ResourceGroup> resources)
         {
             List<object> risks = new List<object>();
             int downed = core.Count(pawn => pawn.Downed);
@@ -191,7 +188,7 @@ namespace RiMCP.Read
             {
                 risks.Add(Risk("threat", "hostilesPresent", "Hostile pawns are spawned on the map.", hostiles.Count, "list_threats"));
             }
-            float nutrition = ResourceReadService.CollectResources(map).Sum(group => group.Nutrition);
+            float nutrition = resources.Sum(group => group.Nutrition);
             if (core.Count > 0 && nutrition < core.Count * 2f)
             {
                 risks.Add(Risk("resources", "lowFood", "Estimated stored nutrition is low relative to core pawn count.", (int)nutrition, "list_resources?include=food"));

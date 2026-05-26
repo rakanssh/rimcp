@@ -15,10 +15,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             IEnumerable<ZoneRecord> source = ZoneRecords(context.Map)
                 .OrderBy(record => record.Kind)
@@ -99,7 +95,7 @@ namespace RiMCP.Read
             if (detail == ReadDetail.Full)
             {
                 dto["cells"] = record.Cells.Take(200).Select(ReadUtil.Cell).ToArray();
-                dto["cellsTruncated"] = record.Cells.Count > 200;
+                dto["cellsTruncated"] = record.CellCount > 200;
             }
             return dto;
         }
@@ -111,23 +107,22 @@ namespace RiMCP.Read
             public string Label;
             public int CellCount;
             public IntVec3? RepresentativeCell;
-            public List<IntVec3> Cells;
+            public IEnumerable<IntVec3> Cells;
             public Zone Zone;
             public Area Area;
 
             public static ZoneRecord ForZone(Map map, Zone zone)
             {
-                List<IntVec3> cells = zone.Cells.ToList();
-                IntVec3 representative = cells.Count == 0 ? IntVec3.Invalid : cells[0];
+                IntVec3 representative = zone.Cells.Count == 0 ? IntVec3.Invalid : zone.Cells[0];
                 string kind = zone is Zone_Stockpile ? "stockpile" : zone is Zone_Growing ? "growing" : "zone";
                 return new ZoneRecord
                 {
                     Id = "zone:" + map.uniqueID + ":" + zone.ID,
                     Kind = kind,
                     Label = zone.label,
-                    CellCount = cells.Count,
+                    CellCount = zone.Cells.Count,
                     RepresentativeCell = representative.IsValid ? (IntVec3?)representative : null,
-                    Cells = cells,
+                    Cells = zone.Cells,
                     Zone = zone
                 };
             }
@@ -138,16 +133,20 @@ namespace RiMCP.Read
                 {
                     return null;
                 }
-                List<IntVec3> cells = area.ActiveCells.ToList();
-                IntVec3 representative = cells.Count == 0 ? IntVec3.Invalid : cells[0];
+                IntVec3 representative = IntVec3.Invalid;
+                foreach (IntVec3 cell in area.ActiveCells)
+                {
+                    representative = cell;
+                    break;
+                }
                 return new ZoneRecord
                 {
                     Id = "area:" + map.uniqueID + ":" + area.ID,
                     Kind = "area",
                     Label = area.Label,
-                    CellCount = cells.Count == 0 ? area.TrueCount : cells.Count,
+                    CellCount = area.TrueCount,
                     RepresentativeCell = representative.IsValid ? (IntVec3?)representative : null,
-                    Cells = cells,
+                    Cells = area.ActiveCells,
                     Area = area
                 };
             }

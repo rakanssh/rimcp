@@ -15,10 +15,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             string category = context.Request.Get("category");
             IEnumerable<Building> source = context.Map.listerBuildings.allBuildingsColonist

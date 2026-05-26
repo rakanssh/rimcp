@@ -15,10 +15,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             List<object> threats = new List<object>();
             foreach (Pawn pawn in context.Map.mapPawns.AllPawnsSpawned.Where(IsThreatPawn).OrderBy(p => p.LabelShortCap))

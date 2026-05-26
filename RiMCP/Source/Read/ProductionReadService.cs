@@ -15,10 +15,6 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             IEnumerable<BillRecord> records = BillRecords(context.Map)
                 .OrderBy(record => record.Workbench.def.defName)
@@ -37,10 +33,6 @@ namespace RiMCP.Read
             if (context.Map == null)
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
-            }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
             }
 
             IEnumerable<WorkshopRecord> records = WorkshopRecords(context.Map)

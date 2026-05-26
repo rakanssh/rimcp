@@ -12,10 +12,6 @@ namespace RiMCP.Read
         public static BridgeResponse ListQuests(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             IEnumerable<Quest> source = (Find.QuestManager == null ? Enumerable.Empty<Quest>() : Find.QuestManager.QuestsListForReading)
                 .OrderBy(quest => quest.name ?? quest.id.ToString());
@@ -29,10 +25,6 @@ namespace RiMCP.Read
         public static BridgeResponse ListWorld(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("playerFaction", SerializeFaction(Faction.OfPlayer)),

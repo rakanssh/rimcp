@@ -22,7 +22,6 @@ namespace RiMCP.Read
         public readonly HashSet<string> Include = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public int Limit = 50;
         public int Cursor;
-        public int? SinceTick;
         public bool IdsOnly;
         public readonly Dictionary<string, string> Query = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -58,10 +57,6 @@ namespace RiMCP.Read
             if (int.TryParse(request.Get("cursor"), out parsed))
             {
                 request.Cursor = Math.Max(0, parsed);
-            }
-            if (int.TryParse(request.Get("sinceTick"), out parsed))
-            {
-                request.SinceTick = parsed;
             }
             bool boolValue;
             if (bool.TryParse(request.Get("idsOnly"), out boolValue))
@@ -127,7 +122,6 @@ namespace RiMCP.Read
         public string MapId;
         public bool Truncated;
         public string NextCursor;
-        public bool NotModified;
         public object Data;
 
         public static BridgeResponse Ok(ReadContext context, object data, bool truncated = false, string nextCursor = null)
@@ -143,18 +137,6 @@ namespace RiMCP.Read
             return BridgeResponse.Json(200, Json.Serialize(envelope.ToDto()));
         }
 
-        public static BridgeResponse NotChanged(ReadContext context)
-        {
-            ReadEnvelope envelope = new ReadEnvelope
-            {
-                Tick = context.Tick,
-                MapId = context.Map == null ? null : context.Map.uniqueID.ToString(),
-                NotModified = true,
-                Data = Dto.Obj()
-            };
-            return BridgeResponse.Json(200, Json.Serialize(envelope.ToDto()));
-        }
-
         private object ToDto()
         {
             Dictionary<string, object> dto = Dto.Obj(
@@ -163,7 +145,6 @@ namespace RiMCP.Read
                 Dto.Field("mapId", MapId),
                 Dto.Field("truncated", Truncated),
                 Dto.Field("nextCursor", NextCursor),
-                Dto.Field("notModified", NotModified ? (object)true : null),
                 Dto.Field("data", Data));
             return dto;
         }
@@ -332,9 +313,5 @@ namespace RiMCP.Read
             return kind + ":" + mapId + ":" + cell.x + "," + cell.z + ":" + (label ?? "");
         }
 
-        public static bool ChangedSince(ReadContext context)
-        {
-            return !context.Request.SinceTick.HasValue || context.Tick > context.Request.SinceTick.Value;
-        }
     }
 }

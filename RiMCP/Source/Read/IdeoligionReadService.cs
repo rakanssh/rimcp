@@ -11,10 +11,6 @@ namespace RiMCP.Read
         public static BridgeResponse ListIdeoligions(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("active", ModsConfig.IdeologyActive),

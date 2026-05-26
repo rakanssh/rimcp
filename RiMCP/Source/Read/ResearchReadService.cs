@@ -15,10 +15,6 @@ namespace RiMCP.Read
         public static BridgeResponse GetResearch(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
             ResearchProjectDef current = CurrentProject();
             IEnumerable<ResearchProjectDef> source = DefDatabase<ResearchProjectDef>.AllDefsListForReading

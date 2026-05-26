@@ -16,12 +16,9 @@ namespace RiMCP.Read
             {
                 return BridgeResponse.Error(409, "No active map is loaded.");
             }
-            if (!ReadUtil.ChangedSince(context))
-            {
-                return ReadEnvelope.NotChanged(context);
-            }
 
-            IEnumerable<ResourceGroup> source = CollectResources(context.Map)
+            List<ResourceGroup> groups = CollectResources(context.Map).ToList();
+            IEnumerable<ResourceGroup> source = groups
                 .OrderBy(group => group.Group)
                 .ThenBy(group => group.DefName);
             Page<ResourceGroup> page = new Page<ResourceGroup>(source, context.Request);
@@ -30,13 +27,17 @@ namespace RiMCP.Read
                 .ToArray();
 
             return ReadEnvelope.Ok(context, Dto.Obj(
-                Dto.Field("summary", SummarizeResources(context.Map)),
+                Dto.Field("summary", SummarizeResources(groups)),
                 Dto.Field("resources", resources)), page.Truncated, page.NextCursor);
         }
 
         public static object SummarizeResources(Map map)
         {
-            List<ResourceGroup> groups = CollectResources(map).ToList();
+            return SummarizeResources(CollectResources(map).ToList());
+        }
+
+        public static object SummarizeResources(List<ResourceGroup> groups)
+        {
             float totalNutrition = groups.Sum(group => group.Nutrition);
             int medicine = groups.Where(group => group.IsMedicine).Sum(group => group.Count);
             int meals = groups.Where(group => group.IsMeal).Sum(group => group.Count);
