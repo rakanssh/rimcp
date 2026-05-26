@@ -10,9 +10,14 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <RimWorldManagedPath>/Users/rakan/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app/Contents/Resources/Data/Managed</RimWorldManagedPath>
-  </PropertyGroup>
+  <Target Name="ValidateRimWorldManagedPath" BeforeTargets="ResolveReferences">
+    <Error
+      Condition="'$(RimWorldManagedPath)' == ''"
+      Text="Set RimWorldManagedPath to RimWorld's Data/Managed directory, for example: dotnet build RiMCP/Source/RiMCP.csproj -p:RimWorldManagedPath=&quot;/path/to/RimWorld/Data/Managed&quot;" />
+    <Error
+      Condition="'$(RimWorldManagedPath)' != '' And !Exists('$(RimWorldManagedPath)/Assembly-CSharp.dll')"
+      Text="RimWorldManagedPath does not contain Assembly-CSharp.dll: $(RimWorldManagedPath)" />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />

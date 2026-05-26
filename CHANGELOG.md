@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file.
 - Moved map, pawn, and def resolution into shared command helpers where appropriate.
 - Removed `sinceTick`/`notModified` read controls so reads always return current game state.
 - Reduced allocation work in zone and resource reads by avoiding unnecessary cell/resource rescans.
+- Removed the hard-coded local RimWorld managed DLL path from the mod project.
 
 ## [0.2.0] - 2026-05-25
 
