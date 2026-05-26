@@ -128,6 +128,12 @@ dotnet publish McpProxy/RiMCP.McpProxy.csproj \
 
 For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
 
+## License
+
+RiMCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).
+
+RimWorld, Ludeon Studios, and related names and assets are owned by Ludeon Studios. RiMCP is an unofficial community mod and is not endorsed by Ludeon Studios. Distribution and use as a RimWorld mod remains subject to the RimWorld EULA and any platform terms that apply, such as Steam Workshop terms.
+
 ## Development Notes
 
 The bridge uses a background HTTP listener, but RimWorld work is queued back to the Unity main thread before execution. This keeps bridge requests out of HTTP worker threads.

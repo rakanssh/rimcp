@@ -2,10 +2,10 @@
 <ModMetaData>
   <name>RiMCP</name>
   <author>rakan</author>
-  <packageId>rakan.rimcp</packageId>
+  <packageId>rakanssh.rimcp</packageId>
   <modVersion>0.2.0</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <description>Agentic intelligence for the Rim. RiMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients use the bundled stdio proxy..</description>
+  <description>Agentic intelligence for the Rim. RiMCP connects MCP-compatible clients to a live colony through a token-protected local bridge and bundled stdio proxy.</description>
 </ModMetaData>

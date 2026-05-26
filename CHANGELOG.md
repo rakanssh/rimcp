@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - MCP tool annotations for read-only reads, idempotent commands, destructive commands, and closed-world bridge behavior.
 - Pawn assignment, ideoligion identity, and animal training details in pawn reads when requested with full detail or targeted `include` sections.
 - Request body size limit for command payloads.
+- MIT license, contributor licensing note, and RimWorld/Ludeon EULA notice.
 
 ### Changed
 
