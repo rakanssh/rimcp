@@ -6,9 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Typed MCP command tools and PUT endpoints for pawn drafting, work priorities, schedules, prisoner interaction modes, animal designations, animal training, and current research selection.
+- Typed MCP command tools and PUT endpoints for pawn drafting, work priorities, Assign-style pawn settings, animal designations, animal training, and current research selection.
 - MCP tool annotations for read-only reads, idempotent commands, destructive commands, and closed-world bridge behavior.
-- Animal training details in pawn reads when requested with full detail or `include=["training"]`.
+- Pawn assignment and animal training details in pawn reads when requested with full detail or targeted `include` sections.
 - Request body size limit for command payloads.
 
 ### Changed

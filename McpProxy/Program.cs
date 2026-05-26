@@ -343,7 +343,7 @@ internal static class ToolCatalog
         {
             Tool("get_game_context", "Get game-wide context: current map, time, storyteller/difficulty, loaded mods, and map ids.", Input(), ToolEndpoint.Get(args => QueryPath("v1/game-context", args)), ReadOnly()),
             Tool("get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", Input(), ToolEndpoint.Get(args => QueryPath("v1/colony-status", args)), ReadOnly()),
-            Tool("list_pawns", "List pawns by validated filter.", Input(Prop("filter", PawnFilter())), ToolEndpoint.Get(args => QueryPath("v1/pawns", args, "filter")), ReadOnly()),
+            Tool("list_pawns", "List pawns by validated filter. Use include=[\"assignments\"] for Assign-style pawn settings and include=[\"assignmentOptions\"] for valid policy, area, medical, hostility, medicine, and interaction options.", Input(Prop("filter", PawnFilter())), ToolEndpoint.Get(args => QueryPath("v1/pawns", args, "filter")), ReadOnly()),
             Tool("get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", Required(Prop("id", Str("Pawn ThingID or load id."))), ToolEndpoint.Get(PathWithId("v1/pawns", "id")), ReadOnly()),
             Tool("list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context.", Input(), ToolEndpoint.Get(args => QueryPath("v1/resources", args)), ReadOnly()),
             Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), ToolEndpoint.Get(args => QueryPath("v1/work", args)), ReadOnly()),
@@ -365,8 +365,7 @@ internal static class ToolCatalog
             Tool("get_def", "Get full detail for a loaded def by defName and optional kind.", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), ToolEndpoint.Get(PathWithId("v1/defs", "defName", "kind")), ReadOnly()),
             Tool("set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), ToolEndpoint.Put("v1/pawns/{pawnId}/drafted", Body("mapId", "drafted")), IdempotentMutation()),
             Tool("set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), ToolEndpoint.Put("v1/pawns/{pawnId}/work/{workTypeDefName}", Body("mapId", "priority")), IdempotentMutation()),
-            Tool("set_pawn_schedule", "Set one player-controlled pawn's timetable assignments across half-open hour ranges.", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("assignments", ScheduleAssignments())), ToolEndpoint.Put("v1/pawns/{pawnId}/schedule", Body("mapId", "assignments")), IdempotentMutation()),
-            Tool("set_prisoner_interaction", "Set one colony prisoner's exclusive interaction mode by PrisonerInteractionModeDef defName.", RequiredWithMap(Prop("pawnId", Str("Prisoner pawn ThingID or load id.")), Prop("interactionModeDefName", Str("PrisonerInteractionModeDef defName, such as AttemptRecruit, ReduceResistance, Convert, or Release."))), ToolEndpoint.Put("v1/prisoners/{pawnId}/interaction", Body("mapId", "interactionModeDefName")), IdempotentMutation()),
+            Tool("set_pawn_assignment", "Set one Assign-style pawn setting: schedule, policy, medical care, self-tend, hostility response, allowed area, carried medicine, or prisoner interaction.", PawnAssignmentInput(), ToolEndpoint.Put("v1/pawns/{pawnId}/assignments/{assignmentKind}", Body("mapId", "assignments", "policyKind", "policyId", "care", "enabled", "mode", "areaId", "count", "medicineDefName", "interactionModeDefName")), IdempotentMutation()),
             Tool("designate_animal", "Set or clear one animal's hunt, tame, or slaughter designation.", RequiredWithMap(Prop("pawnId", Str("Animal pawn ThingID or load id.")), Prop("action", AnimalDesignationAction())), ToolEndpoint.Put("v1/animals/{pawnId}/designation", Body("mapId", "action")), IdempotentDestructiveMutation()),
             Tool("set_animal_training", "Set desired training flags for one colony animal by TrainableDef defName.", RequiredWithMap(Prop("pawnId", Str("Colony animal pawn ThingID or load id.")), Prop("assignments", TrainingAssignments())), ToolEndpoint.Put("v1/animals/{pawnId}/training", Body("mapId", "assignments")), IdempotentMutation()),
             Tool("set_research_project", "Set the current research project by ResearchProjectDef defName.", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), ToolEndpoint.Put(_ => "v1/research/current", Body("projectDefName")), IdempotentMutation())
@@ -501,6 +500,72 @@ internal static class ToolCatalog
         return InputWithOptionalMap(false, properties.Select(property => property["name"]!.GetValue<string>()).ToArray(), properties);
     }
 
+    private static JsonObject PawnAssignmentInput()
+    {
+        var props = MapProperty();
+        props["pawnId"] = Str("Pawn ThingID or load id.");
+        props["assignmentKind"] = new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("schedule", "policy", "medicalCare", "selfTend", "hostilityResponse", "allowedArea", "carryMedicine", "prisonerInteraction"),
+            ["description"] = "Assign-style setting to change."
+        };
+        props["assignments"] = ScheduleAssignments();
+        props["policyKind"] = new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("apparel", "food", "drug", "reading"),
+            ["description"] = "Policy column to set when assignmentKind is policy."
+        };
+        props["policyId"] = Str("Policy id returned by list_pawns include=[\"assignmentOptions\"].");
+        props["care"] = new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("NoCare", "NoMeds", "HerbalOrWorse", "NormalOrWorse", "Best"),
+            ["description"] = "Medical care category."
+        };
+        props["enabled"] = Bool("Whether self-tend should be enabled.");
+        props["mode"] = new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("Ignore", "Attack", "Flee"),
+            ["description"] = "Hostility response mode."
+        };
+        props["areaId"] = Str("Allowed area id returned by assignmentOptions, or unrestricted to clear it.");
+        props["count"] = Int("Medicine count to carry.", 0, 3);
+        props["medicineDefName"] = Str("Optional medicine ThingDef defName from assignmentOptions.");
+        props["interactionModeDefName"] = Str("PrisonerInteractionModeDef defName, such as AttemptRecruit, ReduceResistance, Convert, or Release.");
+
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = props,
+            ["required"] = new JsonArray("pawnId", "assignmentKind"),
+            ["oneOf"] = new JsonArray(
+                AssignmentBranch("schedule", "assignments"),
+                AssignmentBranch("policy", "policyKind", "policyId"),
+                AssignmentBranch("medicalCare", "care"),
+                AssignmentBranch("selfTend", "enabled"),
+                AssignmentBranch("hostilityResponse", "mode"),
+                AssignmentBranch("allowedArea", "areaId"),
+                AssignmentBranch("carryMedicine", "count"),
+                AssignmentBranch("prisonerInteraction", "interactionModeDefName")),
+            ["additionalProperties"] = false
+        };
+    }
+
+    private static JsonObject AssignmentBranch(string assignmentKind, params string[] required)
+    {
+        return new JsonObject
+        {
+            ["properties"] = new JsonObject
+            {
+                ["assignmentKind"] = new JsonObject { ["const"] = assignmentKind }
+            },
+            ["required"] = new JsonArray(new[] { "assignmentKind" }.Concat(required).Select(item => JsonValue.Create(item)).ToArray())
+        };
+    }
+
     private static JsonObject InputWithOptionalMap(bool includeMapId, string[] required, params JsonObject[] properties)
     {
         var props = includeMapId ? MapProperty() : new JsonObject();
@@ -559,7 +624,7 @@ internal static class ToolCatalog
             {
                 ["type"] = "array",
                 ["items"] = new JsonObject { ["type"] = "string" },
-                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, training, gear, relations, contents, and recipes."
+                ["description"] = "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, assignments, assignmentOptions, training, gear, relations, contents, and recipes."
             },
             ["limit"] = new JsonObject
             {

@@ -34,8 +34,7 @@ Current MCP tools:
 - `get_def`
 - `set_pawn_drafted`
 - `set_pawn_work_priority`
-- `set_pawn_schedule`
-- `set_prisoner_interaction`
+- `set_pawn_assignment`
 - `designate_animal`
 - `set_animal_training`
 - `set_research_project`
@@ -84,8 +83,7 @@ Current command HTTP endpoints:
 
 - `PUT /v1/pawns/{pawnId}/drafted`
 - `PUT /v1/pawns/{pawnId}/work/{workTypeDefName}`
-- `PUT /v1/pawns/{pawnId}/schedule`
-- `PUT /v1/prisoners/{pawnId}/interaction`
+- `PUT /v1/pawns/{pawnId}/assignments/{assignmentKind}`
 - `PUT /v1/animals/{pawnId}/designation`
 - `PUT /v1/animals/{pawnId}/training`
 - `PUT /v1/research/current`

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
@@ -94,94 +93,6 @@ namespace RiMCP.Command
                 Dto.Field("manualPrioritiesChanged", manualPrioritiesChanged)));
         }
 
-        public static BridgeResponse SetSchedule(BridgeRequest request, RouteMatch route)
-        {
-            string pawnId = route["pawnId"];
-            SetPawnScheduleBody body = CommandUtil.ReadBody<SetPawnScheduleBody>(request);
-            if (body.Assignments == null || body.Assignments.Length == 0)
-            {
-                throw new CommandException(400, "Missing required field 'assignments'.");
-            }
-
-            CommandContext context = CommandUtil.ContextFor(body.MapId);
-            CommandUtil.RequireMap(context);
-
-            Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
-            if (pawn.timetable == null)
-            {
-                throw new CommandException(409, "Pawn has no timetable.");
-            }
-
-            object previousSchedule = PawnReadService.SerializeSchedule(pawn);
-            ScheduleAssignment[] assignments = ParseScheduleAssignments(body.Assignments);
-            List<object> changedHours = new List<object>();
-            foreach (ScheduleAssignment assignment in assignments)
-            {
-                for (int hour = assignment.StartHour; hour < assignment.EndHour; hour++)
-                {
-                    TimeAssignmentDef previous = pawn.timetable.GetAssignment(hour);
-                    if (previous == assignment.Assignment)
-                    {
-                        continue;
-                    }
-
-                    changedHours.Add(Dto.Obj(
-                        Dto.Field("hour", hour),
-                        Dto.Field("previousAssignment", previous == null ? null : previous.defName),
-                        Dto.Field("assignment", assignment.Assignment.defName)));
-                    pawn.timetable.SetAssignment(hour, assignment.Assignment);
-                }
-            }
-
-            return CommandEnvelope.Ok(context, changedHours.Count > 0, Dto.Obj(
-                Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
-                Dto.Field("previousSchedule", previousSchedule),
-                Dto.Field("schedule", PawnReadService.SerializeSchedule(pawn)),
-                Dto.Field("changedHours", changedHours.ToArray())));
-        }
-
-        private static ScheduleAssignment[] ParseScheduleAssignments(SetPawnScheduleAssignmentBody[] bodies)
-        {
-            bool[] covered = new bool[24];
-            List<ScheduleAssignment> assignments = new List<ScheduleAssignment>();
-            for (int i = 0; i < bodies.Length; i++)
-            {
-                SetPawnScheduleAssignmentBody body = bodies[i];
-                if (body == null)
-                {
-                    throw new CommandException(400, "Schedule assignment at index " + i + " is null.");
-                }
-                if (!body.StartHour.HasValue)
-                {
-                    throw new CommandException(400, "Missing required field 'assignments[" + i + "].startHour'.");
-                }
-                if (!body.EndHour.HasValue)
-                {
-                    throw new CommandException(400, "Missing required field 'assignments[" + i + "].endHour'.");
-                }
-
-                int start = body.StartHour.Value;
-                int end = body.EndHour.Value;
-                if (start < 0 || start >= 24 || end <= 0 || end > 24 || start >= end)
-                {
-                    throw new CommandException(400, "Schedule assignment at index " + i + " must use a half-open hour range within 0..24.");
-                }
-                for (int hour = start; hour < end; hour++)
-                {
-                    if (covered[hour])
-                    {
-                        throw new CommandException(400, "Schedule assignments overlap at hour " + hour + ".");
-                    }
-                    covered[hour] = true;
-                }
-
-                TimeAssignmentDef assignment = CommandUtil.ResolveDef<TimeAssignmentDef>(body.AssignmentDefName, "assignments[" + i + "].assignmentDefName", "Time assignment");
-                assignments.Add(new ScheduleAssignment(start, end, assignment));
-            }
-
-            return assignments.ToArray();
-        }
-
         [DataContract]
         private sealed class SetPawnDraftedBody
         {
@@ -200,43 +111,6 @@ namespace RiMCP.Command
 
             [DataMember(Name = "priority")]
             public int? Priority { get; set; }
-        }
-
-        [DataContract]
-        private sealed class SetPawnScheduleBody
-        {
-            [DataMember(Name = "mapId")]
-            public string MapId { get; set; }
-
-            [DataMember(Name = "assignments")]
-            public SetPawnScheduleAssignmentBody[] Assignments { get; set; }
-        }
-
-        [DataContract]
-        private sealed class SetPawnScheduleAssignmentBody
-        {
-            [DataMember(Name = "startHour")]
-            public int? StartHour { get; set; }
-
-            [DataMember(Name = "endHour")]
-            public int? EndHour { get; set; }
-
-            [DataMember(Name = "assignmentDefName")]
-            public string AssignmentDefName { get; set; }
-        }
-
-        private sealed class ScheduleAssignment
-        {
-            public readonly int StartHour;
-            public readonly int EndHour;
-            public readonly TimeAssignmentDef Assignment;
-
-            public ScheduleAssignment(int startHour, int endHour, TimeAssignmentDef assignment)
-            {
-                StartHour = startHour;
-                EndHour = endHour;
-                Assignment = assignment;
-            }
         }
     }
 }

@@ -46,9 +46,15 @@ namespace RiMCP.Read
                 .Select(role => context.Request.IdsOnly ? ReadUtil.ThingId(role.Pawn) : SerializePawn(role.Pawn, role.Role, context.Request.Detail, context.Request))
                 .ToArray();
 
-            return ReadEnvelope.Ok(context, Dto.Obj(
+            Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("filter", filter),
-                Dto.Field("pawns", pawns)), page.Truncated, page.NextCursor);
+                Dto.Field("pawns", pawns));
+            if (context.Request.Wants("assignmentOptions"))
+            {
+                data["assignmentOptions"] = SerializeAssignmentOptions(context.Map);
+            }
+
+            return ReadEnvelope.Ok(context, data, page.Truncated, page.NextCursor);
         }
 
         public static BridgeResponse GetPawn(BridgeRequest request, RouteMatch route)
@@ -180,6 +186,10 @@ namespace RiMCP.Read
             {
                 dto["work"] = SerializePawnWork(pawn);
                 dto["schedule"] = SerializeSchedule(pawn);
+            }
+            if (detail == ReadDetail.Full || request.Wants("assignments"))
+            {
+                dto["assignments"] = SerializeAssignments(pawn);
             }
             if (detail == ReadDetail.Full || request.Wants("training"))
             {
@@ -376,9 +386,110 @@ namespace RiMCP.Read
             Area area = pawn.playerSettings == null ? null : pawn.playerSettings.AreaRestrictionInPawnCurrentMap;
             return Dto.Obj(
                 Dto.Field("hours", hours),
-                Dto.Field("allowedArea", area == null ? null : Dto.Obj(
-                    Dto.Field("label", area.Label),
-                    Dto.Field("id", area.ID.ToString()))));
+                Dto.Field("allowedArea", SerializeAllowedArea(area, pawn.Map)));
+        }
+
+        public static object SerializeAssignments(Pawn pawn)
+        {
+            Pawn_PlayerSettings settings = pawn.playerSettings;
+            return Dto.Obj(
+                Dto.Field("schedule", SerializeSchedule(pawn)),
+                Dto.Field("policies", Dto.Obj(
+                    Dto.Field("apparel", pawn.outfits == null ? null : SerializePolicy(pawn.outfits.CurrentApparelPolicy)),
+                    Dto.Field("food", pawn.foodRestriction == null ? null : SerializePolicy(pawn.foodRestriction.CurrentFoodPolicy)),
+                    Dto.Field("drug", pawn.drugs == null ? null : SerializePolicy(pawn.drugs.CurrentPolicy)),
+                    Dto.Field("reading", pawn.reading == null ? null : SerializePolicy(pawn.reading.CurrentPolicy)))),
+                Dto.Field("medicalCare", settings == null ? null : Dto.Obj(
+                    Dto.Field("value", settings.medCare.ToString()),
+                    Dto.Field("label", MedicalCareUtility.GetLabel(settings.medCare)))),
+                Dto.Field("selfTend", settings == null ? (object)null : settings.selfTend),
+                Dto.Field("hostilityResponse", settings == null || !settings.UsesConfigurableHostilityResponse ? null : settings.hostilityResponse.ToString()),
+                Dto.Field("allowedArea", settings == null ? null : SerializeAllowedArea(settings.AreaRestrictionInPawnCurrentMap, pawn.Map)),
+                Dto.Field("carryMedicine", SerializeCarryMedicine(pawn)),
+                Dto.Field("prisonerInteraction", pawn.guest == null ? null : ReadUtil.Def(pawn.guest.ExclusiveInteractionMode)));
+        }
+
+        public static object SerializeAssignmentOptions(Map map)
+        {
+            InventoryStockGroupDef medicineGroup = InventoryStockGroupDefOf.Medicine;
+            return Dto.Obj(
+                Dto.Field("assignmentKinds", new[]
+                {
+                    "schedule", "policy", "medicalCare", "selfTend", "hostilityResponse", "allowedArea", "carryMedicine", "prisonerInteraction"
+                }),
+                Dto.Field("timeAssignments", DefDatabase<TimeAssignmentDef>.AllDefsListForReading
+                    .OrderBy(def => def.defName)
+                    .Select(def => ReadUtil.Def(def))
+                    .ToArray()),
+                Dto.Field("policies", Dto.Obj(
+                    Dto.Field("apparel", Current.Game == null || Current.Game.outfitDatabase == null ? new object[0] : Current.Game.outfitDatabase.AllOutfits.Select(SerializePolicy).ToArray()),
+                    Dto.Field("food", Current.Game == null || Current.Game.foodRestrictionDatabase == null ? new object[0] : Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Select(SerializePolicy).ToArray()),
+                    Dto.Field("drug", Current.Game == null || Current.Game.drugPolicyDatabase == null ? new object[0] : Current.Game.drugPolicyDatabase.AllPolicies.Select(SerializePolicy).ToArray()),
+                    Dto.Field("reading", Current.Game == null || Current.Game.readingPolicyDatabase == null ? new object[0] : Current.Game.readingPolicyDatabase.AllReadingPolicies.Select(SerializePolicy).ToArray()))),
+                Dto.Field("medicalCare", Enum.GetValues(typeof(MedicalCareCategory))
+                    .Cast<MedicalCareCategory>()
+                    .Select(value => Dto.Obj(
+                        Dto.Field("value", value.ToString()),
+                        Dto.Field("label", MedicalCareUtility.GetLabel(value))))
+                    .ToArray()),
+                Dto.Field("hostilityResponse", Enum.GetNames(typeof(HostilityResponseMode))),
+                Dto.Field("allowedAreas", map == null ? new object[0] : map.areaManager.AllAreas
+                    .Where(area => area.AssignableAsAllowed())
+                    .OrderBy(area => area.Label)
+                    .Select(area => SerializeAllowedArea(area, map))
+                    .ToArray()),
+                Dto.Field("medicineCarry", Dto.Obj(
+                    Dto.Field("minCount", 0),
+                    Dto.Field("maxCount", 3),
+                    Dto.Field("medicineOptions", medicineGroup == null || medicineGroup.thingDefs == null ? new object[0] : medicineGroup.thingDefs
+                        .OrderBy(def => def.defName)
+                        .Select(def => ReadUtil.Def(def))
+                        .ToArray()))),
+                Dto.Field("prisonerInteractionModes", DefDatabase<PrisonerInteractionModeDef>.AllDefsListForReading
+                    .Where(def => !def.isNonExclusiveInteraction)
+                    .OrderBy(def => def.defName)
+                    .Select(def => ReadUtil.Def(def))
+                    .ToArray()));
+        }
+
+        public static object SerializePolicy(Policy policy)
+        {
+            return policy == null
+                ? null
+                : Dto.Obj(
+                    Dto.Field("id", policy.GetUniqueLoadID()),
+                    Dto.Field("numericId", policy.id.ToString()),
+                    Dto.Field("label", policy.label),
+                    Dto.Field("renamableLabel", policy.RenamableLabel));
+        }
+
+        public static object SerializeAllowedArea(Area area, Map map)
+        {
+            return area == null
+                ? null
+                : Dto.Obj(
+                    Dto.Field("id", AllowedAreaId(area, map)),
+                    Dto.Field("numericId", area.ID.ToString()),
+                    Dto.Field("label", area.Label));
+        }
+
+        public static string AllowedAreaId(Area area, Map map)
+        {
+            return area == null ? null : "area:" + (map == null ? "" : map.uniqueID.ToString()) + ":" + area.ID;
+        }
+
+        public static object SerializeCarryMedicine(Pawn pawn)
+        {
+            if (pawn == null || pawn.inventoryStock == null || InventoryStockGroupDefOf.Medicine == null)
+            {
+                return null;
+            }
+
+            InventoryStockGroupDef group = InventoryStockGroupDefOf.Medicine;
+            ThingDef thingDef = pawn.inventoryStock.GetDesiredThingForGroup(group);
+            return Dto.Obj(
+                Dto.Field("count", pawn.inventoryStock.GetDesiredCountForGroup(group)),
+                Dto.Field("thing", ReadUtil.Def(thingDef)));
         }
 
         public static object SerializeTraining(Pawn pawn)
