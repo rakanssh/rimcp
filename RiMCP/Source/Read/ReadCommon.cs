@@ -168,6 +168,16 @@ namespace RiMCP.Read
             ReadRequest request = ReadRequest.FromUri(bridgeRequest.Uri);
             return new ReadContext(request, GameContext.ResolveMap(request.MapId));
         }
+
+        public static ReadContext FromMap(BridgeRequest bridgeRequest)
+        {
+            ReadContext context = From(bridgeRequest);
+            if (context.Map == null)
+            {
+                throw new BridgeException(409, "No active map is loaded.");
+            }
+            return context;
+        }
     }
 
     internal static class Dto

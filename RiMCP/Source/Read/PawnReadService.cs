@@ -19,11 +19,7 @@ namespace RiMCP.Read
 
         public static BridgeResponse ListPawns(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             string filter = context.Request.Get("filter");
             if (string.IsNullOrWhiteSpace(filter))
@@ -55,12 +51,8 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetPawn(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
+            ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
 
             Pawn pawn = FindPawn(context.Map, id);
             if (pawn == null)

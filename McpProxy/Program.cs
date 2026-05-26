@@ -285,26 +285,6 @@ internal sealed record ToolEndpoint(
         return Put(args => ExpandPath(pathTemplate, args), buildBody);
     }
 
-    public static ToolEndpoint Post(Func<JsonObject?, string?> buildPath, Func<JsonObject?, JsonObject?> buildBody)
-    {
-        return new ToolEndpoint("POST", buildPath, buildBody);
-    }
-
-    public static ToolEndpoint Post(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
-    {
-        return Post(args => ExpandPath(pathTemplate, args), buildBody);
-    }
-
-    public static ToolEndpoint Delete(Func<JsonObject?, string?> buildPath, Func<JsonObject?, JsonObject?> buildBody)
-    {
-        return new ToolEndpoint("DELETE", buildPath, buildBody);
-    }
-
-    public static ToolEndpoint Delete(string pathTemplate, Func<JsonObject?, JsonObject?> buildBody)
-    {
-        return Delete(args => ExpandPath(pathTemplate, args), buildBody);
-    }
-
     private static string? ExpandPath(string pathTemplate, JsonObject? args)
     {
         var segments = pathTemplate.Split('/');
@@ -391,16 +371,6 @@ internal static class ToolCatalog
     private static JsonObject IdempotentDestructiveMutation()
     {
         return Mutation(idempotent: true, destructive: true);
-    }
-
-    private static JsonObject AdditiveMutation()
-    {
-        return Mutation(idempotent: false, destructive: false);
-    }
-
-    private static JsonObject DestructiveMutation()
-    {
-        return Mutation(idempotent: false, destructive: true);
     }
 
     private static JsonObject Mutation(bool idempotent, bool destructive)

@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse GetPower(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             IEnumerable<PowerNet> source = PowerNets(context.Map).OrderByDescending(net => net.CurrentStoredEnergy());
             Page<PowerNet> page = new Page<PowerNet>(source, context.Request);

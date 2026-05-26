@@ -22,13 +22,10 @@ namespace RiMCP.Command
         }
     }
 
-    internal sealed class CommandException : Exception
+    internal sealed class CommandException : BridgeException
     {
-        public readonly int StatusCode;
-
-        public CommandException(int statusCode, string message) : base(message)
+        public CommandException(int statusCode, string message) : base(statusCode, message)
         {
-            StatusCode = statusCode;
         }
     }
 

@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse ListBuildings(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             string category = context.Request.Get("category");
             IEnumerable<Building> source = context.Map.listerBuildings.allBuildingsColonist
@@ -33,12 +29,8 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetBuilding(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
+            ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
 
             Building building = FindBuilding(context.Map, id);
             if (building == null)

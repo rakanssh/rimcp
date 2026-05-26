@@ -62,7 +62,7 @@ namespace RiMCP.Bridge
 
                 return pathMatched ? BridgeResponse.Error(405, "Method not allowed for endpoint.") : BridgeResponse.Error(404, "Unknown endpoint.");
             }
-            catch (CommandException ex)
+            catch (BridgeException ex)
             {
                 return BridgeResponse.Error(ex.StatusCode, ex.Message);
             }

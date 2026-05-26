@@ -30,11 +30,7 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetColonyStatus(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             List<PawnReadService.PawnRole> pawns = PawnReadService.PawnsForFilter(context.Map, "all").ToList();
             List<Pawn> core = pawns.Where(role => PawnReadService.IsCoreRole(role.Role)).Select(role => role.Pawn).ToList();

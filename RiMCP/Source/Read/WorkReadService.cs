@@ -9,11 +9,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse ListWork(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             var pawns = PawnReadService.PawnsForFilter(context.Map, "core")
                 .OrderBy(role => role.Pawn.LabelShortCap);

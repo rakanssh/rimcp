@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse ListThreats(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             List<object> threats = new List<object>();
             foreach (Pawn pawn in context.Map.mapPawns.AllPawnsSpawned.Where(IsThreatPawn).OrderBy(p => p.LabelShortCap))

@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse ListZones(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             IEnumerable<ZoneRecord> source = ZoneRecords(context.Map)
                 .OrderBy(record => record.Kind)
@@ -28,12 +24,8 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetZone(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
+            ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
 
             ZoneRecord record = ZoneRecords(context.Map).FirstOrDefault(zone => zone.Id == id);
             if (record == null)

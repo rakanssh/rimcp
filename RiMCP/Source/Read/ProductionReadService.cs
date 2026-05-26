@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse ListProduction(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             IEnumerable<BillRecord> records = BillRecords(context.Map)
                 .OrderBy(record => record.Workbench.def.defName)
@@ -29,11 +25,7 @@ namespace RiMCP.Read
 
         public static BridgeResponse ListWorkshops(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             IEnumerable<WorkshopRecord> records = WorkshopRecords(context.Map)
                 .OrderBy(record => record.Workbench.def.defName)
@@ -49,12 +41,8 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetWorkshop(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
+            ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
 
             WorkshopRecord record = WorkshopRecords(context.Map)
                 .FirstOrDefault(item => item.Workbench.ThingID == id || item.Workbench.GetUniqueLoadID() == id);
@@ -67,12 +55,8 @@ namespace RiMCP.Read
 
         public static BridgeResponse GetBill(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
+            ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
 
             BillRecord record = BillRecords(context.Map).FirstOrDefault(item => item.Bill.GetUniqueLoadID() == id);
             if (record == null)

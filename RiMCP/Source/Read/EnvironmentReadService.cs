@@ -10,11 +10,7 @@ namespace RiMCP.Read
     {
         public static BridgeResponse GetEnvironment(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            if (context.Map == null)
-            {
-                return BridgeResponse.Error(409, "No active map is loaded.");
-            }
+            ReadContext context = ReadContext.FromMap(request);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("summary", SummarizeEnvironment(context.Map)),
