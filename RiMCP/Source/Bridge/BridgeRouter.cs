@@ -24,6 +24,8 @@ namespace RiMCP.Bridge
             BridgeRoute.Get("/v1/power", PowerReadService.GetPower),
             BridgeRoute.Get("/v1/threats", ThreatReadService.ListThreats),
             BridgeRoute.Get("/v1/research", ResearchReadService.GetResearch),
+            BridgeRoute.Get("/v1/ideoligions", IdeoligionReadService.ListIdeoligions),
+            BridgeRoute.Get("/v1/ideoligions/{id}", IdeoligionReadService.GetIdeoligion),
             BridgeRoute.Get("/v1/quests", QuestWorldReadService.ListQuests),
             BridgeRoute.Get("/v1/buildings", BuildingReadService.ListBuildings),
             BridgeRoute.Get("/v1/buildings/{id}", BuildingReadService.GetBuilding),

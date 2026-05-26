@@ -26,6 +26,8 @@ Current MCP tools:
 - `get_power`
 - `list_threats`
 - `get_research`
+- `list_ideoligions`
+- `get_ideoligion`
 - `list_quests`
 - `list_buildings`
 - `get_building`

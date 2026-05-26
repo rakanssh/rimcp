@@ -166,7 +166,8 @@ namespace RiMCP.Read
                 Dto.Field("drafted", pawn.Drafted),
                 Dto.Field("position", ReadUtil.Cell(pawn.Position)),
                 Dto.Field("mentalState", pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName),
-                Dto.Field("currentJob", SerializeCurrentJob(pawn)));
+                Dto.Field("currentJob", SerializeCurrentJob(pawn)),
+                Dto.Field("ideoligion", IdeoligionReadService.SerializePawnIdeoligionSummary(pawn)));
 
             if (detail != ReadDetail.Summary || request.Wants("needs"))
             {
