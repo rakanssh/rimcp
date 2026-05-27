@@ -58,7 +58,7 @@ namespace RiMCP.Read
             ReadContext context = ReadContext.FromMap(request);
             string id = route["id"];
 
-            BillRecord record = BillRecords(context.Map).FirstOrDefault(item => item.Bill.GetUniqueLoadID() == id);
+            BillRecord record = FindBill(context.Map, id);
             if (record == null)
             {
                 return BridgeResponse.Error(404, "Bill not found.");
@@ -66,7 +66,26 @@ namespace RiMCP.Read
             return ReadEnvelope.Ok(context, SerializeBill(record, ReadDetail.Full));
         }
 
-        private static IEnumerable<BillRecord> BillRecords(Map map)
+        public static BillRecord FindBill(Map map, string id)
+        {
+            if (map == null || string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+            return BillRecords(map).FirstOrDefault(item => item.Bill.GetUniqueLoadID() == id);
+        }
+
+        public static WorkshopRecord FindWorkshop(Map map, string id)
+        {
+            if (map == null || string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+            return WorkshopRecords(map)
+                .FirstOrDefault(item => item.Workbench.ThingID == id || item.Workbench.GetUniqueLoadID() == id);
+        }
+
+        public static IEnumerable<BillRecord> BillRecords(Map map)
         {
             foreach (Building building in map.listerBuildings.allBuildingsColonist)
             {
@@ -82,7 +101,7 @@ namespace RiMCP.Read
             }
         }
 
-        private static IEnumerable<WorkshopRecord> WorkshopRecords(Map map)
+        public static IEnumerable<WorkshopRecord> WorkshopRecords(Map map)
         {
             foreach (Building building in map.listerBuildings.allBuildingsColonist)
             {
@@ -95,7 +114,7 @@ namespace RiMCP.Read
             }
         }
 
-        private static object SerializeWorkshop(WorkshopRecord record, ReadDetail detail, bool includeRecipes)
+        public static object SerializeWorkshop(WorkshopRecord record, ReadDetail detail, bool includeRecipes)
         {
             List<RecipeDef> recipes = AvailableRecipes(record.Workbench.def)
                 .OrderBy(recipe => recipe.defName)
@@ -129,7 +148,7 @@ namespace RiMCP.Read
             return dto;
         }
 
-        private static object SerializeBill(BillRecord record, ReadDetail detail)
+        public static object SerializeBill(BillRecord record, ReadDetail detail)
         {
             Bill_Production production = record.Bill as Bill_Production;
             Dictionary<string, object> dto = Dto.Obj(
@@ -163,7 +182,7 @@ namespace RiMCP.Read
             return dto;
         }
 
-        private static IEnumerable<RecipeDef> AvailableRecipes(ThingDef workbenchDef)
+        public static IEnumerable<RecipeDef> AvailableRecipes(ThingDef workbenchDef)
         {
             IEnumerable<RecipeDef> recipes = null;
             try
@@ -264,7 +283,7 @@ namespace RiMCP.Read
             return ingredient.GetBaseCount();
         }
 
-        private sealed class WorkshopRecord
+        internal sealed class WorkshopRecord
         {
             public readonly Building Workbench;
             public readonly IBillGiver Giver;
@@ -276,7 +295,7 @@ namespace RiMCP.Read
             }
         }
 
-        private sealed class BillRecord
+        internal sealed class BillRecord
         {
             public readonly Building Workbench;
             public readonly IBillGiver Giver;

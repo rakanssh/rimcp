@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Production command tools and endpoints: `set_bill` (update/delete) and `add_bill_to_workshop` (add).
+
 ## [0.3.0] - 2026-05-26
 
 ### Added
