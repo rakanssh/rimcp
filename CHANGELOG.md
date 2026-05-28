@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file.
 - Increased the main thread dispatch wait timeout to 10 seconds.
 - Downgraded the MCP proxy target framework from .NET 10.0 to .NET 8.0.
 - Updated the mod's configuration generator to delegate execution to the platform-specific launcher scripts.
+- Hardened JSON serialization so non-finite numeric values emit `null` and unsupported DTO values fail explicitly instead of falling back to `ToString()`.
 
 ## [0.3.0] - 2026-05-26
 

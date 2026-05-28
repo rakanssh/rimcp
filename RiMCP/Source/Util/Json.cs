@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Collections;
@@ -112,7 +113,16 @@ namespace RiMCP.Util
 
         public static string Number(float value)
         {
-            return value.ToString("0.###", CultureInfo.InvariantCulture);
+            return float.IsNaN(value) || float.IsInfinity(value)
+                ? "null"
+                : value.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        public static string Number(double value)
+        {
+            return double.IsNaN(value) || double.IsInfinity(value)
+                ? "null"
+                : value.ToString("R", CultureInfo.InvariantCulture);
         }
 
         public static string Bool(bool value)
@@ -148,9 +158,27 @@ namespace RiMCP.Util
                 return;
             }
 
+            if (value is char)
+            {
+                builder.Append(String(((char)value).ToString()));
+                return;
+            }
+
+            if (value is float)
+            {
+                builder.Append(Number((float)value));
+                return;
+            }
+
+            if (value is double)
+            {
+                builder.Append(Number((double)value));
+                return;
+            }
+
             if (value is int || value is long || value is short || value is byte ||
                 value is uint || value is ulong || value is ushort || value is sbyte ||
-                value is float || value is double || value is decimal)
+                value is decimal)
             {
                 builder.Append(System.Convert.ToString(value, CultureInfo.InvariantCulture));
                 return;
@@ -176,7 +204,7 @@ namespace RiMCP.Util
                 return;
             }
 
-            builder.Append(String(value.ToString()));
+            throw new JsonSerializationException("Unsupported JSON value type: " + value.GetType().FullName);
         }
 
         private static void WriteDictionary(StringBuilder builder, IDictionary dictionary)
@@ -189,12 +217,17 @@ namespace RiMCP.Util
                 {
                     continue;
                 }
+                string key = entry.Key as string;
+                if (key == null)
+                {
+                    throw new JsonSerializationException("Unsupported JSON object key type: " + entry.Key.GetType().FullName);
+                }
                 if (!first)
                 {
                     builder.Append(',');
                 }
                 first = false;
-                builder.Append(String(entry.Key.ToString()));
+                builder.Append(String(key));
                 builder.Append(':');
                 WriteValue(builder, entry.Value);
             }
@@ -220,6 +253,13 @@ namespace RiMCP.Util
         private static bool ShouldOmit(object value)
         {
             return value == null;
+        }
+    }
+
+    internal sealed class JsonSerializationException : Exception
+    {
+        public JsonSerializationException(string message) : base(message)
+        {
         }
     }
 }
