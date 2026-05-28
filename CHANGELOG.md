@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - Production command tools and endpoints: `set_bill` (update/delete) and `add_bill_to_workshop` (add).
+- Request queue limits and rate limiting (HTTP 429) to the main thread dispatcher under heavy load.
+
+### Changed
+
+- Increased the main thread dispatch wait timeout to 10 seconds.
 
 ## [0.3.0] - 2026-05-26
 

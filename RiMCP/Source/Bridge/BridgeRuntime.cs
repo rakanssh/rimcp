@@ -6,7 +6,7 @@ namespace RiMCP.Bridge
 {
     internal static class BridgeRuntime
     {
-        private const int MainThreadWaitMs = 1200;
+        private const int MainThreadWaitMs = 10000;
         private const int MaxQueuedRequestsPerFrame = 16;
 
         private static readonly MainThreadDispatcher Dispatcher = new MainThreadDispatcher();

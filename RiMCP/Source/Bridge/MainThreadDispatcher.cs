@@ -6,10 +6,23 @@ namespace RiMCP.Bridge
 {
     internal sealed class MainThreadDispatcher
     {
+        private const int MaxQueuedWorkItems = 64;
+
         private readonly ConcurrentQueue<WorkItem> queue = new ConcurrentQueue<WorkItem>();
+        private int queuedWorkItems;
+
+        public int QueuedCount
+        {
+            get { return Interlocked.CompareExchange(ref queuedWorkItems, 0, 0); }
+        }
 
         public BridgeResponse Invoke(Func<BridgeResponse> action, int timeoutMs)
         {
+            if (!TryReserveQueueSlot())
+            {
+                return BridgeResponse.Error(429, "RiMCP is busy; too many requests are waiting for the RimWorld main thread. Try again shortly.");
+            }
+
             WorkItem item = new WorkItem(action);
             queue.Enqueue(item);
             if (!item.Done.Wait(timeoutMs))
@@ -32,7 +45,7 @@ namespace RiMCP.Bridge
 
                 if (item.IsCancelled)
                 {
-                    item.Done.Set();
+                    Complete(item);
                     continue;
                 }
 
@@ -46,9 +59,31 @@ namespace RiMCP.Bridge
                 }
                 finally
                 {
-                    item.Done.Set();
+                    Complete(item);
                 }
             }
+        }
+
+        private bool TryReserveQueueSlot()
+        {
+            while (true)
+            {
+                int current = QueuedCount;
+                if (current >= MaxQueuedWorkItems)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref queuedWorkItems, current + 1, current) == current)
+                {
+                    return true;
+                }
+            }
+        }
+
+        private void Complete(WorkItem item)
+        {
+            item.Done.Set();
+            Interlocked.Decrement(ref queuedWorkItems);
         }
 
         private sealed class WorkItem
