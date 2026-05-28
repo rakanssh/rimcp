@@ -334,10 +334,10 @@ internal static class ToolCatalog
             Tool("list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", Input(), ToolEndpoint.Get(args => QueryPath("v1/work", args)), ReadOnly()),
             Tool("list_production", "List production bills across colony bill givers.", Input(), ToolEndpoint.Get(args => QueryPath("v1/production", args)), ReadOnly()),
             Tool("get_bill", "Get full details for one production bill by bill id.", Required(Prop("id", Str("Bill id returned by list_production."))), ToolEndpoint.Get(PathWithId("v1/bills", "id")), ReadOnly()),
-            Tool("set_bill", "Update or delete an existing production bill by bill id. Use mode=update to change fields, or mode=delete to remove it.", SetBillInput(), ToolEndpoint.Put("v1/bills/{id}", Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName")), IdempotentDestructiveMutation()),
+            Tool("set_bill", "Update or delete an existing production bill by bill id. Use mode=update to change fields, or mode=delete to remove it. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", SetBillInput(), ToolEndpoint.Put("v1/bills/{id}", Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")), IdempotentDestructiveMutation()),
             Tool("list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", Input(), ToolEndpoint.Get(args => QueryPath("v1/workshops", args)), ReadOnly()),
             Tool("get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops."))), ToolEndpoint.Get(PathWithId("v1/workshops", "id")), ReadOnly()),
-            Tool("add_bill_to_workshop", "Add a new bill to a workshop for a recipe. This is intentionally additive and can create duplicate recipe bills.", AddBillToWorkshopInput(), ToolEndpoint.Post("v1/workshops/{workshopId}/bills", Body("mapId", "recipeDefName", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName")), AdditiveMutation()),
+            Tool("add_bill_to_workshop", "Add a new bill to a workshop for a recipe. This is intentionally additive and can create duplicate recipe bills. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", AddBillToWorkshopInput(), ToolEndpoint.Post("v1/workshops/{workshopId}/bills", Body("mapId", "recipeDefName", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")), AdditiveMutation()),
             Tool("list_zones", "List stockpiles, growing zones, and allowed areas.", Input(), ToolEndpoint.Get(args => QueryPath("v1/zones", args)), ReadOnly()),
             Tool("get_zone", "Get full details for one zone or area by id.", Required(Prop("id", Str("Zone id returned by list_zones."))), ToolEndpoint.Get(PathWithId("v1/zones", "id")), ReadOnly()),
             Tool("get_environment", "Get weather, season, game conditions, room temperature summaries, and hazards.", Input(), ToolEndpoint.Get(args => QueryPath("v1/environment", args)), ReadOnly()),
@@ -579,8 +579,8 @@ internal static class ToolCatalog
         props["repeatModeDefName"] = new JsonObject
         {
             ["type"] = "string",
-            ["enum"] = new JsonArray("Forever", "RepeatCount", "TargetCount"),
-            ["description"] = "BillRepeatModeDef defName."
+            ["description"] = "BillRepeatModeDef defName from search_defs kind=billRepeatMode.",
+            ["examples"] = new JsonArray("Forever", "RepeatCount", "TargetCount")
         };
         props["repeatCount"] = Int("Repeat count for RepeatCount mode.", 1, 999999);
         props["targetCount"] = Int("Target count for TargetCount mode.", 1, 999999);
@@ -592,9 +592,10 @@ internal static class ToolCatalog
         props["storeModeDefName"] = new JsonObject
         {
             ["type"] = "string",
-            ["enum"] = new JsonArray("DropOnFloor", "BestStockpile", "SpecificStockpile"),
-            ["description"] = "BillStoreModeDef defName. SpecificStockpile is rejected until stockpile targeting is supported."
+            ["description"] = "BillStoreModeDef defName from search_defs kind=billStoreMode. SpecificStockpile also requires storeZoneId.",
+            ["examples"] = new JsonArray("DropOnFloor", "BestStockpile", "SpecificStockpile")
         };
+        props["storeZoneId"] = Str("Stockpile zone id from list_zones. Required only when storeModeDefName is SpecificStockpile.");
     }
 
     private static JsonObject AssignmentBranch(string assignmentKind, params string[] required)

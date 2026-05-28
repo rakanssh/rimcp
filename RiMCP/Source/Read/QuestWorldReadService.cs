@@ -89,7 +89,7 @@ namespace RiMCP.Read
                 Dto.Field("id", worldObject.ID),
                 Dto.Field("def", ReadUtil.Def(worldObject.def)),
                 Dto.Field("label", worldObject.LabelCap),
-                Dto.Field("tile", worldObject.Tile),
+                Dto.Field("tile", ReadUtil.TileId(worldObject.Tile)),
                 Dto.Field("faction", worldObject.Faction == null ? null : worldObject.Faction.Name));
         }
     }

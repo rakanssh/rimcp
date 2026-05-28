@@ -4,6 +4,7 @@ using System.Linq;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Util;
+using UnityEngine;
 using Verse;
 
 namespace RiMCP.Read
@@ -311,11 +312,25 @@ namespace RiMCP.Read
             return Dto.Obj(
                 Dto.Field("mapId", map.uniqueID.ToString()),
                 Dto.Field("label", map.Parent == null ? "Unknown" : map.Parent.LabelCap),
-                Dto.Field("tile", map.Tile),
+                Dto.Field("tile", TileId(map.Tile)),
                 Dto.Field("biome", Def(map.Biome)),
                 Dto.Field("size", Dto.Obj(
                     Dto.Field("x", map.Size.x),
                     Dto.Field("z", map.Size.z))));
+        }
+
+        public static string TileId(object tile)
+        {
+            return tile == null ? null : tile.ToString();
+        }
+
+        public static object Color(Color color)
+        {
+            return Dto.Obj(
+                Dto.Field("r", color.r),
+                Dto.Field("g", color.g),
+                Dto.Field("b", color.b),
+                Dto.Field("a", color.a));
         }
 
         public static string StableSessionId(string kind, int mapId, IntVec3 cell, string label)

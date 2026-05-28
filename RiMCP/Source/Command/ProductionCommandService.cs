@@ -42,11 +42,12 @@ namespace RiMCP.Command
 
             object previousBill = ProductionReadService.SerializeBill(record, ReadDetail.Full);
             BillSnapshot previous = BillSnapshot.From(record.Bill);
-            ResolvedBillSettings settings = ResolveBillSettings(record.Bill, body);
+            ResolvedBillSettings settings = ResolveBillSettings(record.Bill, body, context.Map);
             ApplyBillSettings(record.Bill, settings);
             BillSnapshot current = BillSnapshot.From(record.Bill);
+            bool changed = !previous.Equals(current) || settings.HasSpecificStockpileTarget;
 
-            return CommandEnvelope.Ok(context, !previous.Equals(current), Dto.Obj(
+            return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("previousBill", previousBill),
                 Dto.Field("bill", ProductionReadService.SerializeBill(record, ReadDetail.Full)),
                 Dto.Field("workshop", WorkshopSummary(record.Workbench))));
@@ -81,7 +82,7 @@ namespace RiMCP.Command
             }
 
             Bill bill = BillUtility.MakeNewBill(recipe, null);
-            ResolvedBillSettings settings = ResolveBillSettings(bill, body);
+            ResolvedBillSettings settings = ResolveBillSettings(bill, body, context.Map);
             workshop.Giver.BillStack.AddBill(bill);
             ApplyBillSettings(bill, settings);
 
@@ -91,7 +92,7 @@ namespace RiMCP.Command
                 Dto.Field("workshop", WorkshopSummary(workshop.Workbench))));
         }
 
-        private static ResolvedBillSettings ResolveBillSettings(Bill bill, BillSettingsBody body)
+        private static ResolvedBillSettings ResolveBillSettings(Bill bill, BillSettingsBody body, Map map)
         {
             ResolvedBillSettings settings = new ResolvedBillSettings();
             if (body.Suspended.HasValue)
@@ -128,6 +129,12 @@ namespace RiMCP.Command
             if (!string.IsNullOrWhiteSpace(body.StoreModeDefName))
             {
                 settings.StoreMode = ResolveStoreMode(body.StoreModeDefName);
+                settings.StoreZone = ResolveStoreZone(map, settings.StoreMode, body.StoreZoneId);
+                settings.HasSpecificStockpileTarget = settings.StoreMode == BillStoreModeDefOf.SpecificStockpile;
+            }
+            else if (!string.IsNullOrWhiteSpace(body.StoreZoneId))
+            {
+                throw new CommandException(400, "Field 'storeZoneId' requires storeModeDefName SpecificStockpile.");
             }
 
             if (HasProductionFields(body))
@@ -185,7 +192,7 @@ namespace RiMCP.Command
             }
             if (settings.StoreMode != null)
             {
-                bill.SetStoreMode(settings.StoreMode, null);
+                bill.SetStoreMode(settings.StoreMode, settings.StoreZone);
             }
 
             Bill_Production production = bill as Bill_Production;
@@ -226,12 +233,6 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Bill repeat mode not found.");
             }
-            if (def != BillRepeatModeDefOf.Forever &&
-                def != BillRepeatModeDefOf.RepeatCount &&
-                def != BillRepeatModeDefOf.TargetCount)
-            {
-                throw new CommandException(409, "Bill repeat mode is not supported.");
-            }
             return def;
         }
 
@@ -242,15 +243,37 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Bill store mode not found.");
             }
-            if (def == BillStoreModeDefOf.SpecificStockpile)
-            {
-                throw new CommandException(409, "SpecificStockpile store mode is not supported yet.");
-            }
-            if (def != BillStoreModeDefOf.DropOnFloor && def != BillStoreModeDefOf.BestStockpile)
-            {
-                throw new CommandException(409, "Bill store mode is not supported.");
-            }
             return def;
+        }
+
+        private static ISlotGroup ResolveStoreZone(Map map, BillStoreModeDef storeMode, string storeZoneId)
+        {
+            if (storeMode == BillStoreModeDefOf.SpecificStockpile)
+            {
+                if (string.IsNullOrWhiteSpace(storeZoneId))
+                {
+                    throw new CommandException(400, "Field 'storeZoneId' is required when storeModeDefName is SpecificStockpile.");
+                }
+
+                Zone_Stockpile stockpile = ZoneReadService.FindStockpile(map, storeZoneId);
+                if (stockpile == null)
+                {
+                    throw new CommandException(404, "Stockpile zone not found.");
+                }
+                ISlotGroupParent parent = stockpile as ISlotGroupParent;
+                ISlotGroup slotGroup = parent == null ? null : parent.GetSlotGroup();
+                if (slotGroup == null)
+                {
+                    throw new CommandException(409, "Stockpile zone has no slot group.");
+                }
+                return slotGroup;
+            }
+
+            if (!string.IsNullOrWhiteSpace(storeZoneId))
+            {
+                throw new CommandException(400, "Field 'storeZoneId' can only be used with storeModeDefName SpecificStockpile.");
+            }
+            return null;
         }
 
         private static int RequirePositive(int value, string fieldName)
@@ -299,7 +322,8 @@ namespace RiMCP.Command
                    body.IngredientSearchRadius.HasValue ||
                    body.AllowedSkillMin.HasValue ||
                    body.AllowedSkillMax.HasValue ||
-                   !string.IsNullOrWhiteSpace(body.StoreModeDefName);
+                   !string.IsNullOrWhiteSpace(body.StoreModeDefName) ||
+                   !string.IsNullOrWhiteSpace(body.StoreZoneId);
         }
 
         private static bool HasProductionFields(BillSettingsBody body)
@@ -386,6 +410,8 @@ namespace RiMCP.Command
             public int AllowedSkillMin;
             public int AllowedSkillMax;
             public BillStoreModeDef StoreMode;
+            public ISlotGroup StoreZone;
+            public bool HasSpecificStockpileTarget;
             public BillRepeatModeDef RepeatMode;
             public bool HasRepeatCount;
             public int RepeatCount;
@@ -432,6 +458,9 @@ namespace RiMCP.Command
 
             [DataMember(Name = "storeModeDefName")]
             public string StoreModeDefName { get; set; }
+
+            [DataMember(Name = "storeZoneId")]
+            public string StoreZoneId { get; set; }
         }
 
         [DataContract]

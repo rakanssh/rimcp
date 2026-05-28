@@ -35,6 +35,24 @@ namespace RiMCP.Read
             return ReadEnvelope.Ok(context, SerializeZone(record, ReadDetail.Full));
         }
 
+        public static Zone_Stockpile FindStockpile(Map map, string id)
+        {
+            if (map == null || map.zoneManager == null || string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+
+            foreach (Zone zone in map.zoneManager.AllZones)
+            {
+                Zone_Stockpile stockpile = zone as Zone_Stockpile;
+                if (stockpile != null && ZoneId(map, zone) == id)
+                {
+                    return stockpile;
+                }
+            }
+            return null;
+        }
+
         private static IEnumerable<ZoneRecord> ZoneRecords(Map map)
         {
             foreach (Zone zone in map.zoneManager.AllZones)
@@ -81,7 +99,7 @@ namespace RiMCP.Read
             {
                 dto["area"] = Dto.Obj(
                     Dto.Field("assignable", record.Area.AssignableAsAllowed()),
-                    Dto.Field("color", record.Area.Color));
+                    Dto.Field("color", ReadUtil.Color(record.Area.Color)));
             }
 
             if (detail == ReadDetail.Full)
@@ -90,6 +108,11 @@ namespace RiMCP.Read
                 dto["cellsTruncated"] = record.CellCount > 200;
             }
             return dto;
+        }
+
+        private static string ZoneId(Map map, Zone zone)
+        {
+            return "zone:" + map.uniqueID + ":" + zone.ID;
         }
 
         private sealed class ZoneRecord
@@ -109,7 +132,7 @@ namespace RiMCP.Read
                 string kind = zone is Zone_Stockpile ? "stockpile" : zone is Zone_Growing ? "growing" : "zone";
                 return new ZoneRecord
                 {
-                    Id = "zone:" + map.uniqueID + ":" + zone.ID,
+                    Id = ZoneId(map, zone),
                     Kind = kind,
                     Label = zone.label,
                     CellCount = zone.Cells.Count,

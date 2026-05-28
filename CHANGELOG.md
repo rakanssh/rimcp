@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 - Downgraded the MCP proxy target framework from .NET 10.0 to .NET 8.0.
 - Updated the mod's configuration generator to delegate execution to the platform-specific launcher scripts.
 - Made def search mod-aware by discovering loaded def subclasses and accepting arbitrary def kind names.
+- Made production bill repeat/store mode settings def-driven, including stockpile targets for `SpecificStockpile`.
 - Hardened JSON serialization so non-finite numeric values emit `null` and unsupported DTO values fail explicitly instead of falling back to `ToString()`.
 
 ## [0.3.0] - 2026-05-26
