@@ -8,10 +8,13 @@ All notable changes to this project are documented in this file.
 
 - Production command tools and endpoints: `set_bill` (update/delete) and `add_bill_to_workshop` (add).
 - Request queue limits and rate limiting (HTTP 429) to the main thread dispatcher under heavy load.
+- Multi-platform packaging and launcher scripts to support native proxy execution on Windows, Linux, and macOS (arm64/x64).
 
 ### Changed
 
 - Increased the main thread dispatch wait timeout to 10 seconds.
+- Downgraded the MCP proxy target framework from .NET 10.0 to .NET 8.0.
+- Updated the mod's configuration generator to delegate execution to the platform-specific launcher scripts.
 
 ## [0.3.0] - 2026-05-26
 

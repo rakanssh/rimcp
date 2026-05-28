@@ -8,7 +8,10 @@ obj/
 
 RiMCP/Assemblies/*.dll
 RiMCP/Assemblies/*.pdb
-RiMCP/Tools/McpProxy/
+RiMCP/Tools/McpProxy/*
+!RiMCP/Tools/McpProxy/
+!RiMCP/Tools/McpProxy/rimcp-proxy
+!RiMCP/Tools/McpProxy/rimcp-proxy.cmd
 
 .idea/
 .vscode/

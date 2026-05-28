@@ -99,13 +99,16 @@ namespace RiMCP
 
         private static string BuildMcpConfig()
         {
-            string proxyExecutable = Path.GetFullPath(Path.Combine(modRootPath, "Tools/McpProxy/publish/RiMCP.McpProxy"));
+            string command = IsWindowsPlatform() ? "cmd.exe" : "/bin/sh";
+            string args = IsWindowsPlatform()
+                ? Json.Array(new[] { Json.String("/c"), Json.String(LauncherPath("rimcp-proxy.cmd")) })
+                : Json.Array(new[] { Json.String(LauncherPath("rimcp-proxy")) });
             string url = "http://127.0.0.1:" + Settings.Port;
             return "{\n" +
                    "  \"mcpServers\": {\n" +
                    "    \"rimcp\": {\n" +
-                   "      \"command\": " + Json.String(proxyExecutable) + ",\n" +
-                   "      \"args\": [],\n" +
+                   "      \"command\": " + Json.String(command) + ",\n" +
+                   "      \"args\": " + args + ",\n" +
                    "      \"env\": {\n" +
                    "        \"RIMCP_URL\": " + Json.String(url) + ",\n" +
                    "        \"RIMCP_TOKEN\": " + Json.String(Settings.Token) + "\n" +
@@ -113,6 +116,17 @@ namespace RiMCP
                    "    }\n" +
                    "  }\n" +
                    "}";
+        }
+
+        private static string LauncherPath(string fileName)
+        {
+            return Path.GetFullPath(Path.Combine(modRootPath, "Tools/McpProxy", fileName));
+        }
+
+        private static bool IsWindowsPlatform()
+        {
+            return Application.platform == RuntimePlatform.WindowsPlayer ||
+                   Application.platform == RuntimePlatform.WindowsEditor;
         }
     }
 }

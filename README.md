@@ -81,7 +81,7 @@ Current command HTTP endpoints:
 Requirements:
 
 - RimWorld 1.6
-- .NET SDK
+- .NET 8 SDK or newer
 
 On macOS with Homebrew:
 
@@ -99,13 +99,17 @@ dotnet build RiMCP/Source/RiMCP.csproj -c Release \
 Build and publish the bundled MCP proxy:
 
 ```sh
-dotnet publish McpProxy/RiMCP.McpProxy.csproj \
-  -c Release \
-  -r osx-arm64 \
-  --self-contained true \
-  -p:PublishSingleFile=true \
-  -p:PublishDir=../RiMCP/Tools/McpProxy/publish/
+sh scripts/publish-mcp-proxy.sh
 ```
+
+This creates self-contained proxy executables for:
+
+- `RiMCP/Tools/McpProxy/win-x64/RiMCP.McpProxy.exe`
+- `RiMCP/Tools/McpProxy/linux-x64/RiMCP.McpProxy`
+- `RiMCP/Tools/McpProxy/osx-x64/RiMCP.McpProxy`
+- `RiMCP/Tools/McpProxy/osx-arm64/RiMCP.McpProxy`
+
+The mod settings copy MCP config that launches `RiMCP/Tools/McpProxy/rimcp-proxy.cmd` on Windows and `RiMCP/Tools/McpProxy/rimcp-proxy` on macOS/Linux. Those launchers select the bundled executable for the current platform.
 
 For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
 
