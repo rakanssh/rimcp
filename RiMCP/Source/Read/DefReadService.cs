@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using RimWorld;
 using RiMCP.Bridge;
 using Verse;
@@ -10,16 +12,39 @@ namespace RiMCP.Read
 {
     internal static class DefReadService
     {
+        private static readonly object DefKindLock = new object();
+        private static Dictionary<string, DefKind> defKindsByKey;
+        private static List<DefKind> defKinds;
+
         public static BridgeResponse SearchDefs(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
-            string kind = context.Request.Get("kind") ?? "thing";
+            string kind = string.IsNullOrWhiteSpace(context.Request.Get("kind")) ? "thing" : context.Request.Get("kind");
             string query = context.Request.Get("query") ?? "";
             string category = context.Request.Get("category");
-            IEnumerable<Def> source = DefsForKind(kind)
+
+            IEnumerable<Def> source;
+            if (IsAllKind(kind))
+            {
+                source = AllSupportedDefs();
+                kind = "all";
+            }
+            else
+            {
+                DefKind resolved;
+                if (!TryResolveKind(kind, out resolved))
+                {
+                    return UnknownKind(kind);
+                }
+                source = DefsForKind(resolved);
+                kind = resolved.Kind;
+            }
+
+            source = source
                 .Where(def => MatchesQuery(def, query))
                 .Where(def => MatchesCategory(def, category))
-                .OrderBy(def => def.defName);
+                .OrderBy(def => KindForDef(def))
+                .ThenBy(def => def.defName);
 
             Page<Def> page = new Page<Def>(source, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
@@ -36,9 +61,23 @@ namespace RiMCP.Read
             ReadContext context = ReadContext.From(request);
             string defName = route["defName"];
             string kind = context.Request.Get("kind");
-            Def def = string.IsNullOrWhiteSpace(kind)
-                ? AllSupportedDefs().FirstOrDefault(item => item.defName == defName)
-                : DefsForKind(kind).FirstOrDefault(item => item.defName == defName);
+
+            IEnumerable<Def> source;
+            if (string.IsNullOrWhiteSpace(kind) || IsAllKind(kind))
+            {
+                source = AllSupportedDefs();
+            }
+            else
+            {
+                DefKind resolved;
+                if (!TryResolveKind(kind, out resolved))
+                {
+                    return UnknownKind(kind);
+                }
+                source = DefsForKind(resolved);
+            }
+
+            Def def = source.FirstOrDefault(item => item.defName == defName);
             if (def == null)
             {
                 return BridgeResponse.Error(404, "Def not found.");
@@ -48,7 +87,7 @@ namespace RiMCP.Read
 
         private static IEnumerable<Def> AllSupportedDefs()
         {
-            foreach (string kind in SupportedKinds())
+            foreach (DefKind kind in DefKinds())
             {
                 foreach (Def def in DefsForKind(kind))
                 {
@@ -57,53 +96,165 @@ namespace RiMCP.Read
             }
         }
 
-        private static IEnumerable<string> SupportedKinds()
+        private static bool TryResolveKind(string kind, out DefKind resolved)
         {
-            yield return "thing";
-            yield return "recipe";
-            yield return "research";
-            yield return "workType";
-            yield return "stat";
-            yield return "terrain";
-            yield return "biome";
-            yield return "pawnKind";
-            yield return "designation";
-            yield return "job";
-            yield return "weather";
+            return DefKindsByKey().TryGetValue(NormalizeKind(kind), out resolved);
         }
 
-        private static IEnumerable<Def> DefsForKind(string kind)
+        private static IEnumerable<Def> DefsForKind(DefKind kind)
         {
-            switch ((kind ?? "thing").ToLowerInvariant())
+            Type databaseType = typeof(DefDatabase<>).MakeGenericType(kind.Type);
+            PropertyInfo property = databaseType.GetProperty("AllDefsListForReading", BindingFlags.Public | BindingFlags.Static);
+            IEnumerable defs = property == null ? null : property.GetValue(null, null) as IEnumerable;
+            if (defs == null)
             {
-                case "thing":
-                    return DefDatabase<ThingDef>.AllDefsListForReading.Cast<Def>();
-                case "recipe":
-                    return DefDatabase<RecipeDef>.AllDefsListForReading.Cast<Def>();
-                case "research":
-                    return DefDatabase<ResearchProjectDef>.AllDefsListForReading.Cast<Def>();
-                case "worktype":
-                case "work_type":
-                case "work":
-                    return DefDatabase<WorkTypeDef>.AllDefsListForReading.Cast<Def>();
-                case "stat":
-                    return DefDatabase<StatDef>.AllDefsListForReading.Cast<Def>();
-                case "terrain":
-                    return DefDatabase<TerrainDef>.AllDefsListForReading.Cast<Def>();
-                case "biome":
-                    return DefDatabase<BiomeDef>.AllDefsListForReading.Cast<Def>();
-                case "pawnkind":
-                case "pawn_kind":
-                    return DefDatabase<PawnKindDef>.AllDefsListForReading.Cast<Def>();
-                case "designation":
-                    return DefDatabase<DesignationCategoryDef>.AllDefsListForReading.Cast<Def>();
-                case "job":
-                    return DefDatabase<JobDef>.AllDefsListForReading.Cast<Def>();
-                case "weather":
-                    return DefDatabase<WeatherDef>.AllDefsListForReading.Cast<Def>();
-                default:
-                    return Enumerable.Empty<Def>();
+                yield break;
             }
+
+            foreach (object item in defs)
+            {
+                Def def = item as Def;
+                if (def != null)
+                {
+                    yield return def;
+                }
+            }
+        }
+
+        private static Dictionary<string, DefKind> DefKindsByKey()
+        {
+            EnsureDefKinds();
+            return defKindsByKey;
+        }
+
+        private static List<DefKind> DefKinds()
+        {
+            EnsureDefKinds();
+            return defKinds;
+        }
+
+        private static void EnsureDefKinds()
+        {
+            if (defKindsByKey != null)
+            {
+                return;
+            }
+
+            lock (DefKindLock)
+            {
+                if (defKindsByKey != null)
+                {
+                    return;
+                }
+
+                Dictionary<Type, DefKind> byType = new Dictionary<Type, DefKind>();
+                Dictionary<string, DefKind> byKey = new Dictionary<string, DefKind>();
+                foreach (Type type in DiscoverDefTypes())
+                {
+                    DefKind kind = new DefKind(type, KindForType(type), LegacyKindSortIndex(type));
+                    byType[type] = kind;
+                    AddKindKey(byKey, kind.Kind, kind);
+                    AddKindKey(byKey, type.Name, kind);
+                    AddKindKey(byKey, TrimDefSuffix(type.Name), kind);
+                }
+
+                AddAlias(byKey, byType, typeof(ResearchProjectDef), "research");
+                AddAlias(byKey, byType, typeof(WorkTypeDef), "work");
+                AddAlias(byKey, byType, typeof(WorkTypeDef), "work_type");
+                AddAlias(byKey, byType, typeof(PawnKindDef), "pawn_kind");
+                AddAlias(byKey, byType, typeof(DesignationCategoryDef), "designation");
+
+                defKinds = byType.Values
+                    .OrderBy(kind => kind.SortIndex)
+                    .ThenBy(kind => kind.Kind)
+                    .ToList();
+                defKindsByKey = byKey;
+            }
+        }
+
+        private static IEnumerable<Type> DiscoverDefTypes()
+        {
+            HashSet<Type> seen = new HashSet<Type>();
+            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (Assembly assembly in assemblies)
+            {
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    types = ex.Types;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (Type type in types)
+                {
+                    if (type == null || type.IsAbstract || !typeof(Def).IsAssignableFrom(type) || type == typeof(Def))
+                    {
+                        continue;
+                    }
+                    if (seen.Add(type))
+                    {
+                        yield return type;
+                    }
+                }
+            }
+        }
+
+        private static void AddAlias(Dictionary<string, DefKind> byKey, Dictionary<Type, DefKind> byType, Type type, string alias)
+        {
+            DefKind kind;
+            if (byType.TryGetValue(type, out kind))
+            {
+                AddKindKey(byKey, alias, kind);
+            }
+        }
+
+        private static void AddKindKey(Dictionary<string, DefKind> byKey, string key, DefKind kind)
+        {
+            string normalized = NormalizeKind(key);
+            if (normalized.Length > 0 && !byKey.ContainsKey(normalized))
+            {
+                byKey[normalized] = kind;
+            }
+        }
+
+        private static string NormalizeKind(string kind)
+        {
+            string text = TrimDefSuffix(kind ?? "");
+            string normalized = "";
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c != '_' && c != '-' && !char.IsWhiteSpace(c))
+                {
+                    normalized += char.ToLowerInvariant(c);
+                }
+            }
+            return normalized;
+        }
+
+        private static string TrimDefSuffix(string text)
+        {
+            return text != null && text.EndsWith("Def", StringComparison.OrdinalIgnoreCase)
+                ? text.Substring(0, text.Length - 3)
+                : (text ?? "");
+        }
+
+        private static bool IsAllKind(string kind)
+        {
+            return string.Equals(kind, "all", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static BridgeResponse UnknownKind(string kind)
+        {
+            string examples = string.Join(", ", DefKinds().Take(12).Select(item => item.Kind).ToArray());
+            return BridgeResponse.Error(400, "Unknown def kind '" + kind + "'. Use any loaded Def type name without the Def suffix, or one of: all, " + examples + ".");
         }
 
         private static bool MatchesQuery(Def def, string query)
@@ -141,6 +292,7 @@ namespace RiMCP.Read
         {
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("kind", KindForDef(def)),
+                Dto.Field("typeName", def.GetType().FullName),
                 Dto.Field("defName", def.defName),
                 Dto.Field("label", ReadUtil.DefLabel(def)),
                 Dto.Field("description", detail == ReadDetail.Summary ? null : def.description));
@@ -252,7 +404,55 @@ namespace RiMCP.Read
             if (def is DesignationCategoryDef) return "designation";
             if (def is JobDef) return "job";
             if (def is WeatherDef) return "weather";
-            return def.GetType().Name;
+            return KindForType(def.GetType());
+        }
+
+        private static string KindForType(Type type)
+        {
+            if (type == typeof(ThingDef)) return "thing";
+            if (type == typeof(RecipeDef)) return "recipe";
+            if (type == typeof(ResearchProjectDef)) return "research";
+            if (type == typeof(WorkTypeDef)) return "workType";
+            if (type == typeof(StatDef)) return "stat";
+            if (type == typeof(TerrainDef)) return "terrain";
+            if (type == typeof(BiomeDef)) return "biome";
+            if (type == typeof(PawnKindDef)) return "pawnKind";
+            if (type == typeof(DesignationCategoryDef)) return "designation";
+            if (type == typeof(JobDef)) return "job";
+            if (type == typeof(WeatherDef)) return "weather";
+
+            string name = TrimDefSuffix(type.Name);
+            return name.Length == 0 ? type.Name : char.ToLowerInvariant(name[0]) + name.Substring(1);
+        }
+
+        private static int LegacyKindSortIndex(Type type)
+        {
+            if (type == typeof(ThingDef)) return 0;
+            if (type == typeof(RecipeDef)) return 1;
+            if (type == typeof(ResearchProjectDef)) return 2;
+            if (type == typeof(WorkTypeDef)) return 3;
+            if (type == typeof(StatDef)) return 4;
+            if (type == typeof(TerrainDef)) return 5;
+            if (type == typeof(BiomeDef)) return 6;
+            if (type == typeof(PawnKindDef)) return 7;
+            if (type == typeof(DesignationCategoryDef)) return 8;
+            if (type == typeof(JobDef)) return 9;
+            if (type == typeof(WeatherDef)) return 10;
+            return 1000;
+        }
+
+        private sealed class DefKind
+        {
+            public readonly Type Type;
+            public readonly string Kind;
+            public readonly int SortIndex;
+
+            public DefKind(Type type, string kind, int sortIndex)
+            {
+                Type = type;
+                Kind = kind;
+                SortIndex = sortIndex;
+            }
         }
     }
 }
