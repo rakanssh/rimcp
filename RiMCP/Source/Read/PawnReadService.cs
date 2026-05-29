@@ -572,7 +572,7 @@ namespace RiMCP.Read
             {
                 relations.Add(Dto.Obj(
                     Dto.Field("defName", relation.def == null ? null : relation.def.defName),
-                    Dto.Field("label", relation.def == null ? null : relation.def.LabelCap),
+                    Dto.Field("label", ReadUtil.DefLabel(relation.def)),
                     Dto.Field("otherPawnId", relation.otherPawn == null ? null : ReadUtil.ThingId(relation.otherPawn)),
                     Dto.Field("otherPawn", relation.otherPawn == null ? null : ReadUtil.PawnName(relation.otherPawn))));
             }
