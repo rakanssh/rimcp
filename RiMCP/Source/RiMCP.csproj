@@ -20,6 +20,7 @@
   </Target>
 
   <ItemGroup>
+    <Compile Include="../../Shared/ToolManifest.cs" Link="Shared/ToolManifest.cs" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldManagedPath)/Assembly-CSharp.dll</HintPath>

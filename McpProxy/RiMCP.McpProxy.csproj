@@ -6,4 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RiMCP.McpProxy</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/ToolManifest.cs" Link="Shared/ToolManifest.cs" />
+  </ItemGroup>
 </Project>

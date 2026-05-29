@@ -41,6 +41,11 @@ namespace RiMCP.Bridge
             return new BridgeRoute("GET", template, handle);
         }
 
+        public static BridgeRoute Create(string method, string template, Handler handle)
+        {
+            return new BridgeRoute(method, template, handle);
+        }
+
         public static BridgeRoute Put(string template, Handler handle)
         {
             return new BridgeRoute("PUT", template, handle);

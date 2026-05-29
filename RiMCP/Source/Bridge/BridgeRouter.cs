@@ -1,46 +1,57 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using RiMCP.Command;
 using RiMCP.Read;
+using RiMCP.Shared;
 
 namespace RiMCP.Bridge
 {
     internal static class BridgeRouter
     {
-        private static readonly BridgeRoute[] Routes =
+        private static readonly Dictionary<string, BridgeRoute.Handler> Handlers = new Dictionary<string, BridgeRoute.Handler>
         {
-            BridgeRoute.Get("/v1/game-context", GameReadService.GetGameContext),
-            BridgeRoute.Get("/v1/colony-status", GameReadService.GetColonyStatus),
-            BridgeRoute.Get("/v1/pawns", PawnReadService.ListPawns),
-            BridgeRoute.Get("/v1/pawns/{id}", PawnReadService.GetPawn),
-            BridgeRoute.Get("/v1/resources", ResourceReadService.ListResources),
-            BridgeRoute.Get("/v1/work", WorkReadService.ListWork),
-            BridgeRoute.Get("/v1/production", ProductionReadService.ListProduction),
-            BridgeRoute.Get("/v1/bills/{id}", ProductionReadService.GetBill),
-            BridgeRoute.Get("/v1/workshops", ProductionReadService.ListWorkshops),
-            BridgeRoute.Get("/v1/workshops/{id}", ProductionReadService.GetWorkshop),
-            BridgeRoute.Get("/v1/zones", ZoneReadService.ListZones),
-            BridgeRoute.Get("/v1/zones/{id}", ZoneReadService.GetZone),
-            BridgeRoute.Get("/v1/environment", EnvironmentReadService.GetEnvironment),
-            BridgeRoute.Get("/v1/power", PowerReadService.GetPower),
-            BridgeRoute.Get("/v1/threats", ThreatReadService.ListThreats),
-            BridgeRoute.Get("/v1/research", ResearchReadService.GetResearch),
-            BridgeRoute.Get("/v1/ideoligions", IdeoligionReadService.ListIdeoligions),
-            BridgeRoute.Get("/v1/ideoligions/{id}", IdeoligionReadService.GetIdeoligion),
-            BridgeRoute.Get("/v1/quests", QuestWorldReadService.ListQuests),
-            BridgeRoute.Get("/v1/buildings", BuildingReadService.ListBuildings),
-            BridgeRoute.Get("/v1/buildings/{id}", BuildingReadService.GetBuilding),
-            BridgeRoute.Get("/v1/world", QuestWorldReadService.ListWorld),
-            BridgeRoute.Get("/v1/defs/search", DefReadService.SearchDefs),
-            BridgeRoute.Get("/v1/defs/{defName}", DefReadService.GetDef),
-            BridgeRoute.Put("/v1/pawns/{pawnId}/drafted", PawnCommandService.SetDrafted),
-            BridgeRoute.Put("/v1/pawns/{pawnId}/work/{workTypeDefName}", PawnCommandService.SetWorkPriority),
-            BridgeRoute.Put("/v1/pawns/{pawnId}/assignments/{assignmentKind}", PawnAssignmentCommandService.SetAssignment),
-            BridgeRoute.Put("/v1/bills/{id}", ProductionCommandService.SetBill),
-            BridgeRoute.Post("/v1/workshops/{workshopId}/bills", ProductionCommandService.AddBillToWorkshop),
-            BridgeRoute.Put("/v1/animals/{pawnId}/designation", AnimalCommandService.SetDesignation),
-            BridgeRoute.Put("/v1/animals/{pawnId}/training", AnimalCommandService.SetTraining),
-            BridgeRoute.Put("/v1/research/current", ResearchCommandService.SetCurrent)
+            { "game-context", GameReadService.GetGameContext },
+            { "colony-status", GameReadService.GetColonyStatus },
+            { "pawns", PawnReadService.ListPawns },
+            { "pawn", PawnReadService.GetPawn },
+            { "resources", ResourceReadService.ListResources },
+            { "work", WorkReadService.ListWork },
+            { "production", ProductionReadService.ListProduction },
+            { "bill", ProductionReadService.GetBill },
+            { "set-bill", ProductionCommandService.SetBill },
+            { "workshops", ProductionReadService.ListWorkshops },
+            { "workshop", ProductionReadService.GetWorkshop },
+            { "add-bill-to-workshop", ProductionCommandService.AddBillToWorkshop },
+            { "zones", ZoneReadService.ListZones },
+            { "zone", ZoneReadService.GetZone },
+            { "environment", EnvironmentReadService.GetEnvironment },
+            { "power", PowerReadService.GetPower },
+            { "threats", ThreatReadService.ListThreats },
+            { "research", ResearchReadService.GetResearch },
+            { "ideoligions", IdeoligionReadService.ListIdeoligions },
+            { "ideoligion", IdeoligionReadService.GetIdeoligion },
+            { "quests", QuestWorldReadService.ListQuests },
+            { "buildings", BuildingReadService.ListBuildings },
+            { "building", BuildingReadService.GetBuilding },
+            { "world", QuestWorldReadService.ListWorld },
+            { "defs-search", DefReadService.SearchDefs },
+            { "def", DefReadService.GetDef },
+            { "set-pawn-drafted", PawnCommandService.SetDrafted },
+            { "set-pawn-work-priority", PawnCommandService.SetWorkPriority },
+            { "set-pawn-assignment", PawnAssignmentCommandService.SetAssignment },
+            { "designate-animal", AnimalCommandService.SetDesignation },
+            { "set-animal-training", AnimalCommandService.SetTraining },
+            { "set-research-current", ResearchCommandService.SetCurrent },
+            { "tools", ToolReadService.GetTools }
         };
+
+        private static readonly BridgeRoute[] Routes = CreateRoutes();
+
+        static BridgeRouter()
+        {
+            ToolManifest.Validate(Handlers.Keys);
+        }
 
         public static BridgeResponse Handle(BridgeRequest bridgeRequest)
         {
@@ -72,6 +83,13 @@ namespace RiMCP.Bridge
             {
                 return BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        private static BridgeRoute[] CreateRoutes()
+        {
+            return ToolManifest.All
+                .Select(spec => BridgeRoute.Create(spec.Method, spec.PathTemplate, Handlers[spec.HandlerId]))
+                .ToArray();
         }
 
     }
