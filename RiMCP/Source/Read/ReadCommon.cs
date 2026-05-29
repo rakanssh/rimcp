@@ -252,13 +252,7 @@ namespace RiMCP.Read
 
         public static object Def(Def def)
         {
-            if (def == null)
-            {
-                return null;
-            }
-            return Dto.Obj(
-                Dto.Field("defName", def.defName),
-                Dto.Field("label", DefLabel(def)));
+            return SummaryDto.Def(def);
         }
 
         public static string DefLabel(Def def)
@@ -274,13 +268,7 @@ namespace RiMCP.Read
 
         public static object ThingIds(Thing thing)
         {
-            if (thing == null)
-            {
-                return null;
-            }
-            return Dto.Obj(
-                Dto.Field("id", thing.ThingID),
-                Dto.Field("loadId", thing.GetUniqueLoadID()));
+            return SummaryDto.ThingIds(thing);
         }
 
         public static string ThingId(Thing thing)
@@ -338,5 +326,101 @@ namespace RiMCP.Read
             return kind + ":" + mapId + ":" + cell.x + "," + cell.z + ":" + (label ?? "");
         }
 
+    }
+
+    internal static class SummaryDto
+    {
+        public static object Def(Def def)
+        {
+            if (def == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("defName", def.defName),
+                Dto.Field("label", ReadUtil.DefLabel(def)));
+        }
+
+        public static object ThingIds(Thing thing)
+        {
+            if (thing == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("id", thing.ThingID),
+                Dto.Field("loadId", thing.GetUniqueLoadID()));
+        }
+
+        public static Dictionary<string, object> Thing(Thing thing)
+        {
+            if (thing == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("ids", ThingIds(thing)),
+                Dto.Field("def", Def(thing.def)),
+                Dto.Field("label", thing.LabelCap));
+        }
+
+        public static Dictionary<string, object> ThingWithPosition(Thing thing)
+        {
+            Dictionary<string, object> dto = Thing(thing);
+            if (dto == null)
+            {
+                return null;
+            }
+            dto["position"] = ReadUtil.Cell(thing.Position);
+            return dto;
+        }
+
+        public static Dictionary<string, object> Pawn(Pawn pawn)
+        {
+            if (pawn == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("ids", ThingIds(pawn)),
+                Dto.Field("name", ReadUtil.PawnName(pawn)),
+                Dto.Field("label", pawn.LabelShortCap));
+        }
+
+        public static Dictionary<string, object> FactionIdentity(Faction faction)
+        {
+            if (faction == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("name", faction.Name),
+                Dto.Field("defName", faction.def == null ? null : faction.def.defName));
+        }
+
+        public static Dictionary<string, object> FactionStatus(Faction faction)
+        {
+            Dictionary<string, object> dto = FactionIdentity(faction);
+            if (dto == null)
+            {
+                return null;
+            }
+            dto["isPlayer"] = faction == Faction.OfPlayer;
+            dto["hostileToPlayer"] = faction.HostileTo(Faction.OfPlayer);
+            return dto;
+        }
+
+        public static Dictionary<string, object> Bill(Bill bill)
+        {
+            if (bill == null)
+            {
+                return null;
+            }
+            return Dto.Obj(
+                Dto.Field("id", bill.GetUniqueLoadID()),
+                Dto.Field("label", bill.Label),
+                Dto.Field("recipe", Def(bill.recipe)),
+                Dto.Field("suspended", bill.suspended));
+        }
     }
 }

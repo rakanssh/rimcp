@@ -137,25 +137,20 @@ namespace RiMCP.Read
 
         public static object SerializePawn(Pawn pawn, string role, ReadDetail detail, ReadRequest request)
         {
-            Dictionary<string, object> dto = Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(pawn)),
-                Dto.Field("role", role),
-                Dto.Field("name", ReadUtil.PawnName(pawn)),
-                Dto.Field("label", pawn.LabelShortCap),
-                Dto.Field("def", ReadUtil.Def(pawn.def)),
-                Dto.Field("kindDef", pawn.kindDef == null ? null : ReadUtil.Def(pawn.kindDef)),
-                Dto.Field("faction", pawn.Faction == null ? null : Dto.Obj(
-                    Dto.Field("name", pawn.Faction.Name),
-                    Dto.Field("defName", pawn.Faction.def == null ? null : pawn.Faction.def.defName))),
-                Dto.Field("gender", pawn.gender.ToString()),
-                Dto.Field("ageBiologicalYears", pawn.ageTracker == null ? 0 : pawn.ageTracker.AgeBiologicalYears),
-                Dto.Field("downed", pawn.Downed),
-                Dto.Field("dead", pawn.Dead),
-                Dto.Field("drafted", pawn.Drafted),
-                Dto.Field("position", ReadUtil.Cell(pawn.Position)),
-                Dto.Field("mentalState", pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName),
-                Dto.Field("currentJob", SerializeCurrentJob(pawn)),
-                Dto.Field("ideoligion", IdeoligionReadService.SerializePawnIdeoligionSummary(pawn)));
+            Dictionary<string, object> dto = SummaryDto.Pawn(pawn);
+            dto["role"] = role;
+            dto["def"] = ReadUtil.Def(pawn.def);
+            dto["kindDef"] = pawn.kindDef == null ? null : ReadUtil.Def(pawn.kindDef);
+            dto["faction"] = SummaryDto.FactionIdentity(pawn.Faction);
+            dto["gender"] = pawn.gender.ToString();
+            dto["ageBiologicalYears"] = pawn.ageTracker == null ? 0 : pawn.ageTracker.AgeBiologicalYears;
+            dto["downed"] = pawn.Downed;
+            dto["dead"] = pawn.Dead;
+            dto["drafted"] = pawn.Drafted;
+            dto["position"] = ReadUtil.Cell(pawn.Position);
+            dto["mentalState"] = pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName;
+            dto["currentJob"] = SerializeCurrentJob(pawn);
+            dto["ideoligion"] = IdeoligionReadService.SerializePawnIdeoligionSummary(pawn);
 
             if (detail != ReadDetail.Summary || request.Wants("needs"))
             {
@@ -590,13 +585,11 @@ namespace RiMCP.Read
             {
                 return null;
             }
-            return Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(thing)),
-                Dto.Field("def", ReadUtil.Def(thing.def)),
-                Dto.Field("label", thing.LabelCap),
-                Dto.Field("stackCount", thing.stackCount),
-                Dto.Field("hitPoints", thing.HitPoints),
-                Dto.Field("quality", ReadUtil.QualityLabel(thing)));
+            Dictionary<string, object> dto = SummaryDto.Thing(thing);
+            dto["stackCount"] = thing.stackCount;
+            dto["hitPoints"] = thing.HitPoints;
+            dto["quality"] = ReadUtil.QualityLabel(thing);
+            return dto;
         }
 
         internal sealed class PawnRole

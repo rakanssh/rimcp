@@ -81,15 +81,11 @@ namespace RiMCP.Read
 
         private static object SerializeBuilding(Building building, ReadDetail detail, bool includeContents)
         {
-            Dictionary<string, object> dto = Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(building)),
-                Dto.Field("def", ReadUtil.Def(building.def)),
-                Dto.Field("label", building.LabelCap),
-                Dto.Field("position", ReadUtil.Cell(building.Position)),
-                Dto.Field("hitPoints", building.HitPoints),
-                Dto.Field("maxHitPoints", building.MaxHitPoints),
-                Dto.Field("faction", building.Faction == null ? null : building.Faction.Name),
-                Dto.Field("stuff", building.Stuff == null ? null : ReadUtil.Def(building.Stuff)));
+            Dictionary<string, object> dto = SummaryDto.ThingWithPosition(building);
+            dto["hitPoints"] = building.HitPoints;
+            dto["maxHitPoints"] = building.MaxHitPoints;
+            dto["faction"] = building.Faction == null ? null : building.Faction.Name;
+            dto["stuff"] = building.Stuff == null ? null : ReadUtil.Def(building.Stuff);
 
             if (detail != ReadDetail.Summary)
             {
@@ -142,15 +138,12 @@ namespace RiMCP.Read
 
         private static object SerializeContainedItem(Thing thing)
         {
-            return Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(thing)),
-                Dto.Field("def", ReadUtil.Def(thing.def)),
-                Dto.Field("label", thing.LabelCap),
-                Dto.Field("stackCount", thing.stackCount),
-                Dto.Field("hitPoints", thing.HitPoints),
-                Dto.Field("forbidden", thing.IsForbidden(Faction.OfPlayer)),
-                Dto.Field("position", ReadUtil.Cell(thing.Position)),
-                Dto.Field("quality", ReadUtil.QualityLabel(thing)));
+            Dictionary<string, object> dto = SummaryDto.ThingWithPosition(thing);
+            dto["stackCount"] = thing.stackCount;
+            dto["hitPoints"] = thing.HitPoints;
+            dto["forbidden"] = thing.IsForbidden(Faction.OfPlayer);
+            dto["quality"] = ReadUtil.QualityLabel(thing);
+            return dto;
         }
     }
 }

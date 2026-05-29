@@ -72,24 +72,20 @@ namespace RiMCP.Read
 
         private static object SerializeThreatPawn(Map map, Pawn pawn, ReadDetail detail)
         {
-            return Dto.Obj(
-                Dto.Field("kind", "pawn"),
-                Dto.Field("threatKind", ThreatKind(pawn)),
-                Dto.Field("ids", ReadUtil.ThingIds(pawn)),
-                Dto.Field("name", ReadUtil.PawnName(pawn)),
-                Dto.Field("label", pawn.LabelShortCap),
-                Dto.Field("def", ReadUtil.Def(pawn.def)),
-                Dto.Field("faction", pawn.Faction == null ? null : Dto.Obj(
-                    Dto.Field("name", pawn.Faction.Name),
-                    Dto.Field("defName", pawn.Faction.def == null ? null : pawn.Faction.def.defName))),
-                Dto.Field("position", ReadUtil.Cell(pawn.Position)),
-                Dto.Field("downed", pawn.Downed),
-                Dto.Field("mentalState", pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName),
-                Dto.Field("combat", detail == ReadDetail.Summary ? null : Dto.Obj(
-                    Dto.Field("equipment", pawn.equipment == null ? new object[0] : pawn.equipment.AllEquipmentListForReading.Select(t => Dto.Obj(
-                        Dto.Field("def", ReadUtil.Def(t.def)),
-                        Dto.Field("label", t.LabelCap))).ToArray()),
-                    Dto.Field("currentJob", PawnReadService.SerializeCurrentJob(pawn)))));
+            Dictionary<string, object> dto = SummaryDto.Pawn(pawn);
+            dto["kind"] = "pawn";
+            dto["threatKind"] = ThreatKind(pawn);
+            dto["def"] = ReadUtil.Def(pawn.def);
+            dto["faction"] = SummaryDto.FactionIdentity(pawn.Faction);
+            dto["position"] = ReadUtil.Cell(pawn.Position);
+            dto["downed"] = pawn.Downed;
+            dto["mentalState"] = pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName;
+            dto["combat"] = detail == ReadDetail.Summary ? null : Dto.Obj(
+                Dto.Field("equipment", pawn.equipment == null ? new object[0] : pawn.equipment.AllEquipmentListForReading.Select(t => Dto.Obj(
+                    Dto.Field("def", ReadUtil.Def(t.def)),
+                    Dto.Field("label", t.LabelCap))).ToArray()),
+                Dto.Field("currentJob", PawnReadService.SerializeCurrentJob(pawn)));
+            return dto;
         }
 
         private static string ThreatKind(Pawn pawn)

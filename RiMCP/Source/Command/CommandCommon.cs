@@ -151,19 +151,12 @@ namespace RiMCP.Command
 
         public static object DefSummary(Def def)
         {
-            return def == null
-                ? null
-                : Dto.Obj(
-                    Dto.Field("defName", def.defName),
-                    Dto.Field("label", ReadUtil.DefLabel(def)));
+            return SummaryDto.Def(def);
         }
 
         public static object PawnSummary(Pawn pawn)
         {
-            return Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(pawn)),
-                Dto.Field("name", ReadUtil.PawnName(pawn)),
-                Dto.Field("label", pawn.LabelShortCap));
+            return SummaryDto.Pawn(pawn);
         }
     }
 }

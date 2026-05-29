@@ -123,15 +123,11 @@ namespace RiMCP.Read
                 ? new List<Bill>()
                 : record.Giver.BillStack.Bills.ToList();
 
-            Dictionary<string, object> dto = Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(record.Workbench)),
-                Dto.Field("def", ReadUtil.Def(record.Workbench.def)),
-                Dto.Field("label", record.Workbench.LabelCap),
-                Dto.Field("position", ReadUtil.Cell(record.Workbench.Position)),
-                Dto.Field("usableForBills", CurrentlyUsableForBills(record.Giver)),
-                Dto.Field("usableAfterFueling", UsableForBillsAfterFueling(record.Giver)),
-                Dto.Field("currentBillCount", bills.Count),
-                Dto.Field("availableRecipeCount", recipes.Count));
+            Dictionary<string, object> dto = SummaryDto.ThingWithPosition(record.Workbench);
+            dto["usableForBills"] = CurrentlyUsableForBills(record.Giver);
+            dto["usableAfterFueling"] = UsableForBillsAfterFueling(record.Giver);
+            dto["currentBillCount"] = bills.Count;
+            dto["availableRecipeCount"] = recipes.Count;
 
             if (detail != ReadDetail.Summary)
             {
@@ -151,20 +147,10 @@ namespace RiMCP.Read
         public static object SerializeBill(BillRecord record, ReadDetail detail)
         {
             Bill_Production production = record.Bill as Bill_Production;
-            Dictionary<string, object> dto = Dto.Obj(
-                Dto.Field("id", record.Bill.GetUniqueLoadID()),
-                Dto.Field("label", record.Bill.Label),
-                Dto.Field("recipe", record.Bill.recipe == null ? null : Dto.Obj(
-                    Dto.Field("defName", record.Bill.recipe.defName),
-                    Dto.Field("label", ReadUtil.DefLabel(record.Bill.recipe)))),
-                Dto.Field("suspended", record.Bill.suspended),
-                Dto.Field("workbench", Dto.Obj(
-                    Dto.Field("ids", ReadUtil.ThingIds(record.Workbench)),
-                    Dto.Field("def", ReadUtil.Def(record.Workbench.def)),
-                    Dto.Field("label", record.Workbench.LabelCap),
-                    Dto.Field("position", ReadUtil.Cell(record.Workbench.Position)))),
-                Dto.Field("repeatMode", production == null ? null : production.repeatMode.ToString()),
-                Dto.Field("targetCount", production == null ? null : (object)production.targetCount));
+            Dictionary<string, object> dto = SummaryDto.Bill(record.Bill);
+            dto["workbench"] = SummaryDto.ThingWithPosition(record.Workbench);
+            dto["repeatMode"] = production == null ? null : production.repeatMode.ToString();
+            dto["targetCount"] = production == null ? null : (object)production.targetCount;
 
             if (detail != ReadDetail.Summary)
             {

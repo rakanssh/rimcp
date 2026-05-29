@@ -168,9 +168,7 @@ namespace RiMCP.Command
             List<DesignationDef> defs = CurrentAnimalDesignations(map, pawn);
             return defs.Count == 0
                 ? null
-                : Dto.Obj(
-                    Dto.Field("defName", defs[0].defName),
-                    Dto.Field("label", ReadUtil.DefLabel(defs[0])));
+                : SummaryDto.Def(defs[0]);
         }
 
         private static void RemoveAnimalDesignations(Map map, Pawn pawn)

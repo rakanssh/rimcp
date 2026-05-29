@@ -56,15 +56,7 @@ namespace RiMCP.Read
 
         private static object SerializeFaction(Faction faction)
         {
-            if (faction == null)
-            {
-                return null;
-            }
-            return Dto.Obj(
-                Dto.Field("name", faction.Name),
-                Dto.Field("defName", faction.def == null ? null : faction.def.defName),
-                Dto.Field("isPlayer", faction == Faction.OfPlayer),
-                Dto.Field("hostileToPlayer", faction.HostileTo(Faction.OfPlayer)));
+            return SummaryDto.FactionStatus(faction);
         }
 
         private static object SerializeWorldObjects(ReadRequest request)

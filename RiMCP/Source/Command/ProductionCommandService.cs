@@ -32,7 +32,7 @@ namespace RiMCP.Command
                 return CommandEnvelope.Ok(context, true, Dto.Obj(
                     Dto.Field("deleted", true),
                     Dto.Field("bill", deletedBill),
-                    Dto.Field("workshop", WorkshopSummary(record.Workbench))));
+                    Dto.Field("workshop", SummaryDto.ThingWithPosition(record.Workbench))));
             }
 
             if (!HasUpdateFields(body))
@@ -50,7 +50,7 @@ namespace RiMCP.Command
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("previousBill", previousBill),
                 Dto.Field("bill", ProductionReadService.SerializeBill(record, ReadDetail.Full)),
-                Dto.Field("workshop", WorkshopSummary(record.Workbench))));
+                Dto.Field("workshop", SummaryDto.ThingWithPosition(record.Workbench))));
         }
 
         public static BridgeResponse AddBillToWorkshop(BridgeRequest request, RouteMatch route)
@@ -89,7 +89,7 @@ namespace RiMCP.Command
             ProductionReadService.BillRecord record = new ProductionReadService.BillRecord(workshop.Workbench, workshop.Giver, bill);
             return CommandEnvelope.Ok(context, true, Dto.Obj(
                 Dto.Field("bill", ProductionReadService.SerializeBill(record, ReadDetail.Full)),
-                Dto.Field("workshop", WorkshopSummary(workshop.Workbench))));
+                Dto.Field("workshop", SummaryDto.ThingWithPosition(workshop.Workbench))));
         }
 
         private static ResolvedBillSettings ResolveBillSettings(Bill bill, BillSettingsBody body, Map map)
@@ -341,15 +341,6 @@ namespace RiMCP.Command
             {
                 throw new CommandException(400, "Delete mode cannot include update fields.");
             }
-        }
-
-        private static object WorkshopSummary(Building workbench)
-        {
-            return Dto.Obj(
-                Dto.Field("ids", ReadUtil.ThingIds(workbench)),
-                Dto.Field("def", ReadUtil.Def(workbench.def)),
-                Dto.Field("label", workbench.LabelCap),
-                Dto.Field("position", ReadUtil.Cell(workbench.Position)));
         }
 
         private sealed class BillSnapshot

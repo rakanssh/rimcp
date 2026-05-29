@@ -85,9 +85,7 @@ namespace RiMCP.Command
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
-                Dto.Field("workType", Dto.Obj(
-                    Dto.Field("defName", workType.defName),
-                    Dto.Field("label", ReadUtil.DefLabel(workType)))),
+                Dto.Field("workType", SummaryDto.Def(workType)),
                 Dto.Field("previousPriority", previous),
                 Dto.Field("priority", pawn.workSettings.GetPriority(workType)),
                 Dto.Field("manualPrioritiesChanged", manualPrioritiesChanged)));
