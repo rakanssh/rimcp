@@ -247,29 +247,16 @@ namespace RiMCP.Shared
             props["pawnId"] = Str("Pawn ThingID or load id.");
             props["assignmentKind"] = EnumString("Assign-style setting to change.", "schedule", "policy", "medicalCare", "selfTend", "hostilityResponse", "allowedArea", "carryMedicine", "prisonerInteraction");
             props["assignments"] = ScheduleAssignments();
-            props["policyKind"] = EnumString("Policy column to set when assignmentKind is policy.", "apparel", "food", "drug", "reading");
-            props["policyId"] = Str("Policy id returned by list_pawns include=[\"assignmentOptions\"].");
-            props["care"] = EnumString("Medical care category.", "NoCare", "NoMeds", "HerbalOrWorse", "NormalOrWorse", "Best");
-            props["enabled"] = Bool("Whether self-tend should be enabled.");
-            props["mode"] = EnumString("Hostility response mode.", "Ignore", "Attack", "Flee");
-            props["areaId"] = Str("Allowed area id returned by assignmentOptions, or unrestricted to clear it.");
-            props["count"] = Int("Medicine count to carry.", 0, 3);
-            props["medicineDefName"] = Str("Optional medicine ThingDef defName from assignmentOptions.");
-            props["interactionModeDefName"] = Str("PrisonerInteractionModeDef defName, such as AttemptRecruit, ReduceResistance, Convert, or Release.");
-            return J(
-                F("type", "object"),
-                F("properties", props),
-                F("required", A("pawnId", "assignmentKind")),
-                F("oneOf", A(
-                    AssignmentBranch("schedule", "assignments"),
-                    AssignmentBranch("policy", "policyKind", "policyId"),
-                    AssignmentBranch("medicalCare", "care"),
-                    AssignmentBranch("selfTend", "enabled"),
-                    AssignmentBranch("hostilityResponse", "mode"),
-                    AssignmentBranch("allowedArea", "areaId"),
-                    AssignmentBranch("carryMedicine", "count"),
-                    AssignmentBranch("prisonerInteraction", "interactionModeDefName"))),
-                F("additionalProperties", false));
+            props["policyKind"] = EnumString("Required when assignmentKind is policy. Policy column to set.", "apparel", "food", "drug", "reading");
+            props["policyId"] = Str("Required when assignmentKind is policy. Policy id returned by list_pawns include=[\"assignmentOptions\"].");
+            props["care"] = EnumString("Required when assignmentKind is medicalCare. Medical care category.", "NoCare", "NoMeds", "HerbalOrWorse", "NormalOrWorse", "Best");
+            props["enabled"] = Bool("Required when assignmentKind is selfTend. Whether self-tend should be enabled.");
+            props["mode"] = EnumString("Required when assignmentKind is hostilityResponse. Hostility response mode.", "Ignore", "Attack", "Flee");
+            props["areaId"] = Str("Required when assignmentKind is allowedArea. Area id from assignmentOptions, or unrestricted to clear it.");
+            props["count"] = Int("Required when assignmentKind is carryMedicine. Medicine count to carry.", 0, 3);
+            props["medicineDefName"] = Str("Optional when assignmentKind is carryMedicine. Medicine ThingDef defName from assignmentOptions; omit to keep the current medicine.");
+            props["interactionModeDefName"] = Str("Required when assignmentKind is prisonerInteraction. PrisonerInteractionModeDef defName, such as AttemptRecruit, ReduceResistance, Convert, or Release.");
+            return ObjectSchema(props, "pawnId", "assignmentKind");
         }
 
         private static Dictionary<string, object> SetBillInput()
@@ -303,13 +290,6 @@ namespace RiMCP.Shared
             props["allowedSkillMax"] = Int("Maximum allowed pawn skill.", 0, 20);
             props["storeModeDefName"] = J(F("type", "string"), F("description", "BillStoreModeDef defName from search_defs kind=billStoreMode. SpecificStockpile also requires storeZoneId."), F("examples", A("DropOnFloor", "BestStockpile", "SpecificStockpile")));
             props["storeZoneId"] = Str("Stockpile zone id from list_zones. Required only when storeModeDefName is SpecificStockpile.");
-        }
-
-        private static Dictionary<string, object> AssignmentBranch(string assignmentKind, params string[] required)
-        {
-            return J(
-                F("properties", J(F("assignmentKind", J(F("const", assignmentKind))))),
-                F("required", new[] { "assignmentKind" }.Concat(required).ToArray()));
         }
 
         private static Dictionary<string, object> Input(params ToolProperty[] properties)
@@ -412,7 +392,7 @@ namespace RiMCP.Shared
             return J(
                 F("type", "array"),
                 F("minItems", 1),
-                F("description", "Schedule assignment ranges. Ranges are half-open, non-overlapping, and use hours 0 through 24."),
+                F("description", "Required when assignmentKind is schedule. Ranges are half-open, non-overlapping, and use hours 0 through 24."),
                 F("items", J(
                     F("type", "object"),
                     F("properties", J(
