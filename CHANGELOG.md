@@ -4,14 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-28
+
 ### Fixed
 
 - Simplify the pawn-assignment tool schema so MCP clients can discover all arguments.
+- Bundle native .NET runtime libraries and their license notices with the connection helpers.
+- Restore the Unix helper's executable permission when it is missing after installation.
 
 ### Added
 
 - An **Allow colony changes** setting, enabled by default, that can block commands while keeping reads available. Existing configurations without this setting also default to enabled; a saved off setting stays off.
-- Workshop description draft and final 1280 × 720 preview artwork with editable SVG source.
+- Workshop description and final 1280 × 720 preview artwork with editable SVG source.
+- Clean release packaging with a Workshop folder, ZIP archive, and SHA-256 checksum.
 
 ### Changed
 
@@ -82,7 +87,8 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.2.0

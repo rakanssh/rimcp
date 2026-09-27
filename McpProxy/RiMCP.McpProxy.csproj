@@ -9,4 +9,12 @@
   <ItemGroup>
     <Compile Include="../Shared/ToolManifest.cs" Link="Shared/ToolManifest.cs" />
   </ItemGroup>
+  <Target Name="CopyRuntimeNotices" AfterTargets="Publish" DependsOnTargets="ResolveFrameworkReferences"
+          Condition="'$(SelfContained)' == 'true'">
+    <ItemGroup>
+      <_RuntimeNotice Include="%(ResolvedRuntimePack.PackageDirectory)/LICENSE.TXT;%(ResolvedRuntimePack.PackageDirectory)/THIRD-PARTY-NOTICES.TXT"
+                      Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RuntimeNotice)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -9,4 +9,4 @@ Artwork:
 
 Edit `workshop/description.bbcode` in any plain-text editor, such as VS Code or Notepad. The bracketed tags control formatting: `[b]text[/b]` is bold, `[h2]text[/h2]` is a heading, and `[*]` starts a list item. Keep opening and closing tags paired.
 
-Fill in or remove the `Tested with` line, save the file, then copy its contents into your Workshop description. Steam's [formatting guide](https://steamcommunity.com/comment/Guide/formattinghelp) lists the supported tags. `RiMCP/About/About.xml` holds the separate in-game summary.
+Save the file, then copy its contents into your Workshop description. Steam's [formatting guide](https://steamcommunity.com/comment/Guide/formattinghelp) lists the supported tags. `RiMCP/About/About.xml` holds the separate in-game summary.

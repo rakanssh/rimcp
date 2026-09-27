@@ -101,6 +101,8 @@ The mod settings copy MCP config that launches `RiMCP/Tools/McpProxy/rimcp-proxy
 
 For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
 
+After building the mod and publishing all four proxies, run `python scripts/package-release.py` (Python 3). It reads the version from `About.xml` and creates a clean Workshop folder at `.dotnet-home/releases/v<version>/RiMCP/`, plus a ZIP and SHA-256 checksum beside it. The package includes the artwork, runtime license notices, and an existing `About/PublishedFileId.txt` for Workshop updates. Existing output directories are never overwritten; use `--output-dir <new-directory>` to package the same version again.
+
 ## License
 
 RiMCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).

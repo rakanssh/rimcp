@@ -22,9 +22,14 @@ case "$os:$arch" in
 esac
 
 exe="$script_dir/$rid/RiMCP.McpProxy"
-if [ ! -x "$exe" ]; then
-  echo "RiMCP MCP proxy executable is missing or not executable: $exe" >&2
-  echo "Build it with scripts/publish-mcp-proxy.sh before packaging the mod." >&2
+if [ ! -f "$exe" ]; then
+  echo "RiMCP MCP proxy executable is missing: $exe" >&2
+  echo "Reinstall the mod to restore the bundled helper." >&2
+  exit 1
+fi
+
+if [ ! -x "$exe" ] && ! chmod u+x "$exe"; then
+  echo "RiMCP could not make its bundled helper executable: $exe" >&2
   exit 1
 fi
 

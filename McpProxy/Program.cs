@@ -93,7 +93,7 @@ while ((line = Console.ReadLine()) != null)
                     ["serverInfo"] = new JsonObject
                     {
                         ["name"] = "rimcp",
-                        ["version"] = "0.4.0"
+                        ["version"] = "0.5.0"
                     }
                 });
                 break;

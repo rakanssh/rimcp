@@ -14,5 +14,6 @@ for rid in win-x64 linux-x64 osx-x64 osx-arm64; do
     -r "$rid" \
     --self-contained true \
     -p:PublishSingleFile=true \
+    -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:PublishDir="$publish_dir/"
 done
