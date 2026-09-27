@@ -101,6 +101,32 @@ namespace RiMCP.Bridge
 
         private void HandleContext(HttpListenerContext context)
         {
+            try
+            {
+                ProcessContext(context);
+            }
+            catch (Exception ex)
+            {
+                if (!stopping)
+                {
+                    log.Add("Bridge request failed: " + ex.GetType().Name + ": " + ex.Message);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    context.Response.Close();
+                }
+                catch
+                {
+                    // The client or listener may already have closed the connection.
+                }
+            }
+        }
+
+        private void ProcessContext(HttpListenerContext context)
+        {
             LastRequestUtc = DateTime.UtcNow;
             string client = context.Request.RemoteEndPoint == null ? "unknown" : context.Request.RemoteEndPoint.Address.ToString();
             lock (recentClients)

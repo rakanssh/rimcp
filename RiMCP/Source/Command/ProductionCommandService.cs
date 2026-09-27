@@ -139,20 +139,25 @@ namespace RiMCP.Command
 
             if (HasProductionFields(body))
             {
-                if (!(bill is Bill_Production))
+                Bill_Production production = bill as Bill_Production;
+                if (production == null)
                 {
                     throw new CommandException(409, "Production-only fields require a production bill.");
                 }
-                ResolveProductionSettings(body, settings);
+                ResolveProductionSettings(production, body, settings);
             }
             return settings;
         }
 
-        private static void ResolveProductionSettings(BillSettingsBody body, ResolvedBillSettings settings)
+        private static void ResolveProductionSettings(Bill_Production bill, BillSettingsBody body, ResolvedBillSettings settings)
         {
             if (!string.IsNullOrWhiteSpace(body.RepeatModeDefName))
             {
                 settings.RepeatMode = ResolveRepeatMode(body.RepeatModeDefName);
+                if (settings.RepeatMode == BillRepeatModeDefOf.TargetCount && !bill.recipe.WorkerCounter.CanCountProducts(bill))
+                {
+                    throw new CommandException(409, "Recipe does not support target-count bills.");
+                }
             }
             if (body.RepeatCount.HasValue)
             {

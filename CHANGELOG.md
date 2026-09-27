@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+### Fixed
+
+- Reject target-count bills for recipes whose product counter cannot support them.
+- Contain HTTP client disconnect and listener shutdown errors within the bridge request handler.
+- Calculate calendar fields from absolute game ticks while preserving elapsed `ticksGame` values.
+- Return protocol errors for malformed MCP request envelopes without terminating the proxy.
+
 ### Added
 
 - Production command tools and endpoints: `set_bill` (update/delete) and `add_bill_to_workshop` (add).
@@ -12,6 +21,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Paginate threats before constructing response objects and count threat categories in a single pass.
 - Increased the main thread dispatch wait timeout to 10 seconds.
 - Downgraded the MCP proxy target framework from .NET 10.0 to .NET 8.0.
 - Updated the mod's configuration generator to delegate execution to the platform-specific launcher scripts.
@@ -59,4 +69,8 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
+[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.4.0
+[0.3.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.3.0
+[0.2.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.1.0

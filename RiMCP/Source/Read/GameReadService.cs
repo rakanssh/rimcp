@@ -56,13 +56,14 @@ namespace RiMCP.Read
         public static object SerializeTime(int ticks, Map map)
         {
             Vector2 longLat = map == null || Find.WorldGrid == null ? Vector2.zero : Find.WorldGrid.LongLatOf(map.Tile);
-            int day = GenDate.DayOfSeason(ticks, longLat.x);
+            int absTicks = Current.Game == null || Find.TickManager == null ? ticks : GenDate.TickGameToAbs(ticks);
+            int day = GenDate.DayOfSeason(absTicks, longLat.x);
             return Dto.Obj(
                 Dto.Field("ticksGame", ticks),
                 Dto.Field("dayOfSeason", day),
-                Dto.Field("quadrum", GenDate.Quadrum(ticks, longLat.x).ToString()),
-                Dto.Field("hourOfDay", GenDate.HourOfDay(ticks, longLat.x)),
-                Dto.Field("season", GenDate.Season(ticks, longLat).ToString()));
+                Dto.Field("quadrum", GenDate.Quadrum(absTicks, longLat.x).ToString()),
+                Dto.Field("hourOfDay", GenDate.HourOfDay(absTicks, longLat.x)),
+                Dto.Field("season", GenDate.Season(absTicks, longLat).ToString()));
         }
 
         public static object RecentEvents(int limit)

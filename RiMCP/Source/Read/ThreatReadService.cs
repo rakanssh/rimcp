@@ -12,24 +12,18 @@ namespace RiMCP.Read
         {
             ReadContext context = ReadContext.FromMap(request);
 
-            List<object> threats = new List<object>();
-            foreach (Pawn pawn in context.Map.mapPawns.AllPawnsSpawned.Where(IsThreatPawn).OrderBy(p => p.LabelShortCap))
-            {
-                threats.Add(SerializeThreatPawn(context.Map, pawn, context.Request.Detail));
-            }
-            foreach (Thing fire in Fires(context.Map).OrderBy(f => f.Position.x).ThenBy(f => f.Position.z))
-            {
-                threats.Add(Dto.Obj(
-                    Dto.Field("kind", "fire"),
-                    Dto.Field("id", ReadUtil.StableSessionId("fire", context.Map.uniqueID, fire.Position, fire.def.defName)),
-                    Dto.Field("def", ReadUtil.Def(fire.def)),
-                    Dto.Field("position", ReadUtil.Cell(fire.Position))));
-            }
+            IEnumerable<Thing> threats = context.Map.mapPawns.AllPawnsSpawned
+                .Where(IsThreatPawn)
+                .OrderBy(pawn => pawn.LabelShortCap)
+                .Cast<Thing>()
+                .Concat(Fires(context.Map).OrderBy(fire => fire.Position.x).ThenBy(fire => fire.Position.z));
 
-            Page<object> page = new Page<object>(threats, context.Request);
+            Page<Thing> page = new Page<Thing>(threats, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("summary", SummarizeThreats(context.Map)),
-                Dto.Field("threats", page.Items.ToArray())), page.Truncated, page.NextCursor);
+                Dto.Field("threats", page.Items.Select(thing => thing is Pawn
+                    ? SerializeThreatPawn(context.Map, (Pawn)thing, context.Request.Detail)
+                    : SerializeFire(context.Map, thing)).ToArray())), page.Truncated, page.NextCursor);
         }
 
         public static object SummarizeThreats(Map map)
@@ -38,10 +32,32 @@ namespace RiMCP.Read
             {
                 return null;
             }
-            int hostiles = map.mapPawns.AllPawnsSpawned.Count(pawn => pawn.HostileTo(Faction.OfPlayer));
-            int manhunters = map.mapPawns.AllPawnsSpawned.Count(IsManhunter);
-            int hungryPredators = map.mapPawns.AllPawnsSpawned.Count(IsPredator);
-            int threatPawns = map.mapPawns.AllPawnsSpawned.Count(IsThreatPawn);
+            int hostiles = 0;
+            int manhunters = 0;
+            int hungryPredators = 0;
+            int threatPawns = 0;
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            {
+                bool hostile = pawn.HostileTo(Faction.OfPlayer);
+                bool manhunter = IsManhunter(pawn);
+                bool predator = IsPredator(pawn);
+                if (hostile)
+                {
+                    hostiles++;
+                }
+                if (manhunter)
+                {
+                    manhunters++;
+                }
+                if (predator)
+                {
+                    hungryPredators++;
+                }
+                if (hostile || manhunter || predator)
+                {
+                    threatPawns++;
+                }
+            }
             int fires = Fires(map).Count();
             return Dto.Obj(
                 Dto.Field("hostiles", hostiles),
@@ -86,6 +102,15 @@ namespace RiMCP.Read
                     Dto.Field("label", t.LabelCap))).ToArray()),
                 Dto.Field("currentJob", PawnReadService.SerializeCurrentJob(pawn)));
             return dto;
+        }
+
+        private static object SerializeFire(Map map, Thing fire)
+        {
+            return Dto.Obj(
+                Dto.Field("kind", "fire"),
+                Dto.Field("id", ReadUtil.StableSessionId("fire", map.uniqueID, fire.Position, fire.def.defName)),
+                Dto.Field("def", ReadUtil.Def(fire.def)),
+                Dto.Field("position", ReadUtil.Cell(fire.Position)));
         }
 
         private static string ThreatKind(Pawn pawn)

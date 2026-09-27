@@ -30,18 +30,51 @@ while ((line = Console.ReadLine()) != null)
     try
     {
         request = JsonNode.Parse(line);
+        if (request is JsonObject parsed)
+        {
+            // JsonObject detects duplicate property names when its dictionary is first accessed.
+            _ = parsed.Count;
+        }
     }
-    catch (Exception ex)
+    catch (JsonException ex)
     {
         WriteError(null, -32700, "Parse error: " + ex.Message);
         continue;
     }
-
-    var id = request?["id"]?.DeepClone();
-    var method = request?["method"]?.GetValue<string>();
-    if (method == null)
+    catch (ArgumentException)
     {
-        WriteError(id, -32600, "Missing method.");
+        WriteError(null, -32600, "Request contains duplicate property names.");
+        continue;
+    }
+
+    if (request is not JsonObject message)
+    {
+        WriteError(null, -32600, "Request must be an object.");
+        continue;
+    }
+
+    var id = message["id"];
+    if (id != null && id.GetValueKind() is not (JsonValueKind.String or JsonValueKind.Number))
+    {
+        WriteError(null, -32600, "Request id must be a string, number, or null.");
+        continue;
+    }
+    if (message["jsonrpc"] is not JsonValue version ||
+        !version.TryGetValue<string>(out var jsonrpc) || jsonrpc != "2.0")
+    {
+        WriteError(id, -32600, "Request must use JSON-RPC 2.0.");
+        continue;
+    }
+    if (message["method"] is not JsonValue methodValue ||
+        !methodValue.TryGetValue<string>(out var method) || string.IsNullOrWhiteSpace(method))
+    {
+        WriteError(id, -32600, "Method must be a non-empty string.");
+        continue;
+    }
+
+    // Notifications have no request id and must not receive a response.
+    if (!message.ContainsKey("id"))
+    {
         continue;
     }
 
@@ -60,7 +93,7 @@ while ((line = Console.ReadLine()) != null)
                     ["serverInfo"] = new JsonObject
                     {
                         ["name"] = "rimcp",
-                        ["version"] = "0.3.0"
+                        ["version"] = "0.4.0"
                     }
                 });
                 break;
@@ -76,7 +109,7 @@ while ((line = Console.ReadLine()) != null)
                 break;
 
             case "tools/call":
-                await HandleToolCall(id, request?["params"] as JsonObject);
+                await HandleToolCall(id, message["params"] as JsonObject);
                 break;
 
             default:
