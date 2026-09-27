@@ -7,5 +7,13 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <description>Agentic intelligence for the Rim. RiMCP connects MCP-compatible clients to a live colony through a token-protected local bridge and bundled stdio proxy.</description>
+  <description>Connect an external AI client to your RimWorld colony. Inspect pawns, resources, work, production, research, and threats. Connected clients can also issue supported commands while Allow colony changes is enabled in RiMCP settings.
+
+Requires a local MCP client that can launch stdio servers and a model configured in that client. RiMCP includes the connection helper; it does not include an AI model.
+
+Open Options &gt; Mod settings &gt; RiMCP and copy the MCP configuration into your client. Enable RimWorld's Run in background setting when using the client while the game is unfocused.
+
+Colony changes are enabled by default. Turn Allow colony changes off for read-only access. Connections use a token-protected local endpoint. Your chosen client and model provider determine whether retrieved colony information leaves your computer.
+
+Source and releases: https://github.com/rakanssh/rimcp</description>
 </ModMetaData>

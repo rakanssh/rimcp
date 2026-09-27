@@ -14,18 +14,20 @@ namespace RiMCP.Bridge
 
         private readonly Func<BridgeRequest, BridgeResponse> dispatch;
         private readonly RecentLog log;
+        private readonly Func<bool> colonyChangesAllowed;
         private readonly HashSet<string> recentClients = new HashSet<string>();
         private HttpListener listener;
         private Thread thread;
         private volatile bool stopping;
         private string token;
 
-        public BridgeServer(int port, string token, Func<BridgeRequest, BridgeResponse> dispatch, RecentLog log)
+        public BridgeServer(int port, string token, Func<BridgeRequest, BridgeResponse> dispatch, RecentLog log, Func<bool> colonyChangesAllowed)
         {
             Port = port;
             this.token = token;
             this.dispatch = dispatch;
             this.log = log;
+            this.colonyChangesAllowed = colonyChangesAllowed;
         }
 
         public int Port { get; private set; }
@@ -147,10 +149,11 @@ namespace RiMCP.Bridge
                 }
                 else if (context.Request.HttpMethod == "GET" && context.Request.Url.AbsolutePath == "/health")
                 {
+                    bool commands = colonyChangesAllowed();
                     response = BridgeResponse.Json(200, Json.Object(
                         Json.Prop("status", Json.String("ok")),
-                        Json.Prop("readOnly", Json.Bool(false)),
-                        Json.Prop("commands", Json.Bool(true)),
+                        Json.Prop("readOnly", Json.Bool(!commands)),
+                        Json.Prop("commands", Json.Bool(commands)),
                         Json.Prop("port", Json.Number(Port))));
                 }
                 else

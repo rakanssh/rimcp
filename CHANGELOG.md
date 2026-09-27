@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- An **Allow colony changes** setting, enabled by default, that can block commands while keeping reads available. Existing configurations without this setting also default to enabled; a saved off setting stays off.
+- Workshop description draft and final 1280 × 720 preview artwork with editable SVG source.
+
+### Changed
+
+- Settings labels and bridge health responses now distinguish read-only access from enabled colony commands.
+
 ## [0.4.0] - 2026-09-27
 
 ### Fixed

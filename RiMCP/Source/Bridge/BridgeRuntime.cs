@@ -13,6 +13,12 @@ namespace RiMCP.Bridge
         private static readonly RecentLog RecentLog = new RecentLog(12);
         private static BridgeServer server;
         private static RiMCPSettings settings;
+        private static volatile bool allowColonyChanges;
+
+        public static bool AllowColonyChanges
+        {
+            get { return allowColonyChanges; }
+        }
 
         public static bool IsRunning
         {
@@ -76,15 +82,17 @@ namespace RiMCP.Bridge
             if (server != null && server.IsRunning && server.Port == settings.Port)
             {
                 server.UpdateToken(settings.Token);
+                allowColonyChanges = settings.AllowColonyChanges;
                 return;
             }
 
             Stop();
-            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, Dispatch, RecentLog);
+            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, Dispatch, RecentLog, () => AllowColonyChanges);
             try
             {
                 newServer.Start();
                 server = newServer;
+                allowColonyChanges = settings.AllowColonyChanges;
             }
             catch (Exception ex)
             {
@@ -96,6 +104,7 @@ namespace RiMCP.Bridge
 
         public static void Stop()
         {
+            allowColonyChanges = false;
             if (server != null)
             {
                 server.Stop();

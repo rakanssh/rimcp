@@ -47,10 +47,11 @@ The MCP proxy returns the full payload as `structuredContent` and also mirrors t
 1. Open the RiMCP mod settings page.
 2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
+4. **Allow colony changes** is on by default, including when upgrading from a version without this setting. Turn it off in RiMCP settings for read-only access. A saved off setting stays off.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's own **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 
-Command tools use the same identifiers returned by the read tools and report whether they changed game state. Most command tools are idempotent state setters; 
+Command tools use the same identifiers returned by the read tools and report whether they changed game state. Most command tools are idempotent state setters. The bridge rejects command requests while **Allow colony changes** is off.
 
 Current command HTTP endpoints:
 

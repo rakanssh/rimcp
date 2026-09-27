@@ -7,12 +7,14 @@ namespace RiMCP.Settings
     public sealed class RiMCPSettings : ModSettings
     {
         public bool BridgeEnabled = true;
+        public bool AllowColonyChanges = true;
         public int Port = 39571;
         public string Token;
 
         public override void ExposeData()
         {
             Scribe_Values.Look(ref BridgeEnabled, "bridgeEnabled", true);
+            Scribe_Values.Look(ref AllowColonyChanges, "allowColonyChanges", true);
             Scribe_Values.Look(ref Port, "port", 39571);
             Scribe_Values.Look(ref Token, "token");
         }
