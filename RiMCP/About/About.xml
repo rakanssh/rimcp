@@ -3,17 +3,33 @@
   <name>RiMCP</name>
   <author>rakan</author>
   <packageId>rakanssh.rimcp</packageId>
-  <modVersion>0.5.0</modVersion>
+  <modVersion>0.5.1</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <description>Connect an external AI client to your RimWorld colony. Inspect pawns, resources, work, production, research, and threats. Connected clients can also issue supported commands while Allow colony changes is enabled in RiMCP settings.
+  <description>RiMCP lets you connect your colony to your favourite MCP-supporting AI agent.
 
-Requires a local MCP client that can launch stdio servers and a model configured in that client. RiMCP includes the connection helper; it does not include an AI model.
+For the modern high-impact 10x engineer looking to utilize agentic AI to drive business value in their colony.
 
-Open Options &gt; Mod settings &gt; RiMCP and copy the MCP configuration into your client. Enable RimWorld's Run in background setting when using the client while the game is unfocused.
+• Ask deep questions about your stockpiles, pawns, recipes, and loaded content (including mods!).
+• Dictate your schedule and work priorities through a client with voice support and have an agent apply them.
+• Have the latest &amp; greatest LLM pick your pawns' apparel policies.
+• Many more possibilities!
 
-Colony changes are enabled by default. Turn Allow colony changes off for read-only access. Connections use a token-protected local endpoint. Your chosen client and model provider determine whether retrieved colony information leaves your computer.
+Requirements
+For RimWorld 1.6. You'll need your own AI client and model, with support for local MCP servers (stdio).
 
-Source and releases: https://github.com/rakanssh/rimcp</description>
+Tested with: Codex &amp; OpenCode.
+
+Setup
+1. Enable RiMCP in your mod list and restart the game.
+2. Go to Options &gt; Mod settings &gt; RiMCP and click Copy MCP config.
+3. Add that config to your client's MCP settings, then load a colony.
+4. Turn on RimWorld's Run in background option so requests work while you're alt-tabbed.
+
+Allow colony changes is on by default. Turn it off in mod settings for read-only access.
+
+If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?
+
+Source: https://github.com/rakanssh/rimcp | Bugs: https://github.com/rakanssh/rimcp/issues</description>
 </ModMetaData>

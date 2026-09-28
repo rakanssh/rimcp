@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-28
+
+### Changed
+
+- Use the full Workshop description in the in-game mod page, with plain headings and lists that render in RimWorld.
+
 ## [0.5.0] - 2026-09-28
 
 ### Fixed
@@ -87,7 +93,8 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.1
 [0.5.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.3.0
