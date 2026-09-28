@@ -30,7 +30,7 @@ namespace RiMCP
 
         public override string SettingsCategory()
         {
-            return "RiMCP";
+            return "Rim-MCP";
         }
 
         public override void DoSettingsWindowContents(Rect inRect)
@@ -43,7 +43,7 @@ namespace RiMCP
             Listing_Standard listing = new Listing_Standard();
             listing.Begin(viewRect);
 
-            listing.Label("RiMCP");
+            listing.Label("Rim-MCP");
             listing.GapLine();
             listing.Label("Status: " + (BridgeRuntime.IsRunning ? "running" : "stopped"));
             listing.Label("Access: " + (!BridgeRuntime.IsRunning ? "disabled" : BridgeRuntime.AllowColonyChanges ? "colony reads and changes" : "read-only"));
@@ -54,7 +54,7 @@ namespace RiMCP
 
             listing.Gap();
             bool enabled = Settings.BridgeEnabled;
-            listing.CheckboxLabeled("Enable RiMCP", ref enabled, "Enables the token-protected local bridge. Clients can read colony data. Changes require Allow colony changes.");
+            listing.CheckboxLabeled("Enable Rim-MCP", ref enabled, "Enables the token-protected local bridge. Clients can read colony data. Changes require Allow colony changes.");
             if (enabled != Settings.BridgeEnabled)
             {
                 Settings.BridgeEnabled = enabled;
@@ -75,14 +75,14 @@ namespace RiMCP
             if (listing.ButtonText("Copy MCP config"))
             {
                 GUIUtility.systemCopyBuffer = BuildMcpConfig();
-                Messages.Message("RiMCP MCP config copied.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message("Rim-MCP config copied.", MessageTypeDefOf.PositiveEvent, false);
             }
 
             if (listing.ButtonText("Regenerate token"))
             {
                 Settings.RegenerateToken();
                 BridgeRuntime.ApplySettings();
-                Messages.Message("RiMCP token regenerated. Copy MCP config again.", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("Rim-MCP token regenerated. Copy MCP config again.", MessageTypeDefOf.NeutralEvent, false);
             }
 
             listing.Gap();

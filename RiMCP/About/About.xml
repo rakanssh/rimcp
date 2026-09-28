@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>RiMCP</name>
+  <name>Rim-MCP</name>
   <author>rakan</author>
   <packageId>rakanssh.rimcp</packageId>
-  <modVersion>0.5.1</modVersion>
+  <modVersion>0.5.2</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <description>RiMCP lets you connect your colony to your favourite MCP-supporting AI agent.
+  <description>Rim-MCP lets you connect your colony to your favourite MCP-supporting AI agent.
 
 For the modern high-impact 10x engineer looking to utilize agentic AI to drive business value in their colony.
 
@@ -17,14 +17,15 @@ For the modern high-impact 10x engineer looking to utilize agentic AI to drive b
 • Many more possibilities!
 
 Requirements
-For RimWorld 1.6. You'll need your own AI client and model, with support for local MCP servers (stdio).
+• RimWorld 1.6.
+• An agentic AI client with support for local (stdio) MCP servers.
 
 Tested with: Codex &amp; OpenCode.
 
 Setup
-1. Enable RiMCP in your mod list and restart the game.
-2. Go to Options &gt; Mod settings &gt; RiMCP and click Copy MCP config.
-3. Add that config to your client's MCP settings, then load a colony.
+1. Enable Rim-MCP in your mod list and restart the game.
+2. Go to Options &gt; Mod settings &gt; Rim-MCP and click Copy MCP config.
+3. Add that config to your client's MCP settings, (Or paste the config to your agent and tell it to configure itself, who has time to edit tomls nowadays).
 4. Turn on RimWorld's Run in background option so requests work while you're alt-tabbed.
 
 Allow colony changes is on by default. Turn it off in mod settings for read-only access.

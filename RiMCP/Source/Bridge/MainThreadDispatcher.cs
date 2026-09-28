@@ -20,7 +20,7 @@ namespace RiMCP.Bridge
         {
             if (!TryReserveQueueSlot())
             {
-                return BridgeResponse.Error(429, "RiMCP is busy; too many requests are waiting for the RimWorld main thread. Try again shortly.");
+                return BridgeResponse.Error(429, "Rim-MCP is busy; too many requests are waiting for the RimWorld main thread. Try again shortly.");
             }
 
             WorkItem item = new WorkItem(action);

@@ -1,6 +1,8 @@
 # Workshop presentation
 
-Title: **RiMCP**
+Title: **Rim-MCP - Rimworld MCP Server**
+
+RimWorld uploads the in-game name, **Rim-MCP**, as the Workshop title. Restore the longer title above on the Workshop page after uploading if you want to keep the subtitle.
 
 Artwork:
 

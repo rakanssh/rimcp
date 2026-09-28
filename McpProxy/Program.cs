@@ -93,7 +93,7 @@ while ((line = Console.ReadLine()) != null)
                     ["serverInfo"] = new JsonObject
                     {
                         ["name"] = "rimcp",
-                        ["version"] = "0.5.1"
+                        ["version"] = "0.5.2"
                     }
                 });
                 break;
@@ -165,7 +165,7 @@ async Task HandleToolCall(JsonNode? id, JsonObject? parameters)
     }
     catch (Exception ex)
     {
-        WriteResult(id, ToolError("Unable to reach RiMCP at " + bridgeUrl + ": " + ex.Message));
+        WriteResult(id, ToolError("Unable to reach Rim-MCP at " + bridgeUrl + ": " + ex.Message));
         return;
     }
 
@@ -369,7 +369,7 @@ static string SummarizeToolResult(string toolName, JsonNode? structured, bool su
 {
     if (!success)
     {
-        return structured?["error"]?.GetValue<string>() ?? "RiMCP request failed.";
+        return structured?["error"]?.GetValue<string>() ?? "Rim-MCP request failed.";
     }
 
     var tick = structured?["tick"]?.GetValue<int?>();

@@ -143,7 +143,7 @@ namespace RiMCP.Shared
 
             if (errors.Count > 0)
             {
-                throw new InvalidOperationException("Invalid RiMCP tool manifest: " + string.Join("; ", errors.ToArray()));
+                throw new InvalidOperationException("Invalid Rim-MCP tool manifest: " + string.Join("; ", errors.ToArray()));
             }
         }
 

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-28
+
+### Changed
+
+- Rename the public mod to **Rim-MCP**, including its artwork, descriptions, settings, and messages. Existing package IDs, MCP configuration, and internal paths stay unchanged.
+
 ## [0.5.1] - 2026-09-28
 
 ### Changed
@@ -93,7 +99,8 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.2
 [0.5.1]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.1
 [0.5.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.4.0

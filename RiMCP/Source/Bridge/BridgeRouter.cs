@@ -71,7 +71,7 @@ namespace RiMCP.Bridge
                     {
                         if (!route.MethodMatches("GET") && !BridgeRuntime.AllowColonyChanges)
                         {
-                            return BridgeResponse.Error(403, "Colony changes are disabled. Enable \"Allow colony changes\" in RimWorld's RiMCP mod settings to use this command.");
+                            return BridgeResponse.Error(403, "Colony changes are disabled. Enable \"Allow colony changes\" in RimWorld's Rim-MCP mod settings to use this command.");
                         }
                         return route.Handle(bridgeRequest, match);
                     }

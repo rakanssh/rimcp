@@ -49,7 +49,7 @@ def main():
         raise FileExistsError(f"Output already exists: {output}. Use --output-dir with a new directory.")
     output.mkdir(parents=True)
     staging = output / "RiMCP"
-    archive = output / f"RiMCP-v{version}.zip"
+    archive = output / f"Rim-MCP-v{version}.zip"
     with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED, compresslevel=6) as package:
         for source, relative in files.items():
             destination = staging / relative
