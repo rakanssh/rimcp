@@ -64,6 +64,8 @@ jobs:
           security create-keychain -p "$keychain_password" "$MACOS_KEYCHAIN_PATH"
           security set-keychain-settings -lut 3600 "$MACOS_KEYCHAIN_PATH"
           security unlock-keychain -p "$keychain_password" "$MACOS_KEYCHAIN_PATH"
+          # codesign also needs the temporary keychain in the runner's search list.
+          security list-keychains -d user -s "$MACOS_KEYCHAIN_PATH"
           security import "$RUNNER_TEMP/rimcp-signing.p12" \
             -k "$MACOS_KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
