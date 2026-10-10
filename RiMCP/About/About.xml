@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>Rim-MCP</name>
+  <name>RimMCP</name>
   <author>rakan</author>
   <packageId>rakanssh.rimcp</packageId>
-  <modVersion>0.5.2</modVersion>
+  <modVersion>0.5.3</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <description>Rim-MCP lets you connect your colony to your favourite MCP-supporting AI agent.
+  <description>RimMCP lets you connect your colony to your favourite MCP-supporting AI agent.
 
 For the modern high-impact 10x engineer looking to utilize agentic AI to drive business value in their colony.
 
@@ -23,8 +23,8 @@ Requirements
 Tested with: Codex &amp; OpenCode.
 
 Setup
-1. Enable Rim-MCP in your mod list and restart the game.
-2. Go to Options &gt; Mod settings &gt; Rim-MCP and click Copy MCP config.
+1. Enable RimMCP in your mod list and restart the game.
+2. Go to Options &gt; Mod settings &gt; RimMCP and click Copy MCP config.
 3. Add that config to your client's MCP settings, (Or paste the config to your agent and tell it to configure itself, who has time to edit tomls nowadays).
 4. Turn on RimWorld's Run in background option so requests work while you're alt-tabbed.
 

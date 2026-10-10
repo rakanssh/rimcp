@@ -1,8 +1,8 @@
-# Rim-MCP
+# RimMCP
 
 Agentic intelligence for the Rim.
 
-Rim-MCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients can then use the bundled stdio proxy.
+RimMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients can then use the bundled stdio proxy.
 
 ## Status
 
@@ -44,10 +44,10 @@ The MCP proxy returns the full payload as `structuredContent` and also mirrors t
 
 ## Using The Mod
 
-1. Open the Rim-MCP mod settings page.
+1. Open the RimMCP mod settings page.
 2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
-4. **Allow colony changes** is on by default, including when upgrading from a version without this setting. Turn it off in Rim-MCP settings for read-only access. A saved off setting stays off.
+4. **Allow colony changes** is on by default, including when upgrading from a version without this setting. Turn it off in RimMCP settings for read-only access. A saved off setting stays off.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's own **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 
@@ -103,6 +103,6 @@ For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` d
 
 ## License
 
-Rim-MCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).
+RimMCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).
 
-RimWorld, Ludeon Studios, and related names and assets are owned by Ludeon Studios. Rim-MCP is an unofficial community mod and is not endorsed by Ludeon Studios. Distribution and use as a RimWorld mod remains subject to the RimWorld EULA and any platform terms that apply, such as Steam Workshop terms.
+RimWorld, Ludeon Studios, and related names and assets are owned by Ludeon Studios. RimMCP is an unofficial community mod and is not endorsed by Ludeon Studios. Distribution and use as a RimWorld mod remains subject to the RimWorld EULA and any platform terms that apply, such as Steam Workshop terms.

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10-10
+
+### Changed
+
+- Rename the mod to **RimMCP** across the artwork, descriptions, settings, and messages.
+
 ### Added
 
 - A manual GitHub Actions workflow to sign and notarize both macOS helpers using a Developer ID Application certificate.
@@ -103,7 +109,8 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.3
 [0.5.2]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.2
 [0.5.1]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.1
 [0.5.0]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.0
