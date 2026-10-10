@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- A manual GitHub Actions workflow to sign and notarize both macOS helpers using a Developer ID Application certificate.
+
 ## [0.5.2] - 2026-09-28
 
 ### Changed
