@@ -55,11 +55,19 @@ namespace RiMCP.Read
 
         public static object SerializeTime(int ticks, Map map)
         {
+            TickManager tickManager = Current.Game == null ? null : Find.TickManager;
+            if (Current.ProgramState != ProgramState.Playing || tickManager == null || Find.World == null || Find.World.info == null)
+            {
+                return null;
+            }
+
             Vector2 longLat = map == null || Find.WorldGrid == null ? Vector2.zero : Find.WorldGrid.LongLatOf(map.Tile);
-            int absTicks = Current.Game == null || Find.TickManager == null ? ticks : GenDate.TickGameToAbs(ticks);
+            int absTicks = GenDate.TickGameToAbs(ticks);
             int day = GenDate.DayOfSeason(absTicks, longLat.x);
             return Dto.Obj(
                 Dto.Field("ticksGame", ticks),
+                Dto.Field("paused", tickManager.Paused),
+                Dto.Field("timeSpeed", tickManager.CurTimeSpeed.ToString()),
                 Dto.Field("dayOfSeason", day),
                 Dto.Field("quadrum", GenDate.Quadrum(absTicks, longLat.x).ToString()),
                 Dto.Field("hourOfDay", GenDate.HourOfDay(absTicks, longLat.x)),

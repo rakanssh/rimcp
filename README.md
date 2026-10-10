@@ -12,9 +12,9 @@ Current MCP tools:
 
 | Area | Tools | Use these for |
 | --- | --- | --- |
-| Colony overview | `get_game_context`, `get_colony_status` | Current map, time, storyteller/difficulty, loaded mods, colony dashboard, and top risks. |
+| Colony overview | `get_game_context`, `get_colony_status` | Current map, time, paused state, selected game speed, storyteller/difficulty, loaded mods, colony dashboard, and top risks. |
 | Mods and logs | `list_mods`, `get_mod`, `get_game_log` | Inspect loaded/installed mods, load order, loader warnings, settings panel names, and retained game logs with optional stack traces. |
-| Game settings | `get_game_settings`, `set_game_settings` | Read or change storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume. Writes require **Allow colony changes**. |
+| Game settings | `get_game_settings`, `set_game_settings` | Read or change storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume. Writes require **Allow changes**. |
 | Pawns and work | `list_pawns`, `get_pawn`, `list_work`, `set_pawn_drafted`, `set_pawn_work_priority`, `set_pawn_assignment` | Inspect colonists, prisoners, animals, threats, work priorities, schedules, policies, medical care, allowed areas, and other Assign-tab settings. |
 | Production | `list_production`, `get_bill`, `set_bill`, `list_workshops`, `get_workshop`, `add_bill_to_workshop` | Inspect bills and workbenches, add new bills, update bill settings, suspend bills, or delete bills. |
 | Map state | `list_resources`, `list_zones`, `get_zone`, `list_buildings`, `get_building`, `get_environment`, `get_power`, `list_threats` | Inspect stockpiles, growing zones, buildings, storage contents, weather, rooms, power grids, hazards, fires, and hostile activity. |
@@ -49,11 +49,11 @@ The MCP proxy returns the full payload as `structuredContent` and also mirrors t
 1. Open the RimMCP mod settings page.
 2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
-4. **Allow colony changes** is on by default, including when upgrading from a version without this setting. Turn it off in RimMCP settings for read-only access. A saved off setting stays off.
+4. **Allow changes** is on by default, including when upgrading from a version without this setting. Turn it off in RimMCP settings for read-only access. A saved off setting stays off.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's own **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 
-Command tools use the same identifiers returned by the read tools and report whether they changed game state. Most command tools are idempotent state setters. The bridge rejects command requests while **Allow colony changes** is off.
+Command tools use the same identifiers returned by the read tools and report whether they changed game state. Most command tools are idempotent state setters. The bridge rejects command requests while **Allow changes** is off.
 
 Current command HTTP endpoints:
 

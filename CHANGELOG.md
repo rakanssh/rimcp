@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [0.5.3] - 2026-10-10
 
 ### Added
 
@@ -10,16 +10,17 @@ All notable changes to this project are documented in this file.
 - Recent in-game log reads with severity/search filters and optional stack traces.
 - Game settings tools for storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume.
 - Defining mod information in definition search and detail results.
-
-## [0.5.3] - 2026-10-10
+- Paused state and selected game speed in game context.
+- A manual GitHub Actions workflow to sign and notarize both macOS helpers using a Developer ID Application certificate.
 
 ### Changed
 
 - Rename the mod to **RimMCP** across the artwork, descriptions, settings, and messages.
+- Rename the access toggle to **Allow changes** to cover colony commands and global game settings.
 
-### Added
+### Fixed
 
-- A manual GitHub Actions workflow to sign and notarize both macOS helpers using a Developer ID Application certificate.
+- Return game context at the main menu without requiring a loaded world.
 
 ## [0.5.2] - 2026-09-28
 
@@ -116,7 +117,6 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v0.5.3...HEAD
 [0.5.3]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.3
 [0.5.2]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.2
 [0.5.1]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.1
