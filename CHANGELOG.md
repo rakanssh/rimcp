@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Mod inspection with loaded and installed inventories, load order, loader warnings, dependencies, assemblies, and settings panel discovery.
+- Recent in-game log reads with severity/search filters and optional stack traces.
+- Game settings tools for storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume.
+- Defining mod information in definition search and detail results.
+
 ## [0.5.3] - 2026-10-10
 
 ### Changed

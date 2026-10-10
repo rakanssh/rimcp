@@ -152,6 +152,11 @@ namespace RiMCP.Shared
             return new[]
             {
                 Get("game-context", "get_game_context", "Get game-wide context: current map, time, storyteller/difficulty, loaded mods, and map ids.", "/v1/game-context", Input()),
+                Get("mods", "list_mods", "List loaded mods in runtime order, or scope=installed for known installed mods including disabled ones. Includes game version, pending configuration changes, and RimWorld's warnings about the configured mod list. Load positions are zero-based.", "/v1/mods", Input(Prop("scope", EnumString("Mod inventory to inspect. Defaults to loaded.", "loaded", "installed")), Prop("query", Str("Optional search text for mod name or package id."))), "scope", "query"),
+                Get("mod", "get_mod", "Inspect one mod's metadata, dependencies, declared compatibility, loaded assemblies, and available settings panel names. Mod settings values are not exposed or editable.", "/v1/mods/{packageId}", RequiredOnly(Prop("packageId", Str("Exact package id from list_mods, preserving any suffix distinguishing local and Workshop copies.")))),
+                Get("game-log", "get_game_log", "Read retained in-game log entries, newest first. This is not the complete Player.log or startup history. Use include=[\"stackTrace\"] or detail=full for stack traces. The cursor is an offset into current history, not a durable polling cursor.", "/v1/debug/log", Input(Prop("level", EnumString("Severity filter. Defaults to all.", "all", "message", "warning", "error")), Prop("query", Str("Optional case-insensitive search in messages and stack traces."))), "level", "query"),
+                Get("game-settings", "get_game_settings", "Read supported global game options and the current colony's storyteller/difficulty, with available choices. Works without a colony for global options.", "/v1/settings", RequiredOnly()),
+                Put("set-game-settings", "set_game_settings", "Change supported global options or the current colony's storyteller/difficulty preset. Only supplied fields change. Global options are saved; colony settings persist with the normal game save. Changing only the storyteller preserves custom difficulty. Requires Allow colony changes.", "/v1/settings", GameSettingsInput(), IdempotentMutation(), Body("storytellerDefName", "difficultyDefName", "runInBackground", "pauseOnLoad", "automaticPauseMode", "autosaveIntervalDays", "volumeMaster", "volumeMusic")),
                 Get("colony-status", "get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", "/v1/colony-status", Input()),
                 Get("pawns", "list_pawns", "List pawns by validated filter. Use include=[\"assignments\"] for Assign-style pawn settings and include=[\"assignmentOptions\"] for valid policy, area, medical, hostility, medicine, and interaction options.", "/v1/pawns", Input(Prop("filter", PawnFilter())), "filter"),
                 Get("pawn", "get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", "/v1/pawns/{id}", Required(Prop("id", Str("Pawn ThingID or load id.")))),
@@ -175,8 +180,8 @@ namespace RiMCP.Shared
                 Get("buildings", "list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", "/v1/buildings", Input(Prop("category", BuildingCategory())), "category"),
                 Get("building", "get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")))),
                 Get("world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input()),
-                Get("defs-search", "search_defs", "Search loaded game defs by kind, query, and category. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/search", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
-                Get("def", "get_def", "Get full detail for a loaded def by defName and optional kind. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/{defName}", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), "kind"),
+                Get("defs-search", "search_defs", "Search loaded game defs by kind, query, and category. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/search", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
+                Get("def", "get_def", "Get full detail for a loaded def by defName and optional kind. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/{defName}", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), "kind"),
                 Put("set-pawn-drafted", "set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", "/v1/pawns/{pawnId}/drafted", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), IdempotentMutation(), Body("mapId", "drafted")),
                 Put("set-pawn-work-priority", "set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", "/v1/pawns/{pawnId}/work/{workTypeDefName}", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), IdempotentMutation(), Body("mapId", "priority")),
                 Put("set-pawn-assignment", "set_pawn_assignment", "Set one Assign-style pawn setting: schedule, policy, medical care, self-tend, hostility response, allowed area, carried medicine, or prisoner interaction.", "/v1/pawns/{pawnId}/assignments/{assignmentKind}", PawnAssignmentInput(), IdempotentMutation(), Body("mapId", "assignments", "policyKind", "policyId", "care", "enabled", "mode", "areaId", "count", "medicineDefName", "interactionModeDefName")),
@@ -205,6 +210,21 @@ namespace RiMCP.Shared
         private static ToolSpec Post(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
         {
             return new ToolSpec(handlerId, name, description, "POST", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
+        }
+
+        private static Dictionary<string, object> GameSettingsInput()
+        {
+            Dictionary<string, object> schema = ObjectSchema(J(
+                F("storytellerDefName", Str("Selectable StorytellerDef defName from get_game_settings. Requires a loaded game.")),
+                F("difficultyDefName", Str("Non-custom DifficultyDef defName from get_game_settings. Replaces the current difficulty with that preset; requires a loaded game.")),
+                F("runInBackground", Bool("Keep RimWorld running while unfocused.")),
+                F("pauseOnLoad", Bool("Pause when loading a game.")),
+                F("automaticPauseMode", EnumString("Which events automatically pause the game.", "Never", "MajorThreat", "AnyThreat", "AnyLetter")),
+                F("autosaveIntervalDays", J(F("type", "number"), F("enum", new[] { 0.5, 1.0, 3.0, 7.0, 14.0 }), F("description", "Autosave interval in game days, using the normal game options."))),
+                F("volumeMaster", J(F("type", "number"), F("minimum", 0), F("maximum", 1), F("description", "Master volume from 0 to 1."))),
+                F("volumeMusic", J(F("type", "number"), F("minimum", 0), F("maximum", 1), F("description", "Music volume from 0 to 1.")))));
+            schema["minProperties"] = 1;
+            return schema;
         }
 
         private static string[] Body(params string[] keys)
@@ -351,7 +371,7 @@ namespace RiMCP.Shared
             return J(
                 F("mapId", Str("Optional RimWorld map id. Defaults to current map.")),
                 F("detail", EnumString("Payload detail level. Defaults to summary. full also includes tool-specific expensive sections.", "summary", "normal", "full")),
-                F("include", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, assignments, assignmentOptions, training, gear, relations, contents, and recipes."))),
+                F("include", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "Optional expensive sections to include without requesting full detail. Known values include needs, health, skills, work, assignments, assignmentOptions, training, gear, relations, contents, recipes, and stackTrace."))),
                 F("limit", Int("Maximum items to return for paged tools. Defaults to 50.", 1, 200)),
                 F("cursor", J(F("type", "integer"), F("minimum", 0), F("description", "Cursor returned by a previous paged response."))),
                 F("idsOnly", Bool("Return identifiers only for list tools when supported.")));

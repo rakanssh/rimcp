@@ -12,6 +12,11 @@ namespace RiMCP.Bridge
         private static readonly Dictionary<string, BridgeRoute.Handler> Handlers = new Dictionary<string, BridgeRoute.Handler>
         {
             { "game-context", GameReadService.GetGameContext },
+            { "mods", ModReadService.ListMods },
+            { "mod", ModReadService.GetMod },
+            { "game-log", GameLogReadService.GetLog },
+            { "game-settings", GameSettingsReadService.GetSettings },
+            { "set-game-settings", GameSettingsCommandService.SetSettings },
             { "colony-status", GameReadService.GetColonyStatus },
             { "pawns", PawnReadService.ListPawns },
             { "pawn", PawnReadService.GetPawn },

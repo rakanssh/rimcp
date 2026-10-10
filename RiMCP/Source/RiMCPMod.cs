@@ -62,7 +62,7 @@ namespace RiMCP
             }
 
             bool allowColonyChanges = Settings.AllowColonyChanges;
-            listing.CheckboxLabeled("Allow colony changes", ref allowColonyChanges, "Allows connected clients to change pawn settings, research, production bills, and other supported colony settings. On by default; turn off for read-only access.");
+            listing.CheckboxLabeled("Allow colony changes", ref allowColonyChanges, "Allows connected clients to change pawn settings, research, production bills, and supported game options. On by default; turn off for read-only access.");
             if (allowColonyChanges != Settings.AllowColonyChanges)
             {
                 Settings.AllowColonyChanges = allowColonyChanges;

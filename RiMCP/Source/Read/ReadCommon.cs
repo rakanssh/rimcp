@@ -161,7 +161,7 @@ namespace RiMCP.Read
         {
             Request = request;
             Map = map;
-            Tick = Find.TickManager == null ? 0 : Find.TickManager.TicksGame;
+            Tick = Current.Game == null || Find.TickManager == null ? 0 : Find.TickManager.TicksGame;
         }
 
         public static ReadContext From(BridgeRequest bridgeRequest)

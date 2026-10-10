@@ -297,6 +297,13 @@ namespace RiMCP.Read
                 Dto.Field("label", ReadUtil.DefLabel(def)),
                 Dto.Field("description", detail == ReadDetail.Summary ? null : def.description));
 
+            if (def.modContentPack != null)
+            {
+                dto["sourceMod"] = Dto.Obj(
+                    Dto.Field("packageId", def.modContentPack.PackageId),
+                    Dto.Field("name", def.modContentPack.Name));
+            }
+
             ThingDef thing = def as ThingDef;
             if (thing != null)
             {

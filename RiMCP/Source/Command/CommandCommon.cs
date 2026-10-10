@@ -18,7 +18,7 @@ namespace RiMCP.Command
         public CommandContext(string mapId)
         {
             Map = GameContext.ResolveMap(mapId);
-            Tick = Find.TickManager == null ? 0 : Find.TickManager.TicksGame;
+            Tick = Current.Game == null || Find.TickManager == null ? 0 : Find.TickManager.TicksGame;
         }
     }
 
