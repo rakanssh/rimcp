@@ -101,24 +101,6 @@ The mod settings copy MCP config that launches `RiMCP/Tools/McpProxy/rimcp-proxy
 
 For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
 
-After building the mod and publishing all four proxies, run `python scripts/package-release.py` (Python 3). It reads the version from `About.xml` and creates a clean Workshop folder at `.dotnet-home/releases/v<version>/RiMCP/`, plus a ZIP and SHA-256 checksum beside it. The package includes the artwork, runtime license notices, and an existing `About/PublishedFileId.txt` for Workshop updates. Existing output directories are never overwritten; use `--output-dir <new-directory>` to package the same version again.
-
-### Signing the macOS helpers
-
-The manual **Sign macOS helpers** GitHub Actions workflow builds, signs, notarizes, and runs each helper on its matching Mac architecture. It needs these repository secrets:
-
-| Secret | Value |
-| --- | --- |
-| `APPLE_CERTIFICATE_P12_BASE64` | Base64-encoded export of a **Developer ID Application** certificate and its private key (`.p12`). |
-| `APPLE_CERTIFICATE_PASSWORD` | Password protecting that `.p12` export. |
-| `APPLE_NOTARY_KEY_P8` | Contents of an App Store Connect team API key (`.p8`). |
-| `APPLE_NOTARY_KEY_ID` | That API key's key ID. |
-| `APPLE_NOTARY_ISSUER_ID` | That API key's issuer ID. |
-
-An existing Apple Developer account can be used; an iOS or App Store distribution certificate cannot replace the Developer ID Application certificate. Add the values in GitHub's **Settings > Secrets and variables > Actions**, then run the workflow from **Actions** at the commit you are releasing. Download both signed artifacts and extract their inner `osx-arm64.zip` and `osx-x64.zip` into `RiMCP/Tools/McpProxy/` before running the release packager. Do not run the proxy publisher again afterward, because it would replace the signed files.
-
-The workflow uses a temporary keychain and removes its credentials afterward. These standalone executables are notarized but cannot have a ticket stapled to them; macOS retrieves their tickets online. No App Store listing is required. See [Apple's notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow).
-
 ## License
 
 Rim-MCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).
