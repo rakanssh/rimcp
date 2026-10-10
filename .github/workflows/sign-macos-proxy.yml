@@ -44,22 +44,21 @@ jobs:
 
       - name: Import signing credentials
         env:
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
-          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
-          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          : "${APPLE_CERTIFICATE_P12_BASE64:?Set APPLE_CERTIFICATE_P12_BASE64 in repository secrets}"
+          : "${APPLE_CERTIFICATE:?Set APPLE_CERTIFICATE in repository secrets}"
           : "${APPLE_CERTIFICATE_PASSWORD:?Set APPLE_CERTIFICATE_PASSWORD in repository secrets}"
-          : "${APPLE_NOTARY_KEY_P8:?Set APPLE_NOTARY_KEY_P8 in repository secrets}"
-          : "${APPLE_NOTARY_KEY_ID:?Set APPLE_NOTARY_KEY_ID in repository secrets}"
-          : "${APPLE_NOTARY_ISSUER_ID:?Set APPLE_NOTARY_ISSUER_ID in repository secrets}"
+          : "${APPLE_ID:?Set APPLE_ID in repository secrets}"
+          : "${APPLE_PASSWORD:?Set APPLE_PASSWORD in repository secrets}"
+          : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID in repository secrets}"
           umask 077
           MACOS_KEYCHAIN_PATH="$RUNNER_TEMP/rimcp-signing.keychain-db"
           echo "MACOS_KEYCHAIN_PATH=$MACOS_KEYCHAIN_PATH" >> "$GITHUB_ENV"
-          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 -D > "$RUNNER_TEMP/rimcp-signing.p12"
-          printf '%s\n' "$APPLE_NOTARY_KEY_P8" > "$RUNNER_TEMP/rimcp-notary.p8"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 -D > "$RUNNER_TEMP/rimcp-signing.p12"
           keychain_password=$(openssl rand -base64 32)
           echo "::add-mask::$keychain_password"
           security create-keychain -p "$keychain_password" "$MACOS_KEYCHAIN_PATH"
@@ -77,8 +76,8 @@ jobs:
           fi
           echo "MACOS_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
           xcrun notarytool store-credentials "$MACOS_NOTARY_PROFILE" \
-            --key "$RUNNER_TEMP/rimcp-notary.p8" \
-            --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
             --keychain "$MACOS_KEYCHAIN_PATH"
 
       - name: Sign, verify, and notarize
@@ -99,5 +98,5 @@ jobs:
           if [ -f "$RUNNER_TEMP/rimcp-signing.keychain-db" ]; then
             security delete-keychain "$RUNNER_TEMP/rimcp-signing.keychain-db" || cleanup_status=$?
           fi
-          rm -f "$RUNNER_TEMP/rimcp-signing.p12" "$RUNNER_TEMP/rimcp-notary.p8"
+          rm -f "$RUNNER_TEMP/rimcp-signing.p12"
           exit "$cleanup_status"
