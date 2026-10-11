@@ -19,6 +19,7 @@ with zipfile.ZipFile(root / "released.zip") as archive:
             if path.name == "RiMCP.McpProxy":
                 path.chmod(0o755)
 PY
+if [[ $rid == osx-* ]]; then export MACOSX_DEPLOYMENT_TARGET=12.0; fi
 dotnet publish McpProxy/RiMCP.McpProxy.csproj \
   -c Release -r "$rid" --self-contained true \
   -p:RuntimeFrameworkVersion=8.0.31 -p:PublishAot=true \
@@ -27,6 +28,7 @@ dotnet publish McpProxy/RiMCP.McpProxy.csproj \
   -p:DebugType=None -p:DebugSymbols=false \
   -p:TreatWarningsAsErrors=true -p:NuGetAudit=false \
   -p:PublishDir="$root/aot/$rid/"
+if [[ $rid == osx-* ]]; then unset MACOSX_DEPLOYMENT_TARGET; fi
 dotnet run --project experiments/proxy-comparison/exporter/Export.csproj \
   -p:NuGetAudit=false -- RiMCP/About/About.xml experiments/proxy-comparison/go/manifest.json
 suffix=''
