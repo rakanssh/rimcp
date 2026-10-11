@@ -295,7 +295,7 @@ def main():
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8-sig"))
     root = args.root.resolve()
-    variants = ("baseline", "aot", "go")
+    variants = ("baseline", "go", "aot")
     suffix = ".exe" if args.rid.startswith("win") else ""
     binaries = {name: root / name / args.rid / ("RiMCP.McpProxy" + suffix) for name in variants}
     bridge = ThreadingHTTPServer(("127.0.0.1", 0), Bridge)
@@ -310,10 +310,20 @@ def main():
                 binary.chmod(0o755)
             first = startup(binary, dict(env, DOTNET_BUNDLE_EXTRACT_BASE_DIR=str(root / "first" / name)))
             Bridge.protocol_version = "HTTP/1.1"
-            checks = verify(binary, env, manifest)
+            failures = []
+            try:
+                checks = verify(binary, env, manifest)
+            except Exception as error:
+                checks = {"tools": 37, "failure": str(error)}
+                failures.append(str(error))
             Bridge.protocol_version = "HTTP/1.0"
-            closed_checks = verify(binary, env, manifest)
-            assert checks == closed_checks
+            try:
+                closed_checks = verify(binary, env, manifest)
+            except Exception as error:
+                closed_checks = {"tools": 37, "failure": str(error)}
+                failures.append(str(error))
+            if not failures:
+                assert checks == closed_checks
             Bridge.protocol_version = "HTTP/1.1"
             directory = binary.parent
             package_files = [binary, directory / "LICENSE.TXT", directory / "THIRD-PARTY-NOTICES.TXT"]
@@ -323,9 +333,11 @@ def main():
                     output.write(path, args.rid + "/" + path.name)
             measurements[name] = {"binary_bytes": binary.stat().st_size, "package_bytes": sum(p.stat().st_size for p in package_files),
                                   "zip_bytes": archive.stat().st_size, "first_start_ms": first, "checks": checks,
-                                  "closed_connection_checks": closed_checks, "startup_ms": []}
-            print(f"{name}: {checks['tools']} tools, {checks['http_calls'] + closed_checks['http_calls']} HTTP checks, {binary.stat().st_size} bytes", flush=True)
-        hashes = {m["checks"]["equivalence_sha256"] for m in measurements.values()}
+                                  "closed_connection_checks": closed_checks, "failures": failures, "startup_ms": []}
+            print(f"{name}: {checks}", flush=True)
+            if failures:
+                print(f"{name}: FAILED: {failures}", flush=True)
+        hashes = {m["checks"]["equivalence_sha256"] for m in measurements.values() if "equivalence_sha256" in m["checks"]}
         assert len(hashes) == 1, "Proxy tool results differ from baseline"
         for iteration in range(args.iterations):
             order = list(variants[iteration % 3:] + variants[:iteration % 3])
@@ -339,6 +351,7 @@ def main():
         result = {"rid": args.rid, "host": platform.platform(), "architecture": platform.machine(),
                   "iterations": args.iterations, "measurements": measurements}
         (root / ("results-" + args.rid + ".json")).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        assert not any(data["failures"] for data in measurements.values()), "Tool checks failed; see results JSON"
     finally:
         bridge.shutdown()
         bridge.server_close()
