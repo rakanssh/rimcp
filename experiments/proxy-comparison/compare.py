@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import platform
 import queue
+import socket
 import statistics
 import subprocess
 import threading
@@ -19,6 +20,16 @@ class Bridge(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     mode = "success"
     requests = []
+
+    def setup(self):
+        super().setup()
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+    def handle(self):
+        try:
+            super().handle()
+        except ConnectionResetError:
+            pass  # A proxy can close its idle keep-alive connection on exit.
 
     def log_message(self, *_):
         pass
@@ -50,6 +61,8 @@ class Bridge(BaseHTTPRequestHandler):
                                            "decimal": 1.25, "nullable": None, "enabled": False}}
             if self.command != "GET":
                 value["changed"] = False
+            if self.mode == "large":
+                value["data"]["padding"] = "🤖" * 24000
         if value is not None:
             data = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
         else:
@@ -216,6 +229,11 @@ def verify(binary, env, manifest):
         result = tool_call(client, t["name"], arguments)
         assert Bridge.requests[-1] == expected_request(t, arguments)
         assert result["isError"] is False
+        Bridge.mode = "large"
+        result = tool_call(client, "get_game_log", {"include": ["stackTrace"], "limit": 200})
+        assert result["structuredContent"]["data"]["padding"] == "🤖" * 24000
+        assert json.loads(result["content"][1]["text"]) == result["structuredContent"]
+        Bridge.mode = "success"
         for identifier in ("string-id", 9007199254740993, 1.25, -3):
             assert "result" in client.call("tools/list", id=identifier)
         for raw, code in [('{', -32700), ('[]', -32600), ('null', -32600),
@@ -253,7 +271,7 @@ def verify(binary, env, manifest):
     finally:
         client.close()
     digest = hashlib.sha256(json.dumps(transcript, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    return {"tools": len(discovered), "http_calls": calls + 2, "equivalence_sha256": digest}
+    return {"tools": len(discovered), "http_calls": calls + 3, "equivalence_sha256": digest}
 
 
 def startup(binary, env):
@@ -282,7 +300,7 @@ def main():
     binaries = {name: root / name / args.rid / ("RiMCP.McpProxy" + suffix) for name in variants}
     bridge = ThreadingHTTPServer(("127.0.0.1", 0), Bridge)
     threading.Thread(target=bridge.serve_forever, daemon=True).start()
-    env = dict(os.environ, RIMCP_URL=f"http://127.0.0.1:{bridge.server_port}/bridge/", RIMCP_TOKEN="comparison-token", RIMCP_TRACE_ERRORS="1",
+    env = dict(os.environ, RIMCP_URL=f"http://127.0.0.1:{bridge.server_port}/bridge/", RIMCP_TOKEN="comparison-token",
                DOTNET_BUNDLE_EXTRACT_BASE_DIR=str(root / "extract"), NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost")
     measurements = {}
     try:
@@ -291,7 +309,12 @@ def main():
             if not args.rid.startswith("win"):
                 binary.chmod(0o755)
             first = startup(binary, dict(env, DOTNET_BUNDLE_EXTRACT_BASE_DIR=str(root / "first" / name)))
+            Bridge.protocol_version = "HTTP/1.1"
             checks = verify(binary, env, manifest)
+            Bridge.protocol_version = "HTTP/1.0"
+            closed_checks = verify(binary, env, manifest)
+            assert checks == closed_checks
+            Bridge.protocol_version = "HTTP/1.1"
             directory = binary.parent
             package_files = [binary, directory / "LICENSE.TXT", directory / "THIRD-PARTY-NOTICES.TXT"]
             archive = root / (name + "-" + args.rid + ".zip")
@@ -299,8 +322,9 @@ def main():
                 for path in package_files:
                     output.write(path, args.rid + "/" + path.name)
             measurements[name] = {"binary_bytes": binary.stat().st_size, "package_bytes": sum(p.stat().st_size for p in package_files),
-                                  "zip_bytes": archive.stat().st_size, "first_start_ms": first, "checks": checks, "startup_ms": []}
-            print(f"{name}: {checks['tools']} tools, {checks['http_calls']} HTTP checks, {binary.stat().st_size} bytes", flush=True)
+                                  "zip_bytes": archive.stat().st_size, "first_start_ms": first, "checks": checks,
+                                  "closed_connection_checks": closed_checks, "startup_ms": []}
+            print(f"{name}: {checks['tools']} tools, {checks['http_calls'] + closed_checks['http_calls']} HTTP checks, {binary.stat().st_size} bytes", flush=True)
         hashes = {m["checks"]["equivalence_sha256"] for m in measurements.values()}
         assert len(hashes) == 1, "Proxy tool results differ from baseline"
         for iteration in range(args.iterations):
