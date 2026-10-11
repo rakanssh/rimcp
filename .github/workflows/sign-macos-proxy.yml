@@ -1,25 +1,24 @@
-name: Compare Rust proxy
+name: Sign macOS helpers
 
 on:
   workflow_dispatch:
-    inputs:
-      platforms:
-        description: Native runner matrix
-        type: string
-        default: '[{"rid":"win-x64","runner":"windows-2022"},{"rid":"linux-x64","runner":"ubuntu-22.04"},{"rid":"osx-arm64","runner":"macos-15"},{"rid":"osx-x64","runner":"macos-15-intel"}]'
 
 permissions:
   contents: read
 
 jobs:
-  compare:
-    name: Compare ${{ matrix.rid }}
+  sign:
+    name: Sign ${{ matrix.rid }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.platforms) }}
+        include:
+          - rid: osx-arm64
+            runner: macos-15
+          - rid: osx-x64
+            runner: macos-15-intel
     defaults:
       run:
         shell: bash
@@ -36,23 +35,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Install Rust toolchain
-        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt --component clippy
-
-      - name: Install Linux static compiler
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Build candidates
+      - name: Publish helper
         run: |
-          trial_root=$(python -c 'import os; from pathlib import Path; print(Path(os.environ["RUNNER_TEMP"]).as_posix() + "/comparison")')
-          echo "TRIAL_ROOT=$trial_root" >> "$GITHUB_ENV"
-          bash experiments/proxy-comparison/rust/build.sh '${{ matrix.rid }}' "$trial_root"
-          dotnet --info > "$trial_root/dotnet-info.txt"
-          rustc +1.89.0 --version > "$trial_root/rust-info.txt"
+          dotnet publish McpProxy/RiMCP.McpProxy.csproj \
+            -c Release -r '${{ matrix.rid }}' --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:PublishDir="$RUNNER_TEMP/publish/${{ matrix.rid }}/"
 
       - name: Import signing credentials
-        if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -92,34 +82,19 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --keychain "$MACOS_KEYCHAIN_PATH"
 
-      - name: Sign, verify, and notarize native candidates
-        if: runner.os == 'macOS'
-        run: |
-          bash experiments/proxy-comparison/sign-native.sh "$TRIAL_ROOT/rust/${{ matrix.rid }}"
+      - name: Sign, verify, and notarize
+        run: bash scripts/sign-macos-proxy.sh "$RUNNER_TEMP/publish/${{ matrix.rid }}"
 
-      - name: Test all tools and measure startup
-        run: |
-          python experiments/proxy-comparison/compare.py --rid '${{ matrix.rid }}' \
-            --root "$TRIAL_ROOT" --manifest experiments/proxy-comparison/go/manifest.json
-
-      - name: Upload comparison
-        if: always()
+      - name: Upload signed helper
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rust-comparison-${{ matrix.rid }}-${{ github.sha }}
-          path: |
-            ${{ runner.temp }}/comparison/*-${{ matrix.rid }}.zip
-            ${{ runner.temp }}/comparison/results-*.json
-            ${{ runner.temp }}/comparison/*-info.txt
-            ${{ runner.temp }}/comparison/*-load-commands.txt
-            ${{ runner.temp }}/comparison/*-libraries.txt
-            ${{ runner.temp }}/comparison/*/${{ matrix.rid }}/signature.txt
-            ${{ runner.temp }}/comparison/*/${{ matrix.rid }}/notarization.json
-          if-no-files-found: warn
+          name: signed-mcp-proxy-${{ matrix.rid }}-${{ github.sha }}
+          path: ${{ runner.temp }}/publish/${{ matrix.rid }}.zip
+          if-no-files-found: error
           compression-level: 0
 
       - name: Remove signing credentials
-        if: always() && runner.os == 'macOS'
+        if: always()
         run: |
           cleanup_status=0
           if [ -f "$RUNNER_TEMP/rimcp-signing.keychain-db" ]; then
