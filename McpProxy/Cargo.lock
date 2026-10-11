@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "rimcp-proxy"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "serde",
  "serde_json",

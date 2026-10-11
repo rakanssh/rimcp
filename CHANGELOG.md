@@ -2,11 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [0.5.5] - 2026-10-11
 
 ### Changed
 
-- Replace the bundled MCP proxy with a smaller native Rust executable.
+- switched proxy to rust, package size down to 8mb 🦀
 
 ## [0.5.4] - 2026-10-11
 
