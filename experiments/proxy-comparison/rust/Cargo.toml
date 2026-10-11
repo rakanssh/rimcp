@@ -1,0 +1,22 @@
+[package]
+name = "rimcp-proxy-trial"
+version = "0.5.4"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "rimcp-proxy"
+path = "src/main.rs"
+
+[dependencies]
+serde = "1.0"
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
