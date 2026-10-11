@@ -178,18 +178,16 @@ async Task HandleToolCall(JsonNode? id, JsonObject? parameters)
     {
     }
 
-    var content = new JsonArray
-    {
+    var content = new JsonArray(
         new JsonObject
         {
             ["type"] = "text",
             ["text"] = SummarizeToolResult(tool.Name, structured, response.IsSuccessStatusCode)
-        }
-    };
+        });
 
     if (!string.IsNullOrWhiteSpace(text))
     {
-        content.Add(new JsonObject
+        content.Add((JsonNode)new JsonObject
         {
             ["type"] = "text",
             ["text"] = text
@@ -391,14 +389,12 @@ static JsonObject ToolError(string message)
 {
     return new JsonObject
     {
-        ["content"] = new JsonArray
-        {
+        ["content"] = new JsonArray(
             new JsonObject
             {
                 ["type"] = "text",
                 ["text"] = message
-            }
-        },
+            }),
         ["isError"] = true
     };
 }
