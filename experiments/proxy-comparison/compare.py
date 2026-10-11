@@ -86,7 +86,7 @@ class Client:
         self.counter += 1
         identifier = self.counter if id is None else id
         self.raw(json.dumps({"jsonrpc": "2.0", "id": identifier, "method": method,
-                             "params": params or {}}, ensure_ascii=False))
+                             "params": params or {}}, ensure_ascii=True))
         response = self.receive()
         assert response["jsonrpc"] == "2.0" and response["id"] == identifier, response
         return response
