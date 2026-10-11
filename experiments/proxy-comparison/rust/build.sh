@@ -24,7 +24,7 @@ dotnet run --project experiments/proxy-comparison/exporter/Export.csproj \
 target=''
 suffix=''
 case "$rid" in
-  win-x64) target=x86_64-pc-windows-msvc; suffix=.exe ;;
+  win-x64) target=x86_64-pc-windows-msvc; suffix=.exe; export RUSTFLAGS="-C target-feature=+crt-static" ;;
   linux-x64) target=x86_64-unknown-linux-musl ;;
   osx-x64) target=x86_64-apple-darwin; export MACOSX_DEPLOYMENT_TARGET=10.15 ;;
   osx-arm64) target=aarch64-apple-darwin; export MACOSX_DEPLOYMENT_TARGET=11.0 ;;
