@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- Reduce the package from roughly 276 MB to 50 MB by trimming and compressing the bundled connection helpers. All four platforms remain included, with signed and notarized Mac helpers.
+- reduced mod size by trimming dependencies
 
 ## [0.5.3] - 2026-10-10
 
