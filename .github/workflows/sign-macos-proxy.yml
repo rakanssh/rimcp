@@ -110,11 +110,24 @@ jobs:
                   archive.write(directory / name, directory.name + "/" + name)
           PY
 
+      - name: Verify all proxy tools and I/O boundaries
+        run: |
+          dotnet run --project McpProxy/Manifest/Export.csproj --configuration Release -- \
+            RiMCP/About/About.xml "$RUNNER_TEMP/manifest.json"
+          suffix=''
+          if [[ '${{ matrix.rid }}' == win-* ]]; then suffix=.exe; fi
+          python .github/proxy-smoke.py \
+            --binary "$RUNNER_TEMP/publish/${{ matrix.rid }}/RiMCP.McpProxy$suffix" \
+            --manifest "$RUNNER_TEMP/manifest.json" \
+            --output "$RUNNER_TEMP/publish/${{ matrix.rid }}-checks.json"
+
       - name: Upload helper
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mcp-proxy-${{ matrix.rid }}-${{ github.sha }}
-          path: ${{ runner.temp }}/publish/${{ matrix.rid }}.zip
+          path: |
+            ${{ runner.temp }}/publish/${{ matrix.rid }}.zip
+            ${{ runner.temp }}/publish/${{ matrix.rid }}-checks.json
           if-no-files-found: error
           compression-level: 0
 
