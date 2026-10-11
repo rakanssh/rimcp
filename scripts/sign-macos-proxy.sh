@@ -13,7 +13,6 @@ fi
 : "${MACOS_KEYCHAIN_PATH:?Set MACOS_KEYCHAIN_PATH to the signing keychain.}"
 : "${MACOS_NOTARY_PROFILE:?Set MACOS_NOTARY_PROFILE to its notarytool credential profile.}"
 
-script_dir=$(cd "$(dirname "$0")" && pwd -P)
 publish_dir=$(cd "$1" && pwd -P)
 rid=$(basename "$publish_dir")
 case "$rid" in
@@ -44,14 +43,12 @@ if [[ ! -f $MACOS_KEYCHAIN_PATH ]]; then
 fi
 command -v python3 >/dev/null
 xcrun --find notarytool >/dev/null
-plutil -lint "$script_dir/macos-entitlements.plist"
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/rimcp-sign.XXXXXX")
 trap 'rm -rf -- "$work_dir"' EXIT
 chmod 755 "$helper"
 codesign --force --sign "$MACOS_SIGNING_IDENTITY" \
-  --keychain "$MACOS_KEYCHAIN_PATH" --timestamp --options runtime \
-  --entitlements "$script_dir/macos-entitlements.plist" "$helper"
+  --keychain "$MACOS_KEYCHAIN_PATH" --timestamp --options runtime "$helper"
 codesign --verify --strict --verbose=2 "$helper"
 signature=$(codesign --display --verbose=4 "$helper" 2>&1)
 if ! printf '%s\n' "$signature" | grep -q '^Authority=Developer ID Application:'; then

@@ -72,6 +72,9 @@ Requirements:
 
 - RimWorld 1.6
 - .NET 8 SDK or newer
+- Rust through rustup (the toolchain is pinned in `rust-toolchain.toml`)
+- Python 3
+- A native C/C++ toolchain; Linux builds also require `musl-tools`
 
 On macOS with Homebrew:
 
@@ -86,13 +89,13 @@ dotnet build RiMCP/Source/RiMCP.csproj -c Release \
   -p:RimWorldManagedPath="/path/to/RimWorld/RimWorldMac.app/Contents/Resources/Data/Managed"
 ```
 
-Build and publish the bundled MCP proxy:
+Build and publish the MCP proxy for the current platform:
 
 ```sh
-sh scripts/publish-mcp-proxy.sh
+python scripts/publish-mcp-proxy.py
 ```
 
-This creates self-contained proxy executables for:
+The build generates tool metadata directly from `Shared/ToolManifest.cs` and the version in `About.xml`. The **Build MCP helpers** workflow builds all four platforms on native runners and signs and notarizes the Mac helpers. Published executables use these paths:
 
 - `RiMCP/Tools/McpProxy/win-x64/RiMCP.McpProxy.exe`
 - `RiMCP/Tools/McpProxy/linux-x64/RiMCP.McpProxy`

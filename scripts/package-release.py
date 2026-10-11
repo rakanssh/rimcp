@@ -15,9 +15,11 @@ import zipfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, help="new directory for release files")
+    parser.add_argument("--proxy-root", type=Path, help="directory containing the four published helpers")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     version = ET.parse(root / "RiMCP/About/About.xml").findtext("modVersion", "").strip()
+    proxy_root = (args.proxy_root or root / "RiMCP/Tools/McpProxy").resolve()
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?", version):
         raise ValueError("About.xml must contain a valid modVersion")
 
@@ -35,7 +37,7 @@ def main():
         executable = "RiMCP.McpProxy.exe" if rid == "win-x64" else "RiMCP.McpProxy"
         for name in (executable, "LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
             relative = f"Tools/McpProxy/{rid}/{name}"
-            files[f"RiMCP/{relative}"] = relative
+            files[str(proxy_root / rid / name)] = relative
     if (root / "RiMCP/About/PublishedFileId.txt").exists():
         files["RiMCP/About/PublishedFileId.txt"] = "About/PublishedFileId.txt"
 

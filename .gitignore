@@ -5,6 +5,7 @@ bin/
 obj/
 **/bin/
 **/obj/
+**/target/
 
 RiMCP/Assemblies/*.dll
 RiMCP/Assemblies/*.pdb

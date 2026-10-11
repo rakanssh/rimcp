@@ -1,4 +1,4 @@
-name: Sign macOS helpers
+name: Build MCP helpers
 
 on:
   workflow_dispatch:
@@ -7,14 +7,18 @@ permissions:
   contents: read
 
 jobs:
-  sign:
-    name: Sign ${{ matrix.rid }}
+  build:
+    name: Build ${{ matrix.rid }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
+          - rid: win-x64
+            runner: windows-2022
+          - rid: linux-x64
+            runner: ubuntu-22.04
           - rid: osx-arm64
             runner: macos-15
           - rid: osx-x64
@@ -35,14 +39,20 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish helper
+      - name: Install Linux compiler
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Check Rust
         run: |
-          dotnet publish McpProxy/RiMCP.McpProxy.csproj \
-            -c Release -r '${{ matrix.rid }}' --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:PublishDir="$RUNNER_TEMP/publish/${{ matrix.rid }}/"
+          cargo fmt --manifest-path McpProxy/Cargo.toml --check
+          cargo clippy --locked --manifest-path McpProxy/Cargo.toml -- -D warnings
+
+      - name: Publish helper
+        run: python scripts/publish-mcp-proxy.py --rid '${{ matrix.rid }}' --output-root "$RUNNER_TEMP/publish"
 
       - name: Import signing credentials
+        if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -83,18 +93,33 @@ jobs:
             --keychain "$MACOS_KEYCHAIN_PATH"
 
       - name: Sign, verify, and notarize
+        if: runner.os == 'macOS'
         run: bash scripts/sign-macos-proxy.sh "$RUNNER_TEMP/publish/${{ matrix.rid }}"
 
-      - name: Upload signed helper
+      - name: Package helper
+        if: runner.os != 'macOS'
+        run: |
+          python - "$RUNNER_TEMP/publish/${{ matrix.rid }}" <<'PY'
+          from pathlib import Path
+          import sys
+          import zipfile
+          directory = Path(sys.argv[1])
+          executable = "RiMCP.McpProxy.exe" if directory.name == "win-x64" else "RiMCP.McpProxy"
+          with zipfile.ZipFile(str(directory) + ".zip", "x", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+              for name in (executable, "LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
+                  archive.write(directory / name, directory.name + "/" + name)
+          PY
+
+      - name: Upload helper
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: signed-mcp-proxy-${{ matrix.rid }}-${{ github.sha }}
+          name: mcp-proxy-${{ matrix.rid }}-${{ github.sha }}
           path: ${{ runner.temp }}/publish/${{ matrix.rid }}.zip
           if-no-files-found: error
           compression-level: 0
 
       - name: Remove signing credentials
-        if: always()
+        if: always() && runner.os == 'macOS'
         run: |
           cleanup_status=0
           if [ -f "$RUNNER_TEMP/rimcp-signing.keychain-db" ]; then
