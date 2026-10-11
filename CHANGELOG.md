@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.4] - 2026-10-11
+
+### Changed
+
+- Reduce the package from roughly 276 MB to 50 MB by trimming and compressing the bundled connection helpers. All four platforms remain included, with signed and notarized Mac helpers.
+
 ## [0.5.3] - 2026-10-10
 
 ### Added
@@ -117,6 +123,7 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
+[0.5.4]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.4
 [0.5.3]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.3
 [0.5.2]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.2
 [0.5.1]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.1
