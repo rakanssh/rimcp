@@ -118,6 +118,8 @@ jobs:
             ${{ runner.temp }}/comparison/results-*.json
             ${{ runner.temp }}/comparison/*-info.txt
             ${{ runner.temp }}/comparison/go-version.txt
+            ${{ runner.temp }}/comparison/*-load-commands.txt
+            ${{ runner.temp }}/comparison/*-libraries.txt
             ${{ runner.temp }}/comparison/*/${{ matrix.rid }}/signature.txt
             ${{ runner.temp }}/comparison/*/${{ matrix.rid }}/notarization.json
           if-no-files-found: warn

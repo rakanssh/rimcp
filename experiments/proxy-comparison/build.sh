@@ -46,3 +46,12 @@ notices = [root / "PATENTS", *sorted((root / "src/vendor").rglob("LICENSE"))]
 text = "\n\n".join(f"{path.relative_to(root)}\n{path.read_text()}" for path in notices if path.is_file())
 Path(sys.argv[2]).write_text(text, encoding="utf-8")
 PY
+if [[ $rid == osx-* ]]; then
+  for variant in baseline aot go; do
+    otool -l "$root/$variant/$rid/RiMCP.McpProxy" > "$root/$variant-macos-load-commands.txt"
+  done
+elif [[ $rid == linux-* ]]; then
+  for variant in baseline aot go; do
+    readelf -d -V "$root/$variant/$rid/RiMCP.McpProxy" > "$root/$variant-linux-libraries.txt"
+  done
+fi

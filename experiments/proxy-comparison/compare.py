@@ -16,6 +16,7 @@ import zipfile
 
 
 class Bridge(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
     mode = "success"
     requests = []
 
@@ -187,7 +188,7 @@ def verify(binary, env, manifest):
                     before = len(Bridge.requests)
                     result = tool_call(client, t["name"], arguments)
                     calls += 1
-                    assert len(Bridge.requests) == before + 1, (t["name"], result)
+                    assert len(Bridge.requests) == before + 1, (mode, minimal, falsy, t["name"], result)
                     assert Bridge.requests[-1] == expected_request(t, arguments), (t["name"], Bridge.requests[-1], expected_request(t, arguments))
                     assert result["isError"] == (mode == "error"), (t["name"], result)
                     if mode in ("success", "truncated", "error"):
@@ -281,7 +282,7 @@ def main():
     binaries = {name: root / name / args.rid / ("RiMCP.McpProxy" + suffix) for name in variants}
     bridge = ThreadingHTTPServer(("127.0.0.1", 0), Bridge)
     threading.Thread(target=bridge.serve_forever, daemon=True).start()
-    env = dict(os.environ, RIMCP_URL=f"http://127.0.0.1:{bridge.server_port}/bridge/", RIMCP_TOKEN="comparison-token",
+    env = dict(os.environ, RIMCP_URL=f"http://127.0.0.1:{bridge.server_port}/bridge/", RIMCP_TOKEN="comparison-token", RIMCP_TRACE_ERRORS="1",
                DOTNET_BUNDLE_EXTRACT_BASE_DIR=str(root / "extract"), NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost")
     measurements = {}
     try:
