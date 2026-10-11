@@ -165,7 +165,7 @@ async Task HandleToolCall(JsonNode? id, JsonObject? parameters)
     }
     catch (Exception ex)
     {
-        WriteResult(id, ToolError("Unable to reach RimMCP at " + bridgeUrl + ": " + ex.ToString()));
+        WriteResult(id, ToolError("Unable to reach RimMCP at " + bridgeUrl + ": " + ex.Message));
         return;
     }
 
