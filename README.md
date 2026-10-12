@@ -4,10 +4,6 @@ Agentic intelligence for the Rim.
 
 RimMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients can then use the bundled stdio proxy.
 
-## Status
-
-The current build exposes a read layer for colony inspection plus a small typed command surface for simple colony control.
-
 Current MCP tools:
 
 | Area | Tools | Use these for |
@@ -42,7 +38,7 @@ Tool responses use a shared envelope:
 }
 ```
 
-The MCP proxy returns the full payload as `structuredContent` and also mirrors the JSON in text content for clients that do not read structured tool results yet (**cough, cough** opencode).
+The MCP proxy mirrors the structuredContent JSON in text content for clients that do not read structured tool results yet (**cough, cough** opencode).
 
 ## Using The Mod
 
@@ -51,9 +47,7 @@ The MCP proxy returns the full payload as `structuredContent` and also mirrors t
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
 4. **Allow changes** is on by default, including when upgrading from a version without this setting. Turn it off in RimMCP settings for read-only access. A saved off setting stays off.
 
-If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's own **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
-
-Command tools use the same identifiers returned by the read tools and report whether they changed game state. Most command tools are idempotent state setters. The bridge rejects command requests while **Allow changes** is off.
+If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 
 Current command HTTP endpoints:
 
@@ -72,9 +66,10 @@ Requirements:
 
 - RimWorld 1.6
 - .NET 8 SDK or newer
-- Rust through rustup (the toolchain is pinned in `rust-toolchain.toml`)
+- Rust (the toolchain is pinned in `rust-toolchain.toml`)
 - Python 3
-- A native C/C++ toolchain; Linux builds also require `musl-tools`
+- A native C/C++ toolchain.
+- Linux requires `musl-tools`
 
 On macOS with Homebrew:
 
@@ -95,16 +90,12 @@ Build and publish the MCP proxy for the current platform:
 python scripts/publish-mcp-proxy.py
 ```
 
-The build generates tool metadata directly from `Shared/ToolManifest.cs` and the version in `About.xml`. The **Build MCP helpers** workflow builds all four platforms on native runners and signs and notarizes the Mac helpers. Published executables use these paths:
+The **Build MCP helpers** workflow builds all four platforms on native runners. Mac helpers are signed and notarized. Published executables are at:
 
 - `RiMCP/Tools/McpProxy/win-x64/RiMCP.McpProxy.exe`
 - `RiMCP/Tools/McpProxy/linux-x64/RiMCP.McpProxy`
 - `RiMCP/Tools/McpProxy/osx-x64/RiMCP.McpProxy`
 - `RiMCP/Tools/McpProxy/osx-arm64/RiMCP.McpProxy`
-
-The mod settings copy MCP config that launches `RiMCP/Tools/McpProxy/rimcp-proxy.cmd` on Windows and `RiMCP/Tools/McpProxy/rimcp-proxy` on macOS/Linux. Those launchers select the bundled executable for the current platform.
-
-For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
 
 ## License
 
