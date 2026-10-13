@@ -31,7 +31,8 @@ namespace RiMCP.Read
 
         public static ResearchProjectDef CurrentProject()
         {
-            return Find.ResearchManager == null || CurrentProjectField == null ? null : CurrentProjectField.GetValue(Find.ResearchManager) as ResearchProjectDef;
+            ResearchManager manager = Current.Game == null ? null : Find.ResearchManager;
+            return manager == null || CurrentProjectField == null ? null : CurrentProjectField.GetValue(manager) as ResearchProjectDef;
         }
 
         public static object SerializeProject(ResearchProjectDef project, ReadDetail detail)
@@ -41,14 +42,15 @@ namespace RiMCP.Read
                 return null;
             }
 
+            ResearchManager manager = Current.Game == null ? null : Find.ResearchManager;
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("defName", project.defName),
                 Dto.Field("label", ReadUtil.DefLabel(project)),
                 Dto.Field("tab", project.tab == null ? null : project.tab.defName),
                 Dto.Field("techLevel", project.techLevel.ToString()),
                 Dto.Field("baseCost", project.baseCost),
-                Dto.Field("finished", project.IsFinished),
-                Dto.Field("progress", Progress(project)));
+                Dto.Field("finished", manager == null ? (bool?)null : project.IsFinished),
+                Dto.Field("progress", manager == null ? (float?)null : manager.GetProgress(project)));
 
             if (detail != ReadDetail.Summary)
             {
@@ -62,11 +64,6 @@ namespace RiMCP.Read
                     : project.requiredResearchFacilities.Select(facility => facility.defName).OrderBy(name => name).ToArray();
             }
             return dto;
-        }
-
-        private static float Progress(ResearchProjectDef project)
-        {
-            return Find.ResearchManager == null ? 0f : Find.ResearchManager.GetProgress(project);
         }
     }
 }

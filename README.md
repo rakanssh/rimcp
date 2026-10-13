@@ -4,6 +4,8 @@ Agentic intelligence for the Rim.
 
 RimMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients can then use the bundled stdio proxy.
 
+Supports RimWorld 1.6 and 1.7 unstable using the same mod DLL. The 1.7 engine's compatibility layer loads the assembly built against the 1.6 API; future unstable updates may require further testing.
+
 Current MCP tools:
 
 | Area | Tools | Use these for |
@@ -64,7 +66,7 @@ Current command HTTP endpoints:
 
 Requirements:
 
-- RimWorld 1.6
+- RimWorld 1.6 reference DLLs, even when running RimWorld 1.7 (see below)
 - .NET 8 SDK or newer
 - Rust (the toolchain is pinned in `rust-toolchain.toml`)
 - Python 3
@@ -77,12 +79,22 @@ On macOS with Homebrew:
 brew install --cask dotnet-sdk
 ```
 
-Build the RimWorld mod DLL:
+Build the RimWorld mod DLL against **RimWorld 1.6**. Set `RimWorldManagedPath` to its managed-assembly directory, or a retained copy containing `Assembly-CSharp.dll`, `UnityEngine.CoreModule.dll`, and `UnityEngine.IMGUIModule.dll` from the same 1.6 installation. On Windows/Linux the normal location is `RimWorld/RimWorldWin64_Data/Managed` or `RimWorld/Data/Managed`, depending on the installation; on macOS it is inside the app bundle:
 
 ```sh
 dotnet build RiMCP/Source/RiMCP.csproj -c Release \
   -p:RimWorldManagedPath="/path/to/RimWorld/RimWorldMac.app/Contents/Resources/Data/Managed"
 ```
+
+For PowerShell, pass the property as one quoted argument:
+
+```powershell
+dotnet build RiMCP/Source/RiMCP.csproj -c Release "-p:RimWorldManagedPath=D:\RimWorld-1.6\Data\Managed"
+```
+
+The output is `RiMCP/Assemblies/RiMCP.dll`, targeting .NET Framework 4.7.2 for RimWorld 1.6 and 1.7. The DLL version is read from `RiMCP/About/About.xml`.
+
+RimWorld 1.7 puts its assemblies in the game root and uses .NET 10 with `UnityStubs.dll` in place of the Unity modules. Those are **runtime assemblies, not compatible build references** for this shared `net472` DLL. Keep the 1.6 references before switching branches, or obtain them from a separate 1.6 installation. The build checks the reference version and required modules and reports a specific error if the 1.7 directory is used. Do not distribute the game reference DLLs with the mod.
 
 Build and publish the MCP proxy for the current platform:
 

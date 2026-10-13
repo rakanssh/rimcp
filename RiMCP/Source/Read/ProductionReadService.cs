@@ -150,6 +150,7 @@ namespace RiMCP.Read
             Dictionary<string, object> dto = SummaryDto.Bill(record.Bill);
             dto["workbench"] = SummaryDto.ThingWithPosition(record.Workbench);
             dto["repeatMode"] = production == null ? null : production.repeatMode.ToString();
+            dto["repeatCount"] = production == null ? null : (object)production.repeatCount;
             dto["targetCount"] = production == null ? null : (object)production.targetCount;
 
             if (detail != ReadDetail.Summary)

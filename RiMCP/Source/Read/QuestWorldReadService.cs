@@ -13,7 +13,8 @@ namespace RiMCP.Read
         {
             ReadContext context = ReadContext.From(request);
 
-            IEnumerable<Quest> source = (Find.QuestManager == null ? Enumerable.Empty<Quest>() : Find.QuestManager.QuestsListForReading)
+            IEnumerable<Quest> source = (Current.Game == null || Find.QuestManager == null
+                    ? Enumerable.Empty<Quest>() : Find.QuestManager.QuestsListForReading)
                 .OrderBy(quest => quest.name ?? quest.id.ToString());
             Page<Quest> page = new Page<Quest>(source, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
@@ -25,10 +26,11 @@ namespace RiMCP.Read
         public static BridgeResponse ListWorld(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
+            FactionManager factions = Find.World == null ? null : Find.FactionManager;
 
             return ReadEnvelope.Ok(context, Dto.Obj(
-                Dto.Field("playerFaction", SerializeFaction(Faction.OfPlayer)),
-                Dto.Field("factions", Find.FactionManager == null ? new object[0] : Find.FactionManager.AllFactionsListForReading.Select(SerializeFaction).ToArray()),
+                Dto.Field("playerFaction", factions == null ? null : SerializeFaction(Faction.OfPlayer)),
+                Dto.Field("factions", factions == null ? new object[0] : factions.AllFactionsListForReading.Select(SerializeFaction).ToArray()),
                 Dto.Field("worldObjects", SerializeWorldObjects(context.Request))));
         }
 
@@ -61,7 +63,7 @@ namespace RiMCP.Read
 
         private static object SerializeWorldObjects(ReadRequest request)
         {
-            if (Find.WorldObjects == null)
+            if (Find.World == null || Find.WorldObjects == null)
             {
                 return new object[0];
             }

@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Compile against the 1.6 API so this assembly can also run under 1.7's
+         compatibility loader. Referencing 1.7's .NET 10 assemblies here would
+         break the .NET Framework/Mono runtime used by 1.6. -->
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -10,13 +13,29 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
-  <Target Name="ValidateRimWorldManagedPath" BeforeTargets="ResolveReferences">
+  <Target Name="ReadModVersion" BeforeTargets="GetAssemblyVersion">
+    <XmlPeek XmlInputPath="$(MSBuildProjectDirectory)/../About/About.xml" Query="/ModMetaData/modVersion/text()">
+      <Output TaskParameter="Result" PropertyName="Version" />
+    </XmlPeek>
+    <Error Condition="'$(Version)' == ''" Text="About.xml must contain a modVersion." />
+  </Target>
+
+  <Target Name="ValidateRimWorldManagedPath" BeforeTargets="ResolveAssemblyReferences">
     <Error
       Condition="'$(RimWorldManagedPath)' == ''"
-      Text="Set RimWorldManagedPath to RimWorld's Data/Managed directory, for example: dotnet build RiMCP/Source/RiMCP.csproj -p:RimWorldManagedPath=&quot;/path/to/RimWorld/Data/Managed&quot;" />
+      Text="Set RimWorldManagedPath to RimWorld 1.6's Data/Managed directory (or a retained copy of its reference DLLs). The same compiled mod supports 1.6 and 1.7; do not use the 1.7 install root as build references. See README.md." />
     <Error
       Condition="'$(RimWorldManagedPath)' != '' And !Exists('$(RimWorldManagedPath)/Assembly-CSharp.dll')"
       Text="RimWorldManagedPath does not contain Assembly-CSharp.dll: $(RimWorldManagedPath)" />
+    <GetAssemblyIdentity AssemblyFiles="$(RimWorldManagedPath)/Assembly-CSharp.dll">
+      <Output TaskParameter="Assemblies" ItemName="_RimWorldReferenceAssembly" />
+    </GetAssemblyIdentity>
+    <Error
+      Condition="!$([System.String]::Copy('%(_RimWorldReferenceAssembly.Version)').StartsWith('1.6.'))"
+      Text="Build references must be from RimWorld 1.6 to preserve 1.6/1.7 compatibility; found Assembly-CSharp %(_RimWorldReferenceAssembly.Version). RimWorld 1.7 uses .NET 10 and UnityStubs and cannot be used as net472 build references. Use a retained 1.6 Data/Managed directory. See README.md." />
+    <Error
+      Condition="!Exists('$(RimWorldManagedPath)/UnityEngine.CoreModule.dll') Or !Exists('$(RimWorldManagedPath)/UnityEngine.IMGUIModule.dll')"
+      Text="RimWorldManagedPath must also contain the 1.6 UnityEngine.CoreModule.dll and UnityEngine.IMGUIModule.dll from the same installation: $(RimWorldManagedPath)" />
   </Target>
 
   <ItemGroup>
