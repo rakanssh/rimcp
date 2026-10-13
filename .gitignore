@@ -1,5 +1,6 @@
 .dotnet-home/
 .nuget/
+.cargo/
 
 bin/
 obj/

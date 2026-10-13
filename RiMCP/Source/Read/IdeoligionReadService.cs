@@ -109,7 +109,8 @@ namespace RiMCP.Read
 
         private static IEnumerable<Ideo> Ideos()
         {
-            return Find.IdeoManager == null ? Enumerable.Empty<Ideo>() : Find.IdeoManager.IdeosListForReading;
+            return Find.World == null || Find.IdeoManager == null
+                ? Enumerable.Empty<Ideo>() : Find.IdeoManager.IdeosListForReading;
         }
 
         private static bool IdeoIdMatches(Ideo ideo, string id)

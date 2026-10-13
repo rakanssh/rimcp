@@ -6,6 +6,8 @@ RimMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. 
 
 ## Status
 
+Supports RimWorld 1.6 and 1.7 unstable using the same mod DLL. The 1.7 engine's compatibility layer loads the assembly built against the 1.6 API; future unstable updates may require further testing.
+
 The current build exposes a read layer for colony inspection plus a small typed command surface for simple colony control.
 
 Current MCP tools:
@@ -70,7 +72,7 @@ Current command HTTP endpoints:
 
 Requirements:
 
-- RimWorld 1.6
+- RimWorld 1.6 reference DLLs, even when running RimWorld 1.7 (see below)
 - .NET 8 SDK or newer
 - Rust through rustup (the toolchain is pinned in `rust-toolchain.toml`)
 - Python 3
@@ -82,12 +84,22 @@ On macOS with Homebrew:
 brew install --cask dotnet-sdk
 ```
 
-Build the RimWorld mod DLL:
+Build the RimWorld mod DLL against **RimWorld 1.6**. Set `RimWorldManagedPath` to its managed-assembly directory, or a retained copy containing `Assembly-CSharp.dll`, `UnityEngine.CoreModule.dll`, and `UnityEngine.IMGUIModule.dll` from the same 1.6 installation. On Windows/Linux the normal location is `RimWorld/RimWorldWin64_Data/Managed` or `RimWorld/Data/Managed`, depending on the installation; on macOS it is inside the app bundle:
 
 ```sh
 dotnet build RiMCP/Source/RiMCP.csproj -c Release \
   -p:RimWorldManagedPath="/path/to/RimWorld/RimWorldMac.app/Contents/Resources/Data/Managed"
 ```
+
+For PowerShell, pass the property as one quoted argument:
+
+```powershell
+dotnet build RiMCP/Source/RiMCP.csproj -c Release "-p:RimWorldManagedPath=D:\RimWorld-1.6\Data\Managed"
+```
+
+The output is `RiMCP/Assemblies/RiMCP.dll`, targeting .NET Framework 4.7.2 for RimWorld 1.6 and 1.7. The DLL version is read from `RiMCP/About/About.xml`.
+
+RimWorld 1.7 puts its assemblies in the game root and uses .NET 10 with `UnityStubs.dll` in place of the Unity modules. Those are **runtime assemblies, not compatible build references** for this shared `net472` DLL. Keep the 1.6 references before switching branches, or obtain them from a separate 1.6 installation. The build checks the reference version and required modules and reports a specific error if the 1.7 directory is used. Do not distribute the game reference DLLs with the mod.
 
 Build and publish the MCP proxy for the current platform:
 
@@ -104,7 +116,7 @@ The build generates tool metadata directly from `Shared/ToolManifest.cs` and the
 
 The mod settings copy MCP config that launches `RiMCP/Tools/McpProxy/rimcp-proxy.cmd` on Windows and `RiMCP/Tools/McpProxy/rimcp-proxy` on macOS/Linux. Those launchers select the bundled executable for the current platform.
 
-For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory.
+For local testing, copy or symlink the `RiMCP/` folder into RimWorld's `Mods/` directory. Restart RimWorld after rebuilding the mod; a running game keeps the DLL it loaded at startup. Restart/reconnect the MCP client after rebuilding the proxy so it launches the new executable. Test both the main menu and a loaded colony; a successful build against 1.6 references does not replace a runtime check on either game version.
 
 ## License
 

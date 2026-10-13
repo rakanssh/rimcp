@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.6] - 2026-10-13
+
+### Changed
+
+- Declare RimWorld 1.7 support while retaining the shared .NET Framework 4.7.2 build for RimWorld 1.6 and 1.7.
+
+### Fixed
+
+- Read research definitions, quests, ideologies, and world context at the main menu without dereferencing a missing game or world. Research progress and completion are omitted when no colony is loaded.
+- Return a controlled error when setting research without a loaded colony.
+- Include the remaining repeat count in production bill reads.
+- Return numeric pagination cursors matching the MCP tool input schema.
+- Respond to MCP `ping` requests without contacting the game bridge.
+
 ## [0.5.5] - 2026-10-11
 
 ### Changed

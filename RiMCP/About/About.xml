@@ -3,9 +3,10 @@
   <name>RimMCP</name>
   <author>rakan</author>
   <packageId>rakanssh.rimcp</packageId>
-  <modVersion>0.5.5</modVersion>
+  <modVersion>0.5.6</modVersion>
   <supportedVersions>
     <li>1.6</li>
+    <li>1.7</li>
   </supportedVersions>
   <description>RimMCP lets you connect your colony to your favourite MCP-supporting AI agent.
 
@@ -18,7 +19,7 @@ For the modern high-impact 10x engineer looking to utilize agentic AI to drive b
 • Many more possibilities!
 
 Requirements
-• RimWorld 1.6.
+• RimWorld 1.6 or 1.7.
 • An agentic AI client with support for local (stdio) MCP servers.
 
 Tested with: Codex &amp; OpenCode.

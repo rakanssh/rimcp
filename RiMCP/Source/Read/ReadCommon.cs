@@ -122,10 +122,10 @@ namespace RiMCP.Read
         public int Tick;
         public string MapId;
         public bool Truncated;
-        public string NextCursor;
+        public int? NextCursor;
         public object Data;
 
-        public static BridgeResponse Ok(ReadContext context, object data, bool truncated = false, string nextCursor = null)
+        public static BridgeResponse Ok(ReadContext context, object data, bool truncated = false, int? nextCursor = null)
         {
             ReadEnvelope envelope = new ReadEnvelope
             {
@@ -212,7 +212,7 @@ namespace RiMCP.Read
     {
         public readonly List<T> Items;
         public readonly bool Truncated;
-        public readonly string NextCursor;
+        public readonly int? NextCursor;
 
         public Page(IEnumerable<T> source, ReadRequest request)
         {
@@ -231,7 +231,7 @@ namespace RiMCP.Read
                 }
                 Items.Add(item);
             }
-            NextCursor = Truncated ? (request.Cursor + request.Limit).ToString() : null;
+            NextCursor = Truncated ? (int?)(request.Cursor + Items.Count) : null;
         }
     }
 

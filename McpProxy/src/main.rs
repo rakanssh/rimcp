@@ -135,6 +135,7 @@ impl Proxy {
             return None;
         }
         match method {
+            "ping" => Some(result(id, json!({}))),
             "initialize" => Some(result(
                 id,
                 json!({
@@ -325,4 +326,63 @@ fn summarize(name: &str, value: &Value, success: bool) -> String {
         return format!("{name}: returned structured data{tick}{truncated}.");
     }
     format!("{name}: returned structured data.")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn disconnected_proxy() -> Proxy {
+        Proxy {
+            manifest: Manifest {
+                version: "test".into(),
+                tools: Vec::new(),
+            },
+            // An invalid URL makes accidental bridge access fail without opening a socket.
+            base_url: String::new(),
+            authorization: None,
+            agent: ureq::Agent::config_builder().build().into(),
+        }
+    }
+
+    #[test]
+    fn ping_preserves_request_ids_without_a_bridge() {
+        let proxy = disconnected_proxy();
+        for id in [
+            Value::Null,
+            json!("health-check"),
+            json!(42),
+            json!(9007199254740993u64),
+        ] {
+            let request = json!({"jsonrpc": "2.0", "id": id, "method": "ping"});
+            assert_eq!(
+                proxy.handle(request.to_string().as_bytes()),
+                Some(json!({"jsonrpc": "2.0", "id": id, "result": {}})),
+                "ping must echo request id {id} and return an empty result"
+            );
+        }
+    }
+
+    #[test]
+    fn ping_notification_does_not_produce_a_response() {
+        let proxy = disconnected_proxy();
+        assert_eq!(proxy.handle(br#"{"jsonrpc":"2.0","method":"ping"}"#), None);
+    }
+
+    #[test]
+    fn ping_still_validates_the_request_envelope() {
+        let proxy = disconnected_proxy();
+        assert_eq!(
+            proxy.handle(br#"{"jsonrpc":"1.0","id":7,"method":"ping"}"#),
+            Some(failure(&json!(7), -32600, "Request must use JSON-RPC 2.0."))
+        );
+        assert_eq!(
+            proxy.handle(br#"{"jsonrpc":"2.0","id":true,"method":"ping"}"#),
+            Some(failure(
+                &Value::Null,
+                -32600,
+                "Request id must be a string, number, or null."
+            ))
+        );
+    }
 }

@@ -15,7 +15,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(400, "Missing required field 'projectDefName'.");
             }
-            if (Find.ResearchManager == null)
+            if (Current.Game == null || Find.ResearchManager == null)
             {
                 throw new CommandException(409, "Research manager is not available.");
             }
