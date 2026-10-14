@@ -9,6 +9,11 @@ namespace RiMCP.Read
 {
     internal static class ModReadService
     {
+        // ModsConfig.GetModWarnings checks every active mod's relations and translates the
+        // messages; reuse the result until the configured mod list changes.
+        private static string cachedWarningsKey;
+        private static Dictionary<string, string> cachedWarnings;
+
         public static BridgeResponse ListMods(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
@@ -81,8 +86,8 @@ namespace RiMCP.Read
 
         private static Dictionary<string, object> SerializeMod(ModEntry mod, ModSnapshot snapshot)
         {
-            int loadOrder = Array.FindIndex(snapshot.Loaded, content => SameId(content.PackageId, mod.PackageId));
-            int configuredOrder = Array.FindIndex(snapshot.Configured, id => SameId(id, mod.PackageId));
+            int loadOrder = snapshot.LoadOrder(mod.PackageId);
+            int configuredOrder = snapshot.ConfiguredOrder(mod.PackageId);
             ModMetaData metadata = mod.Metadata;
             return Dto.Obj(
                 Dto.Field("packageId", mod.PackageId),
@@ -99,7 +104,7 @@ namespace RiMCP.Read
 
         private static Dictionary<string, object> SessionInfo(ModSnapshot snapshot)
         {
-            Dictionary<string, string> warnings = ModsConfig.GetModWarnings();
+            Dictionary<string, string> warnings = ModWarnings(snapshot);
             return Dto.Obj(
                 Dto.Field("gameVersion", VersionControl.CurrentVersionStringWithRev),
                 Dto.Field("programState", Current.ProgramState.ToString()),
@@ -111,6 +116,17 @@ namespace RiMCP.Read
                         .Select(warning => Dto.Obj(
                             Dto.Field("packageId", warning.Key),
                             Dto.Field("message", warning.Value))).ToArray()))));
+        }
+
+        private static Dictionary<string, string> ModWarnings(ModSnapshot snapshot)
+        {
+            string key = snapshot.Installed.Length + "|" + string.Join("|", snapshot.Configured);
+            if (cachedWarnings == null || cachedWarningsKey != key)
+            {
+                cachedWarnings = ModsConfig.GetModWarnings();
+                cachedWarningsKey = key;
+            }
+            return cachedWarnings;
         }
 
         private static void AddSettingsCategories(Dictionary<string, object> details, ModContentPack content)
@@ -170,15 +186,63 @@ namespace RiMCP.Read
             public readonly ModMetaData[] Installed = ModLister.AllInstalledMods.Where(mod => mod != null).ToArray();
             public readonly string[] Configured = ModsConfig.ActiveModsInLoadOrder
                 .Select(mod => mod == null ? null : mod.PackageId).ToArray();
+            // First match wins, as with the linear lookups these replace.
+            private readonly Dictionary<string, ModContentPack> loadedById = new Dictionary<string, ModContentPack>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, ModMetaData> installedById = new Dictionary<string, ModMetaData>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, int> loadOrderById = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, int> configuredOrderById = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            public ModSnapshot()
+            {
+                for (int i = 0; i < Loaded.Length; i++)
+                {
+                    AddFirst(loadedById, Loaded[i].PackageId, Loaded[i]);
+                    AddFirst(loadOrderById, Loaded[i].PackageId, i);
+                }
+                foreach (ModMetaData metadata in Installed)
+                {
+                    AddFirst(installedById, metadata.PackageId, metadata);
+                }
+                for (int i = 0; i < Configured.Length; i++)
+                {
+                    AddFirst(configuredOrderById, Configured[i], i);
+                }
+            }
 
             public ModEntry Entry(string packageId)
             {
-                ModContentPack content = Loaded.FirstOrDefault(mod => SameId(mod.PackageId, packageId));
+                ModContentPack content = Lookup(loadedById, packageId);
                 return new ModEntry
                 {
-                    Metadata = Installed.FirstOrDefault(mod => SameId(mod.PackageId, packageId)) ?? content?.ModMetaData,
+                    Metadata = Lookup(installedById, packageId) ?? content?.ModMetaData,
                     Content = content
                 };
+            }
+
+            public int LoadOrder(string packageId)
+            {
+                int index;
+                return packageId != null && loadOrderById.TryGetValue(packageId, out index) ? index : -1;
+            }
+
+            public int ConfiguredOrder(string packageId)
+            {
+                int index;
+                return packageId != null && configuredOrderById.TryGetValue(packageId, out index) ? index : -1;
+            }
+
+            private static T Lookup<T>(Dictionary<string, T> byId, string packageId) where T : class
+            {
+                T value;
+                return packageId != null && byId.TryGetValue(packageId, out value) ? value : null;
+            }
+
+            private static void AddFirst<T>(Dictionary<string, T> byId, string packageId, T value)
+            {
+                if (packageId != null && !byId.ContainsKey(packageId))
+                {
+                    byId[packageId] = value;
+                }
             }
         }
 

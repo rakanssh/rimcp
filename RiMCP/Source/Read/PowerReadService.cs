@@ -66,16 +66,17 @@ namespace RiMCP.Read
 
         private static object SerializePowerComponents(Map map)
         {
+            // Filter before sorting: most colony buildings (walls, furniture, conduits) have no power comps.
             List<object> components = new List<object>();
-            foreach (Building building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.def.defName))
+            IEnumerable<Building> powered = map.listerBuildings.allBuildingsColonist
+                .Where(b => b.TryGetComp<CompPowerTrader>() != null || b.TryGetComp<CompPowerBattery>() != null || b.TryGetComp<CompRefuelable>() != null)
+                .OrderBy(b => b.def.defName, StringComparer.Ordinal)
+                .ThenBy(b => b.thingIDNumber);
+            foreach (Building building in powered)
             {
                 CompPowerTrader power = building.TryGetComp<CompPowerTrader>();
                 CompPowerBattery battery = building.TryGetComp<CompPowerBattery>();
                 CompRefuelable fuel = building.TryGetComp<CompRefuelable>();
-                if (power == null && battery == null && fuel == null)
-                {
-                    continue;
-                }
                 components.Add(Dto.Obj(
                     Dto.Field("ids", ReadUtil.ThingIds(building)),
                     Dto.Field("def", ReadUtil.Def(building.def)),

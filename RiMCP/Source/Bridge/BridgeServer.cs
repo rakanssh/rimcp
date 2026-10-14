@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -171,7 +172,10 @@ namespace RiMCP.Bridge
             }
 
             WriteResponse(context, response);
-            log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode);
+            string timing = response.MainThreadMs.HasValue
+                ? " (" + response.MainThreadMs.Value.ToString("0.0", CultureInfo.InvariantCulture) + " ms)"
+                : "";
+            log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode + timing);
         }
 
         private static string ReadBody(HttpListenerRequest request)
@@ -239,6 +243,10 @@ namespace RiMCP.Bridge
             byte[] bytes = Encoding.UTF8.GetBytes(response.Body ?? string.Empty);
             context.Response.StatusCode = response.StatusCode;
             context.Response.ContentType = response.ContentType + "; charset=utf-8";
+            if (response.MainThreadMs.HasValue)
+            {
+                context.Response.AddHeader("X-RimMCP-Main-Thread-Ms", response.MainThreadMs.Value.ToString("0.###", CultureInfo.InvariantCulture));
+            }
             context.Response.ContentLength64 = bytes.Length;
             using (Stream output = context.Response.OutputStream)
             {

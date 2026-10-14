@@ -5,6 +5,8 @@ namespace RiMCP.Bridge
         public int StatusCode;
         public string Body;
         public string ContentType;
+        // Time the handler spent on RimWorld's main thread; null when it never ran there.
+        public double? MainThreadMs;
 
         public BridgeResponse(int statusCode, string body, string contentType = "application/json")
         {

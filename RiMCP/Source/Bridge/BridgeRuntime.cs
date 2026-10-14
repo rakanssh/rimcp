@@ -8,6 +8,7 @@ namespace RiMCP.Bridge
     {
         private const int MainThreadWaitMs = 10000;
         private const int MaxQueuedRequestsPerFrame = 16;
+        private const double MainThreadBudgetMsPerFrame = 4;
 
         private static readonly MainThreadDispatcher Dispatcher = new MainThreadDispatcher();
         private static readonly RecentLog RecentLog = new RecentLog(12);
@@ -61,7 +62,7 @@ namespace RiMCP.Bridge
 
         public static void ProcessMainThreadQueue()
         {
-            Dispatcher.ProcessQueued(MaxQueuedRequestsPerFrame);
+            Dispatcher.ProcessQueued(MaxQueuedRequestsPerFrame, MainThreadBudgetMsPerFrame);
         }
 
         public static void ApplySettings()

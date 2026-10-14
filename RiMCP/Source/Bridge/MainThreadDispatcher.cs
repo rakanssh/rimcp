@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 
 namespace RiMCP.Bridge
@@ -33,10 +34,18 @@ namespace RiMCP.Bridge
             return item.Response;
         }
 
-        public void ProcessQueued(int maxItems)
+        // Runs at least one item per frame, then stops once the frame budget is spent so a burst
+        // of requests spreads over several frames instead of stalling one.
+        public void ProcessQueued(int maxItems, double frameBudgetMs)
         {
+            Stopwatch frame = Stopwatch.StartNew();
             for (int i = 0; i < maxItems; i++)
             {
+                if (i > 0 && frame.Elapsed.TotalMilliseconds >= frameBudgetMs)
+                {
+                    return;
+                }
+
                 WorkItem item;
                 if (!queue.TryDequeue(out item))
                 {
@@ -49,6 +58,7 @@ namespace RiMCP.Bridge
                     continue;
                 }
 
+                Stopwatch work = Stopwatch.StartNew();
                 try
                 {
                     item.Response = item.Action();
@@ -59,6 +69,10 @@ namespace RiMCP.Bridge
                 }
                 finally
                 {
+                    if (item.Response != null)
+                    {
+                        item.Response.MainThreadMs = work.Elapsed.TotalMilliseconds;
+                    }
                     Complete(item);
                 }
             }

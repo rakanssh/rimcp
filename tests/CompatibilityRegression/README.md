@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The fourteen checks cover:
+The sixteen checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values.
@@ -35,6 +35,9 @@ The fourteen checks cover:
 - A controlled 409 research-command rejection without a game.
 - A numeric cursor roundtrip through actual endpoint JSON, including distinct
   subsequent pages and termination on the last page.
+- Def search by a def subclass kind, whose defs live in the ancestor's database.
+- A main-thread dispatcher that spreads a burst of requests across frames and
+  records each request's main-thread time.
 - `repeatCount` in both summary and full bill serialization, independently of
   `targetCount`.
 - Bill settings that the bill dialog cannot produce: non-finite or sub-minimum
@@ -56,4 +59,5 @@ Exit code 0 means all checks passed; 1 means a regression failed; 2 means setup
 failed. To verify the tests detect regressions, run the same executable with a
 saved pre-fix mod DLL as its second argument. The unmodified 0.5.5 DLL fails nine
 checks and retains the passing colony-research control. The unmodified 0.5.6 DLL
-fails the four checks added after it.
+fails the four checks added after it; the 0.5.6 fixes build fails the two
+checks added with the performance pass.

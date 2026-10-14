@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -13,10 +14,13 @@ namespace RiMCP.Read
             ReadContext context = ReadContext.FromMap(request);
 
             string category = context.Request.Get("category");
+            string normalizedCategory = string.IsNullOrWhiteSpace(category) ? null : category.ToLowerInvariant();
+            // Ordinal and numeric sort keys avoid culture-aware string comparison across every
+            // colony building, walls and conduits included, on each page.
             IEnumerable<Building> source = context.Map.listerBuildings.allBuildingsColonist
-                .Where(building => MatchesCategory(building, category))
-                .OrderBy(building => building.def.defName)
-                .ThenBy(building => building.ThingID);
+                .Where(building => MatchesCategory(building, normalizedCategory))
+                .OrderBy(building => building.def.defName, StringComparer.Ordinal)
+                .ThenBy(building => building.thingIDNumber);
             Page<Building> page = new Page<Building>(source, context.Request);
             bool includeContents = context.Request.Wants("contents");
 
@@ -51,13 +55,12 @@ namespace RiMCP.Read
                 .FirstOrDefault(building => building.ThingID == id || building.GetUniqueLoadID() == id);
         }
 
-        private static bool MatchesCategory(Building building, string category)
+        private static bool MatchesCategory(Building building, string normalized)
         {
-            if (string.IsNullOrWhiteSpace(category))
+            if (normalized == null)
             {
                 return true;
             }
-            string normalized = category.ToLowerInvariant();
             if (normalized == "production")
             {
                 return building is IBillGiver;
@@ -76,7 +79,7 @@ namespace RiMCP.Read
             {
                 return building is ISlotGroupParent;
             }
-            return building.def.defName.ToLowerInvariant().Contains(normalized);
+            return building.def.defName.IndexOf(normalized, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static object SerializeBuilding(Building building, ReadDetail detail, bool includeContents)
@@ -126,8 +129,8 @@ namespace RiMCP.Read
                 ? new object[0]
                 : slotGroup.HeldThings
                     .Where(thing => thing != null)
-                    .OrderBy(thing => thing.def == null ? "" : thing.def.defName)
-                    .ThenBy(thing => thing.ThingID)
+                    .OrderBy(thing => thing.def == null ? "" : thing.def.defName, StringComparer.Ordinal)
+                    .ThenBy(thing => thing.thingIDNumber)
                     .Select(SerializeContainedItem)
                     .ToArray();
 

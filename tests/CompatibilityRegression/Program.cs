@@ -3,9 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using RimWorld;
 using Verse;
@@ -116,6 +119,17 @@ internal static class Program
             var last = Call("DefReadService", "SearchDefs", path + "&cursor=" + (int)second["nextCursor"]);
             Check(!(bool)last["truncated"] && !last.ContainsKey("nextCursor"), "last page must finish pagination");
         });
+        Test("def subclass kinds search their ancestor's database", () =>
+        {
+            // Subclass defs live in DefDatabase<WorkTypeDef>; DefDatabase<ProbeWorkTypeDef> stays empty.
+            // Adding after earlier searches also checks that cached def indexes pick up new defs.
+            DefDatabase<WorkTypeDef>.Add(new ProbeWorkTypeDef { defName = "SubclassProbe", label = "Subclass probe" });
+            var rows = Rows(Data(Call("DefReadService", "SearchDefs", "/v1/defs?kind=probeWorkType&limit=10"))["defs"]);
+            Check(rows.Count == 1 && (string)((Dictionary<string, object>)rows[0])["defName"] == "SubclassProbe", "subclass kind must find its defs");
+            Check(Rows(Data(Call("DefReadService", "SearchDefs", "/v1/defs?kind=workType&query=SubclassProbe"))["defs"]).Count == 1, "parent kind must include subclass defs");
+            Data(Call("DefReadService", "GetDef", "/v1/defs/SubclassProbe?kind=probeWorkType", "defName", "SubclassProbe"));
+        });
+        Test("dispatcher spreads a burst across frames within its time budget", CheckDispatcherBudget);
         Test("bill repeatCount appears in summary and full detail", CheckBillRepeatCount);
         Test("bill settings reject values the bill dialog cannot produce", CheckBillSettingsValidation);
         Test("pawn work reads leave uninitialized work settings untouched", () =>
@@ -235,6 +249,36 @@ internal static class Program
         Check(bill.targetCount == 3 && bill.unpauseWhenYouHave == 0, "lowering the target must keep unpause below it");
     }
 
+    private static void CheckDispatcherBudget()
+    {
+        // Three handlers that each take longer than a 4 ms frame budget: every frame must run
+        // exactly one of them and record how long it held the main thread.
+        Type dispatcherType = mod.GetType("RiMCP.Bridge.MainThreadDispatcher", true);
+        Type responseType = mod.GetType("RiMCP.Bridge.BridgeResponse", true);
+        Delegate slow = Expression.Lambda(typeof(Func<>).MakeGenericType(responseType), Expression.Block(
+            Expression.Call(typeof(Thread).GetMethod("Sleep", new[] { typeof(int) }), Expression.Constant(10)),
+            Expression.Call(responseType.GetMethod("Json", Static), Expression.Constant(200), Expression.Constant("{}")))).Compile();
+        object dispatcher = Activator.CreateInstance(dispatcherType, true);
+        Func<int> queued = () => (int)dispatcherType.GetProperty("QueuedCount").GetValue(dispatcher);
+        Task<object>[] callers = Enumerable.Range(0, 3)
+            .Select(_ => Task.Run(() => dispatcherType.GetMethod("Invoke").Invoke(dispatcher, new object[] { slow, 10000 })))
+            .ToArray();
+        for (int wait = 0; queued() < 3 && wait < 500; wait++) Thread.Sleep(10);
+        Thread.Sleep(50);
+        Check(queued() == 3, "expected three queued requests");
+        for (int expected = 2; expected >= 0; expected--)
+        {
+            dispatcherType.GetMethod("ProcessQueued").Invoke(dispatcher, new object[] { 16, 4.0 });
+            Check(queued() == expected, "each frame must stop after the budget is spent; " + queued() + " left, expected " + expected);
+        }
+        Check(Task.WaitAll(callers, 5000), "callers must complete");
+        foreach (Task<object> caller in callers)
+        {
+            object ms = responseType.GetField("MainThreadMs").GetValue(caller.Result);
+            Check(ms != null && (double)ms >= 9, "response must record main-thread time");
+        }
+    }
+
     private static void ExpectCommandError(int status, Action action)
     {
         try
@@ -291,4 +335,9 @@ internal static class Program
             Console.WriteLine("FAIL " + name + ": " + e.GetType().Name + ": " + e.Message);
         }
     }
+}
+
+// A modded-style def subclass: its defs are stored in DefDatabase<WorkTypeDef>.
+internal sealed class ProbeWorkTypeDef : WorkTypeDef
+{
 }

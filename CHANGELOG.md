@@ -9,6 +9,8 @@ All notable changes to this project are documented in this file.
 - Commands follow the game's own checks: drafting, prisoner modes (Convert now works), work priorities, animal designations, and bills.
 - Reads no longer log errors or modify the save.
 - Power is reported in watts (`netPowerW`), and food uses the game's Low food count (`storedHumanNutrition`).
+- Def search and large list reads cost far less main-thread time, and bursts of requests are spread across frames. The settings log shows each request's main-thread time.
+- `search_defs` finds defs of modded def subclasses.
 
 ## [0.5.6] - 2026-10-13
 

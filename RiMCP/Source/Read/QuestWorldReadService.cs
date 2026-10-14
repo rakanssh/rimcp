@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -68,7 +69,7 @@ namespace RiMCP.Read
                 return new object[0];
             }
             IEnumerable<WorldObject> source = Find.WorldObjects.AllWorldObjects
-                .OrderBy(obj => obj.def == null ? "" : obj.def.defName)
+                .OrderBy(obj => obj.def == null ? "" : obj.def.defName, StringComparer.Ordinal)
                 .ThenBy(obj => obj.ID);
             Page<WorldObject> page = new Page<WorldObject>(source, request);
             return Dto.Obj(

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -18,8 +19,8 @@ namespace RiMCP.Read
 
             ResearchProjectDef current = CurrentProject();
             IEnumerable<ResearchProjectDef> source = DefDatabase<ResearchProjectDef>.AllDefsListForReading
-                .OrderBy(def => def.tab == null ? "" : def.tab.defName)
-                .ThenBy(def => def.defName);
+                .OrderBy(def => def.tab == null ? "" : def.tab.defName, StringComparer.Ordinal)
+                .ThenBy(def => def.defName, StringComparer.Ordinal);
             Page<ResearchProjectDef> page = new Page<ResearchProjectDef>(source, context.Request);
 
             return ReadEnvelope.Ok(context, Dto.Obj(

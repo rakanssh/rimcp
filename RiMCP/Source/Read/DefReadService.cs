@@ -15,6 +15,12 @@ namespace RiMCP.Read
         private static readonly object DefKindLock = new object();
         private static Dictionary<string, DefKind> defKindsByKey;
         private static List<DefKind> defKinds;
+        // Only touched from the main thread, like every bridge handler.
+        private static readonly Dictionary<Type, DefIndex> indexes = new Dictionary<Type, DefIndex>();
+        private static readonly Dictionary<ThingCategory, string> ThingCategoryNames = Enum.GetValues(typeof(ThingCategory))
+            .Cast<ThingCategory>()
+            .Distinct()
+            .ToDictionary(category => category, category => category.ToString());
 
         public static BridgeResponse SearchDefs(BridgeRequest request, RouteMatch route)
         {
@@ -26,7 +32,9 @@ namespace RiMCP.Read
             IEnumerable<Def> source;
             if (IsAllKind(kind))
             {
-                source = AllSupportedDefs();
+                source = DatabaseKinds()
+                    .OrderBy(item => item.Kind, StringComparer.Ordinal)
+                    .SelectMany(DefsForKind);
                 kind = "all";
             }
             else
@@ -40,11 +48,10 @@ namespace RiMCP.Read
                 kind = resolved.Kind;
             }
 
+            // Indexes are already sorted, so the page stops scanning once it is full.
             source = source
                 .Where(def => MatchesQuery(def, query))
-                .Where(def => MatchesCategory(def, category))
-                .OrderBy(def => KindForDef(def))
-                .ThenBy(def => def.defName);
+                .Where(def => MatchesCategory(def, category));
 
             Page<Def> page = new Page<Def>(source, context.Request);
             return ReadEnvelope.Ok(context, Dto.Obj(
@@ -62,10 +69,10 @@ namespace RiMCP.Read
             string defName = route["defName"];
             string kind = context.Request.Get("kind");
 
-            IEnumerable<Def> source;
+            IEnumerable<DefKind> kinds;
             if (string.IsNullOrWhiteSpace(kind) || IsAllKind(kind))
             {
-                source = AllSupportedDefs();
+                kinds = DatabaseKinds();
             }
             else
             {
@@ -74,10 +81,10 @@ namespace RiMCP.Read
                 {
                     return UnknownKind(kind);
                 }
-                source = DefsForKind(resolved);
+                kinds = new[] { resolved };
             }
 
-            Def def = source.FirstOrDefault(item => item.defName == defName);
+            Def def = kinds.Select(item => FindNamed(item, defName)).FirstOrDefault(found => found != null);
             if (def == null)
             {
                 return BridgeResponse.Error(404, "Def not found.");
@@ -85,40 +92,47 @@ namespace RiMCP.Read
             return ReadEnvelope.Ok(context, SerializeDef(def, ReadDetail.Full));
         }
 
-        private static IEnumerable<Def> AllSupportedDefs()
-        {
-            foreach (DefKind kind in DefKinds())
-            {
-                foreach (Def def in DefsForKind(kind))
-                {
-                    yield return def;
-                }
-            }
-        }
-
         private static bool TryResolveKind(string kind, out DefKind resolved)
         {
             return DefKindsByKey().TryGetValue(NormalizeKind(kind), out resolved);
         }
 
+        // Kinds that own a DefDatabase. Subclass kinds read their ancestor's database.
+        private static IEnumerable<DefKind> DatabaseKinds()
+        {
+            return DefKinds().Where(kind => kind.Type == kind.DatabaseType);
+        }
+
         private static IEnumerable<Def> DefsForKind(DefKind kind)
         {
-            Type databaseType = typeof(DefDatabase<>).MakeGenericType(kind.Type);
-            PropertyInfo property = databaseType.GetProperty("AllDefsListForReading", BindingFlags.Public | BindingFlags.Static);
-            IEnumerable defs = property == null ? null : property.GetValue(null, null) as IEnumerable;
-            if (defs == null)
-            {
-                yield break;
-            }
+            Def[] sorted = Index(kind.DatabaseType).Sorted;
+            return kind.Type == kind.DatabaseType ? sorted : sorted.Where(def => kind.Type.IsInstanceOfType(def));
+        }
 
-            foreach (object item in defs)
+        private static Def FindNamed(DefKind kind, string defName)
+        {
+            Def def;
+            return defName != null && Index(kind.DatabaseType).ByName.TryGetValue(defName, out def) && kind.Type.IsInstanceOfType(def) ? def : null;
+        }
+
+        private static DefIndex Index(Type databaseType)
+        {
+            IList defs = DatabaseList(databaseType);
+            DefIndex index;
+            // DefDatabase contents are fixed after load; the count catches late additions.
+            if (!indexes.TryGetValue(databaseType, out index) || index.Count != defs.Count)
             {
-                Def def = item as Def;
-                if (def != null)
-                {
-                    yield return def;
-                }
+                index = new DefIndex(defs);
+                indexes[databaseType] = index;
             }
+            return index;
+        }
+
+        private static IList DatabaseList(Type databaseType)
+        {
+            PropertyInfo property = typeof(DefDatabase<>).MakeGenericType(databaseType)
+                .GetProperty("AllDefsListForReading", BindingFlags.Public | BindingFlags.Static);
+            return (property == null ? null : property.GetValue(null, null) as IList) ?? new Def[0];
         }
 
         private static Dictionary<string, DefKind> DefKindsByKey()
@@ -151,7 +165,7 @@ namespace RiMCP.Read
                 Dictionary<string, DefKind> byKey = new Dictionary<string, DefKind>();
                 foreach (Type type in DiscoverDefTypes())
                 {
-                    DefKind kind = new DefKind(type, KindForType(type), LegacyKindSortIndex(type));
+                    DefKind kind = new DefKind(type, DatabaseTypeFor(type), KindForType(type), LegacyKindSortIndex(type));
                     byType[type] = kind;
                     AddKindKey(byKey, kind.Kind, kind);
                     AddKindKey(byKey, type.Name, kind);
@@ -204,6 +218,21 @@ namespace RiMCP.Read
                     }
                 }
             }
+        }
+
+        // Mirrors GenDefDatabase.AllDefTypesWithDatabases: a def type owns a database unless a
+        // non-abstract ancestor does, in which case its defs live in the topmost such ancestor's.
+        private static Type DatabaseTypeFor(Type type)
+        {
+            Type database = type;
+            for (Type ancestor = type.BaseType; ancestor != null && ancestor != typeof(Def); ancestor = ancestor.BaseType)
+            {
+                if (!ancestor.IsAbstract)
+                {
+                    database = ancestor;
+                }
+            }
+            return database;
         }
 
         private static void AddAlias(Dictionary<string, DefKind> byKey, Dictionary<Type, DefKind> byType, Type type, string alias)
@@ -263,10 +292,9 @@ namespace RiMCP.Read
             {
                 return true;
             }
-            string needle = query.ToLowerInvariant();
-            return (def.defName ?? "").ToLowerInvariant().Contains(needle) ||
-                   (def.label ?? "").ToLowerInvariant().Contains(needle) ||
-                   (def.description ?? "").ToLowerInvariant().Contains(needle);
+            return ContainsIgnoreCase(def.defName, query) ||
+                   ContainsIgnoreCase(def.label, query) ||
+                   ContainsIgnoreCase(def.description, query);
         }
 
         private static bool MatchesCategory(Def def, string category)
@@ -275,17 +303,22 @@ namespace RiMCP.Read
             {
                 return true;
             }
-            string needle = category.ToLowerInvariant();
             ThingDef thing = def as ThingDef;
             if (thing != null)
             {
-                if (thing.category.ToString().ToLowerInvariant().Contains(needle))
+                string categoryName;
+                if (ThingCategoryNames.TryGetValue(thing.category, out categoryName) && ContainsIgnoreCase(categoryName, category))
                 {
                     return true;
                 }
-                return thing.thingCategories != null && thing.thingCategories.Any(cat => cat.defName.ToLowerInvariant().Contains(needle));
+                return thing.thingCategories != null && thing.thingCategories.Any(cat => ContainsIgnoreCase(cat.defName, category));
             }
-            return def.GetType().Name.ToLowerInvariant().Contains(needle);
+            return ContainsIgnoreCase(def.GetType().Name, category);
+        }
+
+        private static bool ContainsIgnoreCase(string text, string needle)
+        {
+            return text != null && text.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static object SerializeDef(Def def, ReadDetail detail)
@@ -451,14 +484,36 @@ namespace RiMCP.Read
         private sealed class DefKind
         {
             public readonly Type Type;
+            public readonly Type DatabaseType;
             public readonly string Kind;
             public readonly int SortIndex;
 
-            public DefKind(Type type, string kind, int sortIndex)
+            public DefKind(Type type, Type databaseType, string kind, int sortIndex)
             {
                 Type = type;
+                DatabaseType = databaseType;
                 Kind = kind;
                 SortIndex = sortIndex;
+            }
+        }
+
+        private sealed class DefIndex
+        {
+            public readonly int Count;
+            public readonly Def[] Sorted;
+            public readonly Dictionary<string, Def> ByName = new Dictionary<string, Def>(StringComparer.Ordinal);
+
+            public DefIndex(IList defs)
+            {
+                Count = defs.Count;
+                Sorted = defs.OfType<Def>().OrderBy(def => def.defName, StringComparer.Ordinal).ToArray();
+                foreach (Def def in Sorted)
+                {
+                    if (def.defName != null && !ByName.ContainsKey(def.defName))
+                    {
+                        ByName[def.defName] = def;
+                    }
+                }
             }
         }
     }

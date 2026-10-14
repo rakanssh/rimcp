@@ -15,8 +15,8 @@ namespace RiMCP.Read
 
             List<ResourceGroup> groups = CollectResources(context.Map).ToList();
             IEnumerable<ResourceGroup> source = groups
-                .OrderBy(group => group.Group)
-                .ThenBy(group => group.DefName);
+                .OrderBy(group => group.Group, StringComparer.Ordinal)
+                .ThenBy(group => group.DefName, StringComparer.Ordinal);
             Page<ResourceGroup> page = new Page<ResourceGroup>(source, context.Request);
             object[] resources = page.Items
                 .Select(group => context.Request.IdsOnly ? group.DefName : SerializeResourceGroup(group, context.Request.Detail))
@@ -56,13 +56,11 @@ namespace RiMCP.Read
                 yield break;
             }
 
-            foreach (Thing thing in map.listerThings.AllThings)
+            // The haulable group holds spawned items without the plants, rocks, filth, and
+            // buildings that make up most of AllThings on a developed map.
+            foreach (Thing thing in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver))
             {
                 if (thing == null || thing.def == null || !thing.Spawned)
-                {
-                    continue;
-                }
-                if (thing.def.category != ThingCategory.Item && !thing.def.EverHaulable)
                 {
                     continue;
                 }
