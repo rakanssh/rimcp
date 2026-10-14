@@ -342,7 +342,7 @@ namespace RiMCP.Command
                 IAttackTarget threat;
                 if (observation.Threat == null && GenHostility.AnyHostileActiveThreatTo(map, Faction.OfPlayer, out threat))
                 {
-                    observation.Threat = threat.Thing == null ? "hostiles" : threat.Thing.LabelCap.ToString();
+                    observation.Threat = ThreatLabel(threat.Thing);
                 }
             }
             // Colonists who died since the last frame are no longer spawned colonists.
@@ -358,12 +358,23 @@ namespace RiMCP.Command
                 observation.Letters[letter.ID] = new LetterState
                 {
                     Id = letter.ID,
-                    Label = letter.Label.ToString(),
+                    Label = letter.Label.ToString().StripTags(),
                     DefName = letter.def == null ? null : letter.def.defName,
                     Threat = letter.def != null && (letter.def == LetterDefOf.ThreatBig || letter.def == LetterDefOf.ThreatSmall)
                 };
             }
             return observation;
+        }
+
+        // Labels carry rich-text markup, such as the coloured title after a raider's name.
+        private static string ThreatLabel(Thing thing)
+        {
+            if (thing == null)
+            {
+                return "hostiles";
+            }
+            Pawn pawn = thing as Pawn;
+            return (pawn != null ? pawn.LabelShortCap : thing.LabelCap).StripTags();
         }
 
         private static ColonistState Colonist(Pawn pawn)

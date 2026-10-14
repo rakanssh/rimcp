@@ -24,9 +24,11 @@ namespace RiMCP
 
         private void Update()
         {
-            BridgeRuntime.SetRunInBackground(Application.runInBackground);
             AdvanceRunner.Update();
             BridgeRuntime.ProcessMainThreadQueue();
+            // Read after handling requests: set_game_settings may have just turned this off, and an
+            // unfocused game stops calling Update before the next frame.
+            BridgeRuntime.SetRunInBackground(Application.runInBackground);
         }
 
         private void OnApplicationFocus(bool focused)
