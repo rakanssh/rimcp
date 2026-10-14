@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using RimWorld;
-using RiMCP.Bridge;
 using RiMCP.Read;
 using Verse;
 using Verse.AI;
@@ -78,6 +76,9 @@ namespace RiMCP.Command
         public AdvanceEvent StoppedBy;
         public int EndTick = -1;
         public AdvanceObservation Previous;
+        public int Frames;
+        public double FrameMsTotal;
+        public double FrameMsMax;
 
         public AdvanceRun(int id, string requestId, object game, TimeSpeed speed, int startTick, int targetTick, float hours, IEnumerable<string> stopOn, AdvanceObservation baseline)
         {
@@ -127,6 +128,18 @@ namespace RiMCP.Command
             {
                 End("interrupted", current.Speed == TimeSpeed.Paused ? "paused" : "speedChanged", current.Tick);
             }
+        }
+
+        public bool SameRequest(float hours, TimeSpeed speed, ICollection<string> stopOn)
+        {
+            return Hours == hours && Speed == speed && StopOn.SetEquals(stopOn);
+        }
+
+        public void RecordFrame(double milliseconds)
+        {
+            Frames++;
+            FrameMsTotal += milliseconds;
+            FrameMsMax = Math.Max(FrameMsMax, milliseconds);
         }
 
         public void End(string status, string reason, int tick)
@@ -201,14 +214,16 @@ namespace RiMCP.Command
         }
     }
 
-    // Owns the single advance run per session. Start, Update, and Interrupt run on the main thread;
-    // WaitForEnd runs on HTTP threads and only touches the run's Ended event.
+    // Owns advance runs. Everything here runs on the main thread; HTTP threads only wait on a
+    // run's Ended event.
     internal static class AdvanceRunner
     {
-        public const string Path = "/v1/time/advance";
-        public const double MaxWaitSeconds = 30;
+        // Retries are recognised for this many recent runs of the loaded game.
+        public const int MaxHistory = 32;
 
-        private static volatile AdvanceRun latest;
+        // Runs of the loaded game, oldest first.
+        private static readonly List<AdvanceRun> history = new List<AdvanceRun>();
+        private static AdvanceRun latest;
         private static int nextId;
         private static List<Pawn> tracked = new List<Pawn>();
 
@@ -217,19 +232,28 @@ namespace RiMCP.Command
             get { return latest; }
         }
 
-        public static AdvanceRun Start(float hours, TimeSpeed speed, IEnumerable<string> stopOn, string requestId, out bool created)
+        public static AdvanceRun RunById(int id)
         {
-            AdvanceRun last = latest;
-            if (requestId != null && last != null && last.RequestId == requestId && ReferenceEquals(last.Game, Current.Game))
+            return history.FirstOrDefault(run => run.Id == id && ReferenceEquals(run.Game, Current.Game));
+        }
+
+        public static AdvanceRun Start(float hours, TimeSpeed speed, ICollection<string> stopOn, string requestId, out bool created)
+        {
+            history.RemoveAll(run => !ReferenceEquals(run.Game, Current.Game));
+            AdvanceRun receipt = FindReceipt(history, Current.Game, requestId, hours, speed, stopOn);
+            if (receipt != null)
             {
                 created = false;
-                return last;
+                return receipt;
             }
-            if (last != null && last.Status == AdvanceRun.Running)
+            if (latest != null && latest.Status == AdvanceRun.Running && ReferenceEquals(latest.Game, Current.Game))
             {
-                throw new CommandException(409, "An advance is already running (run " + last.Id + "). Use get_advance to wait for it, or set_game_speed to stop it.");
+                throw new CommandException(409, "An advance is already running (run " + latest.Id + "). Use get_advance to wait for it, or set_game_speed to stop it.");
             }
 
+            // Take the starting snapshot before unpausing, so a failure here leaves the game as it was.
+            tracked = new List<Pawn>();
+            AdvanceObservation baseline = Observe();
             TickManager ticks = Find.TickManager;
             ticks.CurTimeSpeed = speed;
             if (ticks.CurTimeSpeed != speed)
@@ -237,12 +261,30 @@ namespace RiMCP.Command
                 throw new CommandException(409, "RimWorld is not accepting time control right now.");
             }
 
-            tracked = new List<Pawn>();
-            AdvanceObservation baseline = Observe();
             int duration = (int)Math.Ceiling(hours * GenDate.TicksPerHour);
             AdvanceRun run = new AdvanceRun(++nextId, requestId, Current.Game, speed, baseline.Tick, baseline.Tick + duration, hours, stopOn, baseline);
+            history.Add(run);
+            if (history.Count > MaxHistory)
+            {
+                history.RemoveAt(0);
+            }
             latest = run;
             created = true;
+            return run;
+        }
+
+        // A repeated requestId returns its run; the same id with different arguments is a client error.
+        public static AdvanceRun FindReceipt(IEnumerable<AdvanceRun> runs, object game, string requestId, float hours, TimeSpeed speed, ICollection<string> stopOn)
+        {
+            if (requestId == null)
+            {
+                return null;
+            }
+            AdvanceRun run = runs.LastOrDefault(item => item.RequestId == requestId && ReferenceEquals(item.Game, game));
+            if (run != null && !run.SameRequest(hours, speed, stopOn))
+            {
+                throw new CommandException(409, "requestId '" + requestId + "' was already used for run " + run.Id + " with different arguments.");
+            }
             return run;
         }
 
@@ -253,7 +295,7 @@ namespace RiMCP.Command
             {
                 return null;
             }
-            run.End("interrupted", reason, Find.TickManager == null ? run.Previous.Tick : Find.TickManager.TicksGame);
+            run.End("interrupted", reason, Current.Game == null ? run.Previous.Tick : Find.TickManager.TicksGame);
             run.Ended.Set();
             return run;
         }
@@ -266,6 +308,8 @@ namespace RiMCP.Command
                 return;
             }
 
+            bool failed = false;
+            Stopwatch frame = Stopwatch.StartNew();
             try
             {
                 run.Step(Observe());
@@ -273,52 +317,22 @@ namespace RiMCP.Command
             catch (Exception ex)
             {
                 run.End("interrupted", "error: " + ex.GetType().Name + ": " + ex.Message, run.Previous.Tick);
+                failed = true;
             }
+            run.RecordFrame(frame.Elapsed.TotalMilliseconds);
             if (run.Status == AdvanceRun.Running)
             {
                 return;
             }
 
-            // The agent's turn starts paused. A pause or speed change by someone else is left alone.
-            if ((run.Status == "stopped" || run.Status == "completed") && ReferenceEquals(Current.Game, run.Game) && Find.TickManager != null)
+            // The run owns time until it ends: pause when it completes, stops, or fails. A pause or
+            // speed change by someone else is left alone.
+            bool ownsTime = failed || run.Status == "stopped" || run.Status == "completed";
+            if (ownsTime && Current.Game != null && ReferenceEquals(Current.Game, run.Game))
             {
                 Find.TickManager.Pause();
             }
             run.Ended.Set();
-        }
-
-        // Waits off the main thread so the game keeps running. Returns early when the run ends or
-        // the game stops updating because it is in the background.
-        public static void WaitForEnd(double seconds)
-        {
-            AdvanceRun run = latest;
-            if (run == null)
-            {
-                return;
-            }
-            Stopwatch elapsed = Stopwatch.StartNew();
-            while (elapsed.Elapsed.TotalSeconds < seconds && BridgeRuntime.MainThreadAvailable)
-            {
-                if (run.Ended.Wait(250))
-                {
-                    return;
-                }
-            }
-        }
-
-        public static double RequestedWaitSeconds(BridgeRequest request)
-        {
-            if (!string.Equals(request.Uri.AbsolutePath.TrimEnd('/'), Path, StringComparison.Ordinal))
-            {
-                return 0;
-            }
-            double seconds;
-            string text = ReadRequest.FromUri(request.Uri).Get("waitSeconds");
-            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds) || double.IsNaN(seconds))
-            {
-                return 0;
-            }
-            return Math.Max(0, Math.Min(MaxWaitSeconds, seconds));
         }
 
         private static AdvanceObservation Observe()

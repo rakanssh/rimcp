@@ -70,6 +70,10 @@ fn serve<W: Write + Send + 'static>(
                     Err(_) => break,
                 };
                 let Ok((id, params)) = next else { break };
+                // A call cancelled while it waited in the queue never reaches the game.
+                if proxy.withdraw_if_cancelled(&id) {
+                    continue;
+                }
                 let response = proxy.call(&id, &params);
                 if proxy.finish(&id) && write_line(&output, &response).is_err() {
                     break;
@@ -194,6 +198,19 @@ impl Proxy {
                 *cancelled = true;
             }
         }
+    }
+
+    /// Stops tracking a call the client has cancelled; returns whether it was cancelled.
+    fn withdraw_if_cancelled(&self, id: &Value) -> bool {
+        let Ok(mut in_flight) = self.in_flight.lock() else {
+            return false;
+        };
+        let key = id.to_string();
+        if in_flight.get(&key) == Some(&true) {
+            in_flight.remove(&key);
+            return true;
+        }
+        false
     }
 
     /// Ends tracking for a call and reports whether its response should be sent.
@@ -496,16 +513,23 @@ mod tests {
         );
     }
 
-    /// A stand-in bridge: `/v1/slow` answers after 400 ms, everything else at once.
-    fn fake_bridge() -> String {
+    type Received = Arc<Mutex<Vec<String>>>;
+
+    /// A stand-in bridge: `/v1/slow` answers after 400 ms, everything else at once. It records
+    /// each request line it receives.
+    fn fake_bridge() -> (String, Received) {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
+        let received = Received::default();
+        let log = received.clone();
         thread::spawn(move || {
             for stream in listener.incoming().flatten() {
+                let log = log.clone();
                 thread::spawn(move || {
                     let mut reader = io::BufReader::new(stream.try_clone().unwrap());
                     let mut request_line = String::new();
                     reader.read_line(&mut request_line).unwrap();
+                    log.lock().unwrap().push(request_line.trim().to_string());
                     let mut header = String::new();
                     while reader.read_line(&mut header).unwrap() > 2 {
                         header.clear();
@@ -523,10 +547,10 @@ mod tests {
                 });
             }
         });
-        format!("http://{address}")
+        (format!("http://{address}"), received)
     }
 
-    fn bridge_proxy() -> Arc<Proxy> {
+    fn bridge_proxy() -> (Arc<Proxy>, Received) {
         let tool = |name: &str| Tool {
             name: name.into(),
             description: String::new(),
@@ -537,19 +561,21 @@ mod tests {
             query_keys: Vec::new(),
             body_keys: Vec::new(),
         };
-        Arc::new(Proxy {
+        let (base_url, received) = fake_bridge();
+        let proxy = Arc::new(Proxy {
             manifest: Manifest {
                 version: "test".into(),
-                tools: vec![tool("slow"), tool("fast")],
+                tools: vec![tool("slow"), tool("fast"), tool("speed")],
             },
-            base_url: fake_bridge(),
+            base_url,
             authorization: None,
             agent: ureq::Agent::config_builder()
                 .http_status_as_error(false)
                 .build()
                 .into(),
             in_flight: Mutex::new(HashMap::new()),
-        })
+        });
+        (proxy, received)
     }
 
     #[derive(Clone, Default)]
@@ -566,18 +592,27 @@ mod tests {
         }
     }
 
-    fn served_ids(requests: &[Value]) -> Vec<Value> {
+    /// Serves the requests and returns the ids answered, in order, and the bridge requests made.
+    fn serve_requests(requests: &[Value]) -> (Vec<Value>, Vec<String>) {
         let input = requests
             .iter()
             .map(Value::to_string)
             .collect::<Vec<_>>()
             .join("\n");
         let output = Captured::default();
-        serve(bridge_proxy(), io::Cursor::new(input), output.clone()).unwrap();
+        let (proxy, received) = bridge_proxy();
+        serve(proxy, io::Cursor::new(input), output.clone()).unwrap();
         let text = String::from_utf8(output.0.lock().unwrap().clone()).unwrap();
-        text.lines()
+        let ids = text
+            .lines()
             .map(|line| serde_json::from_str::<Value>(line).unwrap()["id"].clone())
-            .collect()
+            .collect();
+        let received = received.lock().unwrap().clone();
+        (ids, received)
+    }
+
+    fn served_ids(requests: &[Value]) -> Vec<Value> {
+        serve_requests(requests).0
     }
 
     fn tool_call(id: u64, name: &str) -> Value {
@@ -607,5 +642,21 @@ mod tests {
             tool_call(2, "fast"),
         ]);
         assert_eq!(ids, [json!(2)]);
+    }
+
+    #[test]
+    fn calls_cancelled_while_queued_never_reach_the_bridge() {
+        // Occupy every worker, queue a speed change behind them, then cancel it.
+        let mut requests: Vec<Value> = (1..=WORKERS as u64)
+            .map(|id| tool_call(id, "slow"))
+            .collect();
+        requests.push(tool_call(99, "speed"));
+        requests.push(json!({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 99}}));
+        let (ids, received) = serve_requests(&requests);
+        assert_eq!(ids.len(), WORKERS, "only the slow calls answer: {ids:?}");
+        assert!(
+            !received.iter().any(|line| line.contains("/v1/speed")),
+            "the cancelled call reached the bridge: {received:?}"
+        );
     }
 }

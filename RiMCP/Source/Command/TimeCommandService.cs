@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using RimWorld;
@@ -14,6 +15,7 @@ namespace RiMCP.Command
         private const float MinHours = 0.1f;
         private const float MaxHours = 24f;
         private const int MaxRequestIdLength = 100;
+        private const double MaxWaitSeconds = 30;
 
         public static BridgeResponse SetGameSpeed(BridgeRequest request, RouteMatch route)
         {
@@ -70,15 +72,45 @@ namespace RiMCP.Command
 
             bool created;
             AdvanceRun run = AdvanceRunner.Start(hours, speed, stopOn, body.RequestId, out created);
-            return CommandEnvelope.Ok(CommandUtil.ContextFor(null), created, SerializeRun(run));
+            Func<BridgeResponse> reply = () => CommandEnvelope.Ok(CommandUtil.ContextFor(null), created, SerializeRun(run));
+            return WithWait(request, run, reply);
         }
 
         public static BridgeResponse GetAdvance(BridgeRequest request, RouteMatch route)
         {
-            ReadContext context = ReadContext.From(request);
-            TickManager ticks = Current.Game == null ? null : Find.TickManager;
+            ReadRequest query = ReadRequest.FromUri(request.Uri);
             AdvanceRun run = AdvanceRunner.Latest;
-            return ReadEnvelope.Ok(context, Dto.Obj(
+            string runIdText = query.Get("runId");
+            if (!string.IsNullOrWhiteSpace(runIdText))
+            {
+                int runId;
+                run = int.TryParse(runIdText, NumberStyles.Integer, CultureInfo.InvariantCulture, out runId) ? AdvanceRunner.RunById(runId) : null;
+                if (run == null)
+                {
+                    return BridgeResponse.Error(404, "No advance run " + runIdText + " in the loaded game. The last " + AdvanceRunner.MaxHistory + " runs are kept.");
+                }
+            }
+            AdvanceRun bound = run;
+            return WithWait(request, run, () => AdvanceStatus(request, bound));
+        }
+
+        // A wait changes when the reply arrives, not what it describes: the reply is rebuilt for the
+        // same run after the bridge waits for it off the main thread.
+        private static BridgeResponse WithWait(BridgeRequest request, AdvanceRun run, Func<BridgeResponse> reply)
+        {
+            BridgeResponse response = reply();
+            double seconds = WaitSeconds(request);
+            if (seconds > 0 && run != null && run.Status == AdvanceRun.Running)
+            {
+                response.Deferred = new DeferredReply(run.Ended, seconds, reply);
+            }
+            return response;
+        }
+
+        private static BridgeResponse AdvanceStatus(BridgeRequest request, AdvanceRun run)
+        {
+            TickManager ticks = Current.Game == null ? null : Find.TickManager;
+            return ReadEnvelope.Ok(ReadContext.From(request), Dto.Obj(
                 Dto.Field("time", ticks == null ? null : Dto.Obj(
                     Dto.Field("tick", ticks.TicksGame),
                     Dto.Field("speed", ticks.CurTimeSpeed.ToString()),
@@ -87,10 +119,21 @@ namespace RiMCP.Command
                 Dto.Field("run", run == null ? null : SerializeRun(run))));
         }
 
+        private static double WaitSeconds(BridgeRequest request)
+        {
+            double seconds;
+            string text = ReadRequest.FromUri(request.Uri).Get("waitSeconds");
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds) || double.IsNaN(seconds))
+            {
+                return 0;
+            }
+            return Math.Max(0, Math.Min(MaxWaitSeconds, seconds));
+        }
+
         public static object SerializeRun(AdvanceRun run)
         {
             bool running = run.Status == AdvanceRun.Running;
-            int tick = running && ReferenceEquals(Current.Game, run.Game) && Find.TickManager != null
+            int tick = running && Current.Game != null && ReferenceEquals(Current.Game, run.Game)
                 ? Find.TickManager.TicksGame
                 : run.EndTick;
             Dictionary<string, object> dto = Dto.Obj(
@@ -110,6 +153,13 @@ namespace RiMCP.Command
             if (run.DroppedEvents > 0)
             {
                 dto["droppedEvents"] = run.DroppedEvents;
+            }
+            if (run.Frames > 0)
+            {
+                // Main-thread cost of checking stop conditions each frame, which request timing misses.
+                dto["observerMs"] = Dto.Obj(
+                    Dto.Field("average", Math.Round(run.FrameMsTotal / run.Frames, 3)),
+                    Dto.Field("max", Math.Round(run.FrameMsMax, 3)));
             }
             return dto;
         }

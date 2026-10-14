@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using RiMCP.Command;
+using System.Diagnostics;
 using RiMCP.Settings;
 
 namespace RiMCP.Bridge
@@ -76,22 +76,28 @@ namespace RiMCP.Bridge
 
         public static BridgeResponse Dispatch(BridgeRequest request)
         {
-            if (!MainThreadAvailable)
-            {
-                return BridgeResponse.Error(503, "RimWorld is in the background with Run in background off, so it is not processing requests. Bring RimWorld to the front, or enable Run in background in its options.");
-            }
-
-            BridgeResponse response = Dispatcher.Invoke(() => BridgeRouter.Handle(request), MainThreadWaitMs);
-            double waitSeconds = AdvanceRunner.RequestedWaitSeconds(request);
-            if (waitSeconds <= 0 || response.StatusCode != 200)
+            BridgeResponse response = RunOnMainThread(() => BridgeRouter.Handle(request));
+            DeferredReply deferred = response.Deferred;
+            if (deferred == null)
             {
                 return response;
             }
 
-            // advance_time and get_advance can wait for the run to end. The wait happens here, off
-            // the main thread, so the game keeps running; the reply is a fresh get_advance.
-            AdvanceRunner.WaitForEnd(waitSeconds);
-            return Dispatch(new BridgeRequest("GET", new Uri(request.Uri.GetLeftPart(UriPartial.Authority) + AdvanceRunner.Path), null));
+            // Wait off the main thread so the game keeps running, then rebuild the same reply.
+            Stopwatch waited = Stopwatch.StartNew();
+            while (waited.Elapsed.TotalSeconds < deferred.Seconds && MainThreadAvailable && !deferred.Done.Wait(250))
+            {
+            }
+            return RunOnMainThread(deferred.Reply);
+        }
+
+        private static BridgeResponse RunOnMainThread(Func<BridgeResponse> action)
+        {
+            if (!MainThreadAvailable)
+            {
+                return BridgeResponse.Error(503, "RimWorld is in the background with Run in background off, so it is not processing requests. Bring RimWorld to the front, or enable Run in background in its options.");
+            }
+            return Dispatcher.Invoke(action, MainThreadWaitMs);
         }
 
         public static void ProcessMainThreadQueue()

@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The nineteen checks cover:
+The twenty-two checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values.
@@ -42,6 +42,11 @@ The nineteen checks cover:
   the target tick, interruption by an outside pause or another game, stops on
   changes during the run but not on the starting state, and severity order when
   several things happen in one frame. Observing a live game is a live-game test.
+- `advance_time` retries recognised across recent runs, with matching arguments
+  required for a reused request id.
+- Waiting stays bound to one run: `get_advance` answers for the requested run id,
+  and a waiting request returns when that run ends, through the real bridge
+  dispatch with the test thread acting as the main thread.
 - `repeatCount` in both summary and full bill serialization, independently of
   `targetCount`.
 - Bill settings that the bill dialog cannot produce: non-finite or sub-minimum

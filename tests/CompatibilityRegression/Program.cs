@@ -162,6 +162,9 @@ internal static class Program
             object stoppedBy = Field<object>(run, "StoppedBy");
             Check(Field<string>(run, "Status") == "stopped" && Field<string>(stoppedBy, "Kind") == "injured" && Field<string>(stoppedBy, "PawnId") == "B", "a new injury must stop the run");
         });
+        Test("advance retries are recognised across recent runs and need matching arguments", CheckAdvanceReceipts);
+        Test("get_advance answers for the requested run, and a deferred reply stays bound to it", CheckAdvanceWaitBinding);
+        Test("a waiting request returns when its run ends, with that run's result", CheckDeferredDispatch);
         Test("advance reports the most severe stop when several happen in one frame", () =>
         {
             // The game pauses itself for threat letters, and the target can be reached in the same frame.
@@ -320,12 +323,105 @@ internal static class Program
         }
     }
 
-    private static object AdvanceRun(object game, object baseline, string[] stopOn)
+    private static object AdvanceRun(object game, object baseline, string[] stopOn = null, string requestId = null, int id = 1)
     {
         Type type = mod.GetType("RiMCP.Command.AdvanceRun", true);
         stopOn = stopOn ?? (string[])type.GetField("DefaultStopOn").GetValue(null);
         int start = Field<int>(baseline, "Tick");
-        return Activator.CreateInstance(type, new object[] { 1, null, game, TimeSpeed.Superfast, start, start + 100, 1f, stopOn, baseline });
+        return Activator.CreateInstance(type, new object[] { id, requestId, game, TimeSpeed.Superfast, start, start + 100, 1f, stopOn, baseline });
+    }
+
+    private static void CheckAdvanceReceipts()
+    {
+        // FindReceipt is what advance_time consults before starting a run.
+        Type runType = mod.GetType("RiMCP.Command.AdvanceRun", true);
+        MethodInfo find = mod.GetType("RiMCP.Command.AdvanceRunner", true).GetMethod("FindReceipt");
+        string[] stopOn = (string[])runType.GetField("DefaultStopOn").GetValue(null);
+        object game = new object();
+        object first = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), requestId: "first", id: 1);
+        object second = AdvanceRun(game, Observation(game, 200, TimeSpeed.Superfast), requestId: "second", id: 2);
+        Array runs = Array.CreateInstance(runType, 2);
+        runs.SetValue(first, 0);
+        runs.SetValue(second, 1);
+        Func<object, string, float, object> receipt = (forGame, requestId, hours) =>
+            find.Invoke(null, new object[] { runs, forGame, requestId, hours, TimeSpeed.Superfast, stopOn });
+
+        Check(receipt(game, "first", 1f) == first, "a retry must find a run that is no longer the latest");
+        Check(receipt(game, "third", 1f) == null && receipt(game, null, 1f) == null, "new or missing ids must start a run");
+        Check(receipt(new object(), "first", 1f) == null, "runs from another loaded game must not match");
+        ExpectCommandError(409, () => receipt(game, "first", 2f));
+    }
+
+    private static void CheckAdvanceWaitBinding()
+    {
+        // Two runs where the requested one is not the latest. Runs belong to the loaded game, which
+        // is null in this harness.
+        Type runner = mod.GetType("RiMCP.Command.AdvanceRunner", true);
+        IList history = (IList)runner.GetField("history", Static).GetValue(null);
+        FieldInfo latest = runner.GetField("latest", Static);
+        object first = AdvanceRun(null, Observation(null, 100, TimeSpeed.Superfast), id: 1);
+        object second = AdvanceRun(null, Observation(null, 200, TimeSpeed.Superfast), id: 2);
+        history.Add(first);
+        history.Add(second);
+        latest.SetValue(null, second);
+        Func<object, int> runId = response => (int)((Dictionary<string, object>)Data(Json.Deserialize<Dictionary<string, object>>(
+            (string)response.GetType().GetField("Body").GetValue(response)))["run"])["id"];
+        try
+        {
+            object response = Invoke("RiMCP.Command.TimeCommandService", "GetAdvance", Request("/v1/time/advance?runId=1&waitSeconds=5"), Route());
+            Check(runId(response) == 1, "runId must select that run, not the latest");
+            object deferred = response.GetType().GetField("Deferred").GetValue(response);
+            Check(deferred != null, "waiting on a running run must defer the reply");
+            Check(runId(((Delegate)deferred.GetType().GetField("Reply").GetValue(deferred)).DynamicInvoke()) == 1, "the deferred reply must describe the same run");
+            object unknown = Invoke("RiMCP.Command.TimeCommandService", "GetAdvance", Request("/v1/time/advance?runId=9"), Route());
+            Check((int)unknown.GetType().GetField("StatusCode").GetValue(unknown) == 404, "an unknown run must be reported");
+        }
+        finally
+        {
+            history.Clear();
+            latest.SetValue(null, null);
+        }
+    }
+
+    private static void CheckDeferredDispatch()
+    {
+        // The whole bridge path: the request waits off the main thread, returns as soon as its run
+        // ends, and the reply is built for that run. The test thread plays the main thread.
+        Type runner = mod.GetType("RiMCP.Command.AdvanceRunner", true);
+        Type bridge = mod.GetType("RiMCP.Bridge.BridgeRuntime", true);
+        IList history = (IList)runner.GetField("history", Static).GetValue(null);
+        FieldInfo latest = runner.GetField("latest", Static);
+        object first = AdvanceRun(null, Observation(null, 100, TimeSpeed.Superfast), id: 1);
+        object second = AdvanceRun(null, Observation(null, 200, TimeSpeed.Superfast), id: 2);
+        history.Add(first);
+        history.Add(second);
+        latest.SetValue(null, second);
+        try
+        {
+            System.Diagnostics.Stopwatch elapsed = System.Diagnostics.Stopwatch.StartNew();
+            Task<object> call = Task.Run(() => bridge.GetMethod("Dispatch", Static).Invoke(null, new[] { Request("/v1/time/advance?runId=1&waitSeconds=10") }));
+            MethodInfo pump = bridge.GetMethod("ProcessMainThreadQueue", Static);
+            bool ended = false;
+            while (!call.IsCompleted && elapsed.Elapsed.TotalSeconds < 8)
+            {
+                pump.Invoke(null, null);
+                if (!ended && elapsed.Elapsed.TotalMilliseconds > 300)
+                {
+                    Field<System.Threading.ManualResetEventSlim>(first, "Ended").Set();
+                    ended = true;
+                }
+                Thread.Sleep(5);
+            }
+            Check(call.IsCompleted && elapsed.Elapsed.TotalSeconds < 3, "the wait must end when its run ends, not at the timeout");
+            object response = call.Result;
+            string body = (string)response.GetType().GetField("Body").GetValue(response);
+            Check((int)((Dictionary<string, object>)Data(Json.Deserialize<Dictionary<string, object>>(body))["run"])["id"] == 1, "the reply must describe the awaited run: " + body);
+        }
+        finally
+        {
+            history.Clear();
+            latest.SetValue(null, null);
+        }
     }
 
     private static void Step(object run, object observation)
