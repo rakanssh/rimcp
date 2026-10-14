@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RiMCP.Command;
 using RiMCP.Settings;
 
 namespace RiMCP.Bridge
@@ -15,6 +16,8 @@ namespace RiMCP.Bridge
         private static BridgeServer server;
         private static RiMCPSettings settings;
         private static volatile bool allowColonyChanges;
+        private static volatile bool applicationFocused = true;
+        private static volatile bool runInBackground;
 
         public static bool AllowColonyChanges
         {
@@ -55,9 +58,40 @@ namespace RiMCP.Bridge
             settings = newSettings;
         }
 
+        // Unity stops calling Update while RimWorld is unfocused unless it runs in the background.
+        public static bool MainThreadAvailable
+        {
+            get { return applicationFocused || runInBackground; }
+        }
+
+        public static void SetApplicationFocused(bool focused)
+        {
+            applicationFocused = focused;
+        }
+
+        public static void SetRunInBackground(bool enabled)
+        {
+            runInBackground = enabled;
+        }
+
         public static BridgeResponse Dispatch(BridgeRequest request)
         {
-            return Dispatcher.Invoke(() => BridgeRouter.Handle(request), MainThreadWaitMs);
+            if (!MainThreadAvailable)
+            {
+                return BridgeResponse.Error(503, "RimWorld is in the background with Run in background off, so it is not processing requests. Bring RimWorld to the front, or enable Run in background in its options.");
+            }
+
+            BridgeResponse response = Dispatcher.Invoke(() => BridgeRouter.Handle(request), MainThreadWaitMs);
+            double waitSeconds = AdvanceRunner.RequestedWaitSeconds(request);
+            if (waitSeconds <= 0 || response.StatusCode != 200)
+            {
+                return response;
+            }
+
+            // advance_time and get_advance can wait for the run to end. The wait happens here, off
+            // the main thread, so the game keeps running; the reply is a fresh get_advance.
+            AdvanceRunner.WaitForEnd(waitSeconds);
+            return Dispatch(new BridgeRequest("GET", new Uri(request.Uri.GetLeftPart(UriPartial.Authority) + AdvanceRunner.Path), null));
         }
 
         public static void ProcessMainThreadQueue()

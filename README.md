@@ -18,6 +18,7 @@ Current MCP tools:
 | Map state | `list_resources`, `list_zones`, `get_zone`, `list_buildings`, `get_building`, `get_environment`, `get_power`, `list_threats` | Inspect stockpiles, growing zones, buildings, storage contents, weather, rooms, power grids, hazards, fires, and hostile activity. |
 | Animals | `designate_animal`, `set_animal_training` | Set hunt/tame/slaughter designations and colony animal training flags. |
 | Research and ideology | `get_research`, `set_research_project`, `list_ideoligions`, `get_ideoligion` | Inspect or choose research, and inspect Ideology data when the expansion is active. |
+| Time | `set_game_speed`, `advance_time`, `get_advance` | Pause or set the speed, or run the game for a set number of in-game hours and pause again. A run stops early on deaths, downed or injured colonists, mental breaks, hostiles, or threat letters, and reports what happened. Changes require **Allow changes**. |
 | World and defs | `list_quests`, `list_world`, `search_defs`, `get_def` | Inspect quests, factions, world objects, and loaded definitions with their defining mod when known. |
 
 Most tools accept the same optional read controls:
@@ -61,6 +62,8 @@ Current command HTTP endpoints:
 - `PUT /v1/animals/{pawnId}/designation`
 - `PUT /v1/animals/{pawnId}/training`
 - `PUT /v1/research/current`
+- `PUT /v1/time/speed`
+- `POST /v1/time/advance`
 
 ## Building From Source
 

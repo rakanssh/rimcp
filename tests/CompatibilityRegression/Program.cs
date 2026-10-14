@@ -130,6 +130,47 @@ internal static class Program
             Data(Call("DefReadService", "GetDef", "/v1/defs/SubclassProbe?kind=probeWorkType", "defName", "SubclassProbe"));
         });
         Test("dispatcher spreads a burst across frames within its time budget", CheckDispatcherBudget);
+        Test("advance runs complete at the target and end on outside changes", () =>
+        {
+            object game = new object();
+            object done = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), null);
+            Step(done, Observation(game, 150, TimeSpeed.Superfast));
+            Check(Field<string>(done, "Status") == "running", "a run must keep going before its target");
+            Step(done, Observation(game, 200, TimeSpeed.Superfast));
+            Check(Field<string>(done, "Status") == "completed" && Field<int>(done, "EndTick") == 200, "a run must complete at its target tick");
+
+            object paused = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), null);
+            Step(paused, Observation(game, 150, TimeSpeed.Paused));
+            Check(Field<string>(paused, "Status") == "interrupted" && Field<string>(paused, "EndReason") == "paused", "an outside pause must interrupt the run");
+
+            object reloaded = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), null);
+            Step(reloaded, Observation(new object(), 150, TimeSpeed.Superfast));
+            Check(Field<string>(reloaded, "EndReason") == "gameUnloaded", "loading another game must interrupt the run");
+        });
+        Test("advance stop conditions fire on changes during the run, not on the starting state", () =>
+        {
+            object game = new object();
+            object start = Observation(game, 100, TimeSpeed.Superfast, null,
+                new[] { Colonist("A", bleeding: true), Colonist("B") }, new[] { Letter(1, "Old raid", true) });
+            object run = AdvanceRun(game, start, null);
+            Step(run, Observation(game, 110, TimeSpeed.Superfast, null,
+                new[] { Colonist("A", bleeding: true), Colonist("B") }, new[] { Letter(1, "Old raid", true), Letter(2, "Trader", false) }));
+            Check(Field<string>(run, "Status") == "running", "existing injuries, old letters, and unrequested conditions must not stop the run");
+            Check(Events(run).Single() == "letter", "unrequested conditions must still be recorded");
+            Step(run, Observation(game, 120, TimeSpeed.Superfast, null,
+                new[] { Colonist("A", bleeding: true), Colonist("B", injuries: 1) }, new[] { Letter(1, "Old raid", true), Letter(2, "Trader", false) }));
+            object stoppedBy = Field<object>(run, "StoppedBy");
+            Check(Field<string>(run, "Status") == "stopped" && Field<string>(stoppedBy, "Kind") == "injured" && Field<string>(stoppedBy, "PawnId") == "B", "a new injury must stop the run");
+        });
+        Test("advance reports the most severe stop when several happen in one frame", () =>
+        {
+            // The game pauses itself for threat letters, and the target can be reached in the same frame.
+            object game = new object();
+            object run = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast, null, new[] { Colonist("A") }, new object[0]), null);
+            Step(run, Observation(game, 300, TimeSpeed.Paused, "Raider", new[] { Colonist("A", downed: true) }, new[] { Letter(7, "Raid", true) }));
+            Check(Field<string>(run, "Status") == "stopped" && Field<string>(Field<object>(run, "StoppedBy"), "Kind") == "downed", "the downed colonist must be reported as the cause");
+            Check(Events(run).SequenceEqual(new[] { "downed", "hostiles", "threatLetter" }), "every change must be recorded in severity order: " + string.Join(", ", Events(run)));
+        });
         Test("bill repeatCount appears in summary and full detail", CheckBillRepeatCount);
         Test("bill settings reject values the bill dialog cannot produce", CheckBillSettingsValidation);
         Test("pawn work reads leave uninitialized work settings untouched", () =>
@@ -277,6 +318,56 @@ internal static class Program
             object ms = responseType.GetField("MainThreadMs").GetValue(caller.Result);
             Check(ms != null && (double)ms >= 9, "response must record main-thread time");
         }
+    }
+
+    private static object AdvanceRun(object game, object baseline, string[] stopOn)
+    {
+        Type type = mod.GetType("RiMCP.Command.AdvanceRun", true);
+        stopOn = stopOn ?? (string[])type.GetField("DefaultStopOn").GetValue(null);
+        int start = Field<int>(baseline, "Tick");
+        return Activator.CreateInstance(type, new object[] { 1, null, game, TimeSpeed.Superfast, start, start + 100, 1f, stopOn, baseline });
+    }
+
+    private static void Step(object run, object observation)
+    {
+        run.GetType().GetMethod("Step").Invoke(run, new[] { observation });
+    }
+
+    private static object Observation(object game, int tick, TimeSpeed speed, string threat = null, object[] colonists = null, object[] letters = null)
+    {
+        object observation = New("AdvanceObservation", "Game", game, "Playing", true, "Tick", tick, "Speed", speed, "Threat", threat);
+        IDictionary colonistsById = Field<IDictionary>(observation, "Colonists");
+        foreach (object colonist in colonists ?? new object[0]) colonistsById[Field<string>(colonist, "Id")] = colonist;
+        IDictionary lettersById = Field<IDictionary>(observation, "Letters");
+        foreach (object letter in letters ?? new object[0]) lettersById[Field<int>(letter, "Id")] = letter;
+        return observation;
+    }
+
+    private static object Colonist(string id, bool downed = false, bool bleeding = false, int injuries = 0)
+    {
+        return New("ColonistState", "Id", id, "Name", id, "Downed", downed, "Bleeding", bleeding, "Injuries", injuries);
+    }
+
+    private static object Letter(int id, string label, bool threat)
+    {
+        return New("LetterState", "Id", id, "Label", label, "Threat", threat);
+    }
+
+    private static string[] Events(object run)
+    {
+        return Field<IEnumerable>(run, "Events").Cast<object>().Select(change => Field<string>(change, "Kind")).ToArray();
+    }
+
+    private static object New(string type, params object[] fields)
+    {
+        object value = Activator.CreateInstance(mod.GetType("RiMCP.Command." + type, true), true);
+        for (int i = 0; i < fields.Length; i += 2) value.GetType().GetField((string)fields[i]).SetValue(value, fields[i + 1]);
+        return value;
+    }
+
+    private static T Field<T>(object value, string name)
+    {
+        return (T)value.GetType().GetField(name).GetValue(value);
     }
 
     private static void ExpectCommandError(int status, Action action)

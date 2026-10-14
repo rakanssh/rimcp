@@ -48,6 +48,9 @@ namespace RiMCP.Bridge
             { "designate-animal", AnimalCommandService.SetDesignation },
             { "set-animal-training", AnimalCommandService.SetTraining },
             { "set-research-current", ResearchCommandService.SetCurrent },
+            { "set-game-speed", TimeCommandService.SetGameSpeed },
+            { "advance-time", TimeCommandService.StartAdvance },
+            { "get-advance", TimeCommandService.GetAdvance },
             { "tools", ToolReadService.GetTools }
         };
 

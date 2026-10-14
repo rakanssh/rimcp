@@ -188,6 +188,9 @@ namespace RiMCP.Shared
                 Put("designate-animal", "designate_animal", "Set or clear one animal's hunt, tame, or slaughter designation.", "/v1/animals/{pawnId}/designation", RequiredWithMap(Prop("pawnId", Str("Animal pawn ThingID or load id.")), Prop("action", AnimalDesignationAction())), IdempotentDestructiveMutation(), Body("mapId", "action")),
                 Put("set-animal-training", "set_animal_training", "Set desired training flags for one colony animal by TrainableDef defName.", "/v1/animals/{pawnId}/training", RequiredWithMap(Prop("pawnId", Str("Colony animal pawn ThingID or load id.")), Prop("assignments", TrainingAssignments())), IdempotentMutation(), Body("mapId", "assignments")),
                 Put("set-research-current", "set_research_project", "Set the current research project by ResearchProjectDef defName.", "/v1/research/current", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), IdempotentMutation(), Body("projectDefName")),
+                Put("set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time. Requires Allow changes.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
+                Post("advance-time", "advance_time", "Run the game for up to 24 in-game hours, then pause it. The run stops early, and pauses, when a stopOn condition happens; the result lists what happened and why it ended. One run at a time: retry with the same requestId to get the same run back instead of starting another. Pass waitSeconds to wait for the result in this call, otherwise follow up with get_advance. Requires Allow changes.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
+                Get("get-advance", "get_advance", "Get the game's tick and speed, and the current or most recent advance_time run: its status, what happened, and why it ended. Pass waitSeconds to wait for a running advance to end first.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("waitSeconds", WaitSeconds())), "waitSeconds"),
                 RouteOnly("tools", "GET", "/v1/tools")
             };
         }
@@ -207,9 +210,29 @@ namespace RiMCP.Shared
             return new ToolSpec(handlerId, name, description, "PUT", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
         }
 
-        private static ToolSpec Post(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
+        private static ToolSpec Post(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys, params string[] queryKeys)
         {
-            return new ToolSpec(handlerId, name, description, "POST", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
+            return new ToolSpec(handlerId, name, description, "POST", pathTemplate, queryKeys, bodyKeys, inputSchema, annotations, true);
+        }
+
+        private static Dictionary<string, object> AdvanceTimeInput()
+        {
+            Dictionary<string, object> schema = ObjectSchema(J(
+                F("hours", J(F("type", "number"), F("minimum", 0.1), F("maximum", 24), F("description", "In-game hours to run, from 0.1 to 24. One hour is 2,500 ticks."))),
+                F("speed", EnumString("Speed while running. Defaults to Superfast. The game still drops to normal speed during danger, as it does for players. Ultrafast needs development mode.", "Normal", "Fast", "Superfast", "Ultrafast")),
+                F("stopOn", J(
+                    F("type", "array"),
+                    F("items", EnumString("Condition.", "death", "downed", "injured", "mentalBreak", "hostiles", "threatLetter", "letter")),
+                    F("description", "Conditions that end the run early and pause. Defaults to death, downed, injured (new injury or bleeding), mentalBreak, hostiles (a visible hostile threat appears), and threatLetter. letter stops on any letter. An empty list runs to the end. Checked every frame."))),
+                F("requestId", J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat with the same id returns the existing run."))),
+                F("waitSeconds", WaitSeconds())),
+                "hours");
+            return schema;
+        }
+
+        private static Dictionary<string, object> WaitSeconds()
+        {
+            return J(F("type", "number"), F("minimum", 0), F("maximum", 30), F("description", "Seconds to wait for the run to end before replying, up to 30. Defaults to 0."));
         }
 
         private static Dictionary<string, object> GameSettingsInput()

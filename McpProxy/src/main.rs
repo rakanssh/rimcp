@@ -4,15 +4,18 @@ mod protocol;
 use manifest::{Manifest, Tool};
 use protocol::{failure, result, tool_error};
 use serde_json::{json, Map, Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
 use std::io::{self, BufRead, Read, Write};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 use ureq::http::{HeaderValue, Uri};
 
 const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
 const MAX_RESPONSE_BYTES: u64 = 16 * 1024 * 1024;
+const WORKERS: usize = 8;
 
 type ProxyError = Box<dyn Error>;
 
@@ -21,6 +24,14 @@ struct Proxy {
     base_url: String,
     authorization: Option<HeaderValue>,
     agent: ureq::Agent,
+    // Ids of tool calls in progress, and whether the client cancelled each one.
+    in_flight: Mutex<HashMap<String, bool>>,
+}
+
+enum Dispatch {
+    Reply(Value),
+    Silent,
+    Call(Value, Value),
 }
 
 fn main() {
@@ -37,13 +48,54 @@ fn main() {
 }
 
 fn run() -> Result<(), ProxyError> {
-    let proxy = Proxy::new()?;
-    let mut input = io::stdin().lock();
-    let mut output = io::BufWriter::new(io::stdout().lock());
+    serve(Arc::new(Proxy::new()?), io::stdin().lock(), io::stdout())
+}
+
+/// Reads requests in order but runs tool calls on worker threads, so a slow call does not hold up
+/// pings or other calls. Responses carry their request ids and may arrive in any order.
+fn serve<W: Write + Send + 'static>(
+    proxy: Arc<Proxy>,
+    mut input: impl BufRead,
+    output: W,
+) -> Result<(), ProxyError> {
+    let output = Arc::new(Mutex::new(io::BufWriter::new(output)));
+    let (calls, queue) = mpsc::channel::<(Value, Value)>();
+    let queue = Arc::new(Mutex::new(queue));
+    let workers: Vec<_> = (0..WORKERS)
+        .map(|_| {
+            let (proxy, output, queue) = (proxy.clone(), output.clone(), queue.clone());
+            thread::spawn(move || loop {
+                let next = match queue.lock() {
+                    Ok(queue) => queue.recv(),
+                    Err(_) => break,
+                };
+                let Ok((id, params)) = next else { break };
+                let response = proxy.call(&id, &params);
+                if proxy.finish(&id) && write_line(&output, &response).is_err() {
+                    break;
+                }
+            })
+        })
+        .collect();
+    read_requests(&proxy, &mut input, &output, &calls)?;
+    // Input closed: let calls already in progress answer before exiting.
+    drop(calls);
+    for worker in workers {
+        let _ = worker.join();
+    }
+    Ok(())
+}
+
+fn read_requests<W: Write>(
+    proxy: &Proxy,
+    input: &mut impl BufRead,
+    output: &Mutex<io::BufWriter<W>>,
+    calls: &mpsc::Sender<(Value, Value)>,
+) -> Result<(), ProxyError> {
     let mut line = Vec::new();
     loop {
         line.clear();
-        if (&mut input)
+        if (&mut *input)
             .take(MAX_REQUEST_BYTES + 2)
             .read_until(b'\n', &mut line)?
             == 0
@@ -57,22 +109,34 @@ fn run() -> Result<(), ProxyError> {
                 line.pop();
             }
         }
-        let response = if line.len() as u64 > MAX_REQUEST_BYTES {
+        let dispatch = if line.len() as u64 > MAX_REQUEST_BYTES {
             // Drain the rest without retaining it, then resume with the next request.
             if !terminated {
                 input.skip_until(b'\n')?;
             }
-            Some(failure(&Value::Null, -32600, "Request exceeds 1 MiB."))
+            Dispatch::Reply(failure(&Value::Null, -32600, "Request exceeds 1 MiB."))
         } else if line.iter().all(u8::is_ascii_whitespace) {
-            None
+            Dispatch::Silent
         } else {
-            proxy.handle(&line)
+            proxy.dispatch(&line)
         };
-        if let Some(response) = response {
-            writeln!(output, "{response}")?;
-            output.flush()?;
+        match dispatch {
+            Dispatch::Reply(response) => write_line(output, &response)?,
+            Dispatch::Silent => {}
+            Dispatch::Call(id, params) => {
+                proxy.begin(&id);
+                calls.send((id, params))?;
+            }
         }
     }
+}
+
+fn write_line<W: Write>(output: &Mutex<io::BufWriter<W>>, value: &Value) -> io::Result<()> {
+    let mut output = output
+        .lock()
+        .map_err(|_| io::Error::other("output lock poisoned"))?;
+    writeln!(output, "{value}")?;
+    output.flush()
 }
 
 impl Proxy {
@@ -105,49 +169,94 @@ impl Proxy {
                 .http_status_as_error(false)
                 .build()
                 .into(),
+            in_flight: Mutex::new(HashMap::new()),
         })
     }
 
+    #[cfg(test)]
     fn handle(&self, raw: &[u8]) -> Option<Value> {
+        match self.dispatch(raw) {
+            Dispatch::Reply(response) => Some(response),
+            Dispatch::Silent => None,
+            Dispatch::Call(id, params) => Some(self.call(&id, &params)),
+        }
+    }
+
+    fn begin(&self, id: &Value) {
+        if let Ok(mut in_flight) = self.in_flight.lock() {
+            in_flight.insert(id.to_string(), false);
+        }
+    }
+
+    fn cancel(&self, id: &Value) {
+        if let Ok(mut in_flight) = self.in_flight.lock() {
+            if let Some(cancelled) = in_flight.get_mut(&id.to_string()) {
+                *cancelled = true;
+            }
+        }
+    }
+
+    /// Ends tracking for a call and reports whether its response should be sent.
+    fn finish(&self, id: &Value) -> bool {
+        self.in_flight
+            .lock()
+            .map(|mut in_flight| in_flight.remove(&id.to_string()) != Some(true))
+            .unwrap_or(true)
+    }
+
+    fn dispatch(&self, raw: &[u8]) -> Dispatch {
         let fields = match protocol::parse(raw) {
             Ok(fields) => fields,
-            Err(error) => return Some(error),
+            Err(error) => return Dispatch::Reply(error),
         };
         let id = fields.get("id").unwrap_or(&Value::Null);
         if !id.is_null() && !id.is_string() && !id.is_number() {
-            return Some(failure(
+            return Dispatch::Reply(failure(
                 &Value::Null,
                 -32600,
                 "Request id must be a string, number, or null.",
             ));
         }
         if fields.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-            return Some(failure(id, -32600, "Request must use JSON-RPC 2.0."));
+            return Dispatch::Reply(failure(id, -32600, "Request must use JSON-RPC 2.0."));
         }
         let method = fields
             .get("method")
             .and_then(Value::as_str)
             .unwrap_or_default();
         if method.trim().is_empty() {
-            return Some(failure(id, -32600, "Method must be a non-empty string."));
+            return Dispatch::Reply(failure(id, -32600, "Method must be a non-empty string."));
         }
         if !fields.contains_key("id") {
-            return None;
+            if method == "notifications/cancelled" {
+                if let Some(request) = fields
+                    .get("params")
+                    .and_then(|params| params.get("requestId"))
+                {
+                    self.cancel(request);
+                }
+            }
+            return Dispatch::Silent;
         }
         match method {
-            "ping" => Some(result(id, json!({}))),
-            "initialize" => Some(result(
+            "ping" => Dispatch::Reply(result(id, json!({}))),
+            "initialize" => Dispatch::Reply(result(
                 id,
                 json!({
                     "protocolVersion": "2025-11-25", "capabilities": {"tools": {}},
                     "serverInfo": {"name": "rimcp", "version": self.manifest.version}
                 }),
             )),
-            "notifications/initialized" => None,
-            "tools/list" => Some(result(id, json!({"tools": self.manifest.tools}))),
-            "tools/call" => Some(self.call(id, fields.get("params").unwrap_or(&Value::Null))),
-            _ if !id.is_null() => Some(failure(id, -32601, &format!("Method not found: {method}"))),
-            _ => None,
+            "notifications/initialized" => Dispatch::Silent,
+            "tools/list" => Dispatch::Reply(result(id, json!({"tools": self.manifest.tools}))),
+            "tools/call" => Dispatch::Call(
+                id.clone(),
+                fields.get("params").cloned().unwrap_or(Value::Null),
+            ),
+            _ if !id.is_null() => {
+                Dispatch::Reply(failure(id, -32601, &format!("Method not found: {method}")))
+            }
+            _ => Dispatch::Silent,
         }
     }
 
@@ -342,6 +451,7 @@ mod tests {
             base_url: String::new(),
             authorization: None,
             agent: ureq::Agent::config_builder().build().into(),
+            in_flight: Mutex::new(HashMap::new()),
         }
     }
 
@@ -384,5 +494,118 @@ mod tests {
                 "Request id must be a string, number, or null."
             ))
         );
+    }
+
+    /// A stand-in bridge: `/v1/slow` answers after 400 ms, everything else at once.
+    fn fake_bridge() -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                thread::spawn(move || {
+                    let mut reader = io::BufReader::new(stream.try_clone().unwrap());
+                    let mut request_line = String::new();
+                    reader.read_line(&mut request_line).unwrap();
+                    let mut header = String::new();
+                    while reader.read_line(&mut header).unwrap() > 2 {
+                        header.clear();
+                    }
+                    if request_line.contains("/v1/slow") {
+                        thread::sleep(Duration::from_millis(400));
+                    }
+                    let body = r#"{"tick":1}"#;
+                    write!(
+                        &stream,
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                    .unwrap();
+                });
+            }
+        });
+        format!("http://{address}")
+    }
+
+    fn bridge_proxy() -> Arc<Proxy> {
+        let tool = |name: &str| Tool {
+            name: name.into(),
+            description: String::new(),
+            input_schema: Map::new(),
+            annotations: Map::new(),
+            method: manifest::Method::Get,
+            path_template: format!("/v1/{name}"),
+            query_keys: Vec::new(),
+            body_keys: Vec::new(),
+        };
+        Arc::new(Proxy {
+            manifest: Manifest {
+                version: "test".into(),
+                tools: vec![tool("slow"), tool("fast")],
+            },
+            base_url: fake_bridge(),
+            authorization: None,
+            agent: ureq::Agent::config_builder()
+                .http_status_as_error(false)
+                .build()
+                .into(),
+            in_flight: Mutex::new(HashMap::new()),
+        })
+    }
+
+    #[derive(Clone, Default)]
+    struct Captured(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Captured {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn served_ids(requests: &[Value]) -> Vec<Value> {
+        let input = requests
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let output = Captured::default();
+        serve(bridge_proxy(), io::Cursor::new(input), output.clone()).unwrap();
+        let text = String::from_utf8(output.0.lock().unwrap().clone()).unwrap();
+        text.lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap()["id"].clone())
+            .collect()
+    }
+
+    fn tool_call(id: u64, name: &str) -> Value {
+        json!({"jsonrpc": "2.0", "id": id, "method": "tools/call", "params": {"name": name, "arguments": {}}})
+    }
+
+    #[test]
+    fn slow_tool_calls_do_not_hold_up_later_requests() {
+        let ids = served_ids(&[
+            tool_call(1, "slow"),
+            tool_call(2, "fast"),
+            json!({"jsonrpc": "2.0", "id": 3, "method": "ping"}),
+        ]);
+        assert_eq!(ids.len(), 3);
+        assert_eq!(
+            ids.last(),
+            Some(&json!(1)),
+            "the slow call must answer last: {ids:?}"
+        );
+    }
+
+    #[test]
+    fn cancelled_tool_calls_get_no_response() {
+        let ids = served_ids(&[
+            tool_call(1, "slow"),
+            json!({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 1}}),
+            tool_call(2, "fast"),
+        ]);
+        assert_eq!(ids, [json!(2)]);
     }
 }

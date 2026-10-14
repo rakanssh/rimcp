@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Time control: `set_game_speed`, and `advance_time`/`get_advance` to run the game for up to 24 in-game hours, stopping and pausing on emergencies.
+- The proxy runs tool calls concurrently and honours cancellation. Requests fail immediately when RimWorld is in the background with Run in background off.
+
 ### Fixed
 
 - Commands follow the game's own checks: drafting, prisoner modes (Convert now works), work priorities, animal designations, and bills.

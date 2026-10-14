@@ -1,4 +1,5 @@
 using RiMCP.Bridge;
+using RiMCP.Command;
 using UnityEngine;
 
 namespace RiMCP
@@ -14,6 +15,8 @@ namespace RiMCP
                 return;
             }
 
+            BridgeRuntime.SetApplicationFocused(Application.isFocused);
+            BridgeRuntime.SetRunInBackground(Application.runInBackground);
             GameObject gameObject = new GameObject("RiMCP Driver");
             DontDestroyOnLoad(gameObject);
             instance = gameObject.AddComponent<RiMCPUnityDriver>();
@@ -21,7 +24,14 @@ namespace RiMCP
 
         private void Update()
         {
+            BridgeRuntime.SetRunInBackground(Application.runInBackground);
+            AdvanceRunner.Update();
             BridgeRuntime.ProcessMainThreadQueue();
+        }
+
+        private void OnApplicationFocus(bool focused)
+        {
+            BridgeRuntime.SetApplicationFocused(focused);
         }
 
         private void OnApplicationQuit()

@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The sixteen checks cover:
+The nineteen checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values.
@@ -38,6 +38,10 @@ The sixteen checks cover:
 - Def search by a def subclass kind, whose defs live in the ancestor's database.
 - A main-thread dispatcher that spreads a burst of requests across frames and
   records each request's main-thread time.
+- The `advance_time` run lifecycle, driven by synthetic observations: completion at
+  the target tick, interruption by an outside pause or another game, stops on
+  changes during the run but not on the starting state, and severity order when
+  several things happen in one frame. Observing a live game is a live-game test.
 - `repeatCount` in both summary and full bill serialization, independently of
   `targetCount`.
 - Bill settings that the bill dialog cannot produce: non-finite or sub-minimum
