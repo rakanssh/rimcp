@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The twenty-two checks cover:
+The twenty-five checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values.
@@ -47,6 +47,11 @@ The twenty-two checks cover:
 - Waiting stays bound to one run: `get_advance` answers for the requested run id,
   and a waiting request returns when that run ends, through the real bridge
   dispatch with the test thread acting as the main thread.
+- An injected observation failure ends the run and pauses the game, while a pause by
+  someone else does not trigger another pause.
+- `get_advance` only defaults to a run from the loaded game.
+- Load ids that change with every loaded game, and the router refusing a command
+  whose `expectedLoadId` names an earlier load.
 - `repeatCount` in both summary and full bill serialization, independently of
   `targetCount`.
 - Bill settings that the bill dialog cannot produce: non-finite or sub-minimum

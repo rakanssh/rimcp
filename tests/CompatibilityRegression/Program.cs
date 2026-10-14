@@ -165,6 +165,22 @@ internal static class Program
         Test("advance retries are recognised across recent runs and need matching arguments", CheckAdvanceReceipts);
         Test("get_advance answers for the requested run, and a deferred reply stays bound to it", CheckAdvanceWaitBinding);
         Test("a waiting request returns when its run ends, with that run's result", CheckDeferredDispatch);
+        Test("an observation failure ends the run and pauses, while an outside pause is left alone", CheckObserverFailure);
+        Test("get_advance only defaults to a run from the loaded game", () =>
+        {
+            FieldInfo latest = mod.GetType("RiMCP.Command.AdvanceRunner", true).GetField("latest", Static);
+            object game = new object();
+            latest.SetValue(null, AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast)));
+            try
+            {
+                Check(!Data(Call("TimeCommandService", "GetAdvance", "/v1/time/advance", null, null, "RiMCP.Command.")).ContainsKey("run"), "a run from another save must not be reported as current");
+            }
+            finally
+            {
+                latest.SetValue(null, null);
+            }
+        });
+        Test("load ids change with every loaded game and guard commands", CheckLoadGuard);
         Test("advance reports the most severe stop when several happen in one frame", () =>
         {
             // The game pauses itself for threat letters, and the target can be reached in the same frame.
@@ -466,6 +482,68 @@ internal static class Program
         return (T)value.GetType().GetField(name).GetValue(value);
     }
 
+    private static void CheckObserverFailure()
+    {
+        Type runner = mod.GetType("RiMCP.Command.AdvanceRunner", true);
+        Type observationType = mod.GetType("RiMCP.Command.AdvanceObservation", true);
+        FieldInfo observer = runner.GetField("Observer", Static);
+        FieldInfo latest = runner.GetField("latest", Static);
+        object original = observer.GetValue(null);
+        object run = AdvanceRun(null, Observation(null, 100, TimeSpeed.Superfast));
+        observer.SetValue(null, Expression.Lambda(typeof(Func<>).MakeGenericType(observationType),
+            Expression.Throw(Expression.New(typeof(InvalidOperationException).GetConstructor(new[] { typeof(string) }), Expression.Constant("probe")), observationType)).Compile());
+        latest.SetValue(null, run);
+        try
+        {
+            runner.GetMethod("Update", Static).Invoke(null, null);
+            Check(Field<string>(run, "Status") == "interrupted" && Field<string>(run, "EndReason").StartsWith("error: InvalidOperationException: probe"), "a failed observation must end the run with the error");
+            Check((bool)run.GetType().GetProperty("PausesGameAtEnd").GetValue(run), "a failed run must pause the game it was running");
+            Check(Field<System.Threading.ManualResetEventSlim>(run, "Ended").IsSet, "waiting requests must be released");
+        }
+        finally
+        {
+            observer.SetValue(null, original);
+            latest.SetValue(null, null);
+        }
+
+        object game = new object();
+        object paused = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast));
+        Step(paused, Observation(game, 150, TimeSpeed.Paused));
+        Check(!(bool)paused.GetType().GetProperty("PausesGameAtEnd").GetValue(paused), "a pause by someone else must not trigger another pause");
+    }
+
+    private static void CheckLoadGuard()
+    {
+        Type context = mod.GetType("RiMCP.Bridge.GameContext", true);
+        Func<string> loadId = () => (string)context.GetProperty("LoadId", Static).GetValue(null);
+        FieldInfo allowChanges = mod.GetType("RiMCP.Bridge.BridgeRuntime", true).GetField("allowColonyChanges", Static);
+        MethodInfo handle = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static);
+        Func<string, object> put = body => handle.Invoke(null, new[] { Request("/v1/time/speed", "PUT", body) });
+        Func<object, string> bodyOf = response => (string)response.GetType().GetField("Body").GetValue(response);
+        try
+        {
+            Check(loadId() == null, "no game means no load id");
+            Current.Game = (Game)FormatterServices.GetUninitializedObject(typeof(Game));
+            string first = loadId();
+            Check(first != null && loadId() == first, "a load id must stay the same while the game stays loaded");
+            Current.Game = (Game)FormatterServices.GetUninitializedObject(typeof(Game));
+            string second = loadId();
+            Check(second != null && second != first, "another load must get a new id");
+
+            allowChanges.SetValue(null, true);
+            object stale = put("{\"speed\":\"Paused\",\"expectedLoadId\":\"" + first + "\"}");
+            Check((int)stale.GetType().GetField("StatusCode").GetValue(stale) == 409 && bodyOf(stale).Contains("Another save was loaded"), "a command planned for an earlier load must be refused: " + bodyOf(stale));
+            // The matching id passes the guard and reaches the handler, which needs a playing game.
+            Check(!bodyOf(put("{\"speed\":\"Paused\",\"expectedLoadId\":\"" + second + "\"}")).Contains("Another save was loaded"), "the current load id must pass the guard");
+            Check(!bodyOf(put("{\"speed\":\"Paused\"}")).Contains("Another save was loaded"), "the guard is optional");
+        }
+        finally
+        {
+            allowChanges.SetValue(null, false);
+            Current.Game = null;
+        }
+    }
+
     private static void ExpectCommandError(int status, Action action)
     {
         try
@@ -491,9 +569,9 @@ internal static class Program
         if (key != null) values[key] = value;
         return Activator.CreateInstance(mod.GetType("RiMCP.Bridge.RouteMatch", true), new object[] { values });
     }
-    private static Dictionary<string, object> Call(string service, string method, string path, string key = null, string value = null)
+    private static Dictionary<string, object> Call(string service, string method, string path, string key = null, string value = null, string ns = "RiMCP.Read.")
     {
-        object response = Invoke("RiMCP.Read." + service, method, Request(path), Route(key, value));
+        object response = Invoke(ns + service, method, Request(path), Route(key, value));
         Check((int)response.GetType().GetField("StatusCode").GetValue(response) == 200, "endpoint did not return status 200");
         return Json.Deserialize<Dictionary<string, object>>((string)response.GetType().GetField("Body").GetValue(response));
     }

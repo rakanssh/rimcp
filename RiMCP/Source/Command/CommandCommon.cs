@@ -35,6 +35,7 @@ namespace RiMCP.Command
         {
             object envelope = Dto.Obj(
                 Dto.Field("schemaVersion", "1"),
+                Dto.Field("loadId", GameContext.LoadId),
                 Dto.Field("tick", context.Tick),
                 Dto.Field("mapId", context.Map == null ? null : context.Map.uniqueID.ToString()),
                 Dto.Field("changed", changed),

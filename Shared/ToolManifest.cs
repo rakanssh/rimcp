@@ -207,12 +207,19 @@ namespace RiMCP.Shared
 
         private static ToolSpec Put(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
         {
-            return new ToolSpec(handlerId, name, description, "PUT", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
+            return new ToolSpec(handlerId, name, description, "PUT", pathTemplate, new string[0], WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
         }
 
         private static ToolSpec Post(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys, params string[] queryKeys)
         {
-            return new ToolSpec(handlerId, name, description, "POST", pathTemplate, queryKeys, bodyKeys, inputSchema, annotations, true);
+            return new ToolSpec(handlerId, name, description, "POST", pathTemplate, queryKeys, WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
+        }
+
+        // Writes accept the loadId from an earlier response; the bridge refuses them after another load.
+        private static string[] WithLoadGuard(Dictionary<string, object> inputSchema, string[] bodyKeys)
+        {
+            ((Dictionary<string, object>)inputSchema["properties"])["expectedLoadId"] = Str("Optional loadId from an earlier response. The command is refused if another save has been loaded since.");
+            return bodyKeys.Concat(new[] { "expectedLoadId" }).ToArray();
         }
 
         private static Dictionary<string, object> AdvanceTimeInput()

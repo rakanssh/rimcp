@@ -79,6 +79,7 @@ namespace RiMCP.Command
         public int Frames;
         public double FrameMsTotal;
         public double FrameMsMax;
+        public bool Failed;
 
         public AdvanceRun(int id, string requestId, object game, TimeSpeed speed, int startTick, int targetTick, float hours, IEnumerable<string> stopOn, AdvanceObservation baseline)
         {
@@ -140,6 +141,19 @@ namespace RiMCP.Command
             Frames++;
             FrameMsTotal += milliseconds;
             FrameMsMax = Math.Max(FrameMsMax, milliseconds);
+        }
+
+        // The run owns time until it ends: completing, stopping, or failing pauses the game. A pause
+        // or speed change by someone else is left alone.
+        public bool PausesGameAtEnd
+        {
+            get { return Failed || Status == "stopped" || Status == "completed"; }
+        }
+
+        public void Fail(string message, int tick)
+        {
+            Failed = true;
+            End("interrupted", "error: " + message, tick);
         }
 
         public void End(string status, string reason, int tick)
@@ -227,9 +241,12 @@ namespace RiMCP.Command
         private static int nextId;
         private static List<Pawn> tracked = new List<Pawn>();
 
-        public static AdvanceRun Latest
+        // Replaceable so tests can simulate an observation failure.
+        internal static Func<AdvanceObservation> Observer = Observe;
+
+        public static AdvanceRun LatestInLoadedGame
         {
-            get { return latest; }
+            get { return latest != null && ReferenceEquals(latest.Game, Current.Game) ? latest : null; }
         }
 
         public static AdvanceRun RunById(int id)
@@ -308,16 +325,14 @@ namespace RiMCP.Command
                 return;
             }
 
-            bool failed = false;
             Stopwatch frame = Stopwatch.StartNew();
             try
             {
-                run.Step(Observe());
+                run.Step(Observer());
             }
             catch (Exception ex)
             {
-                run.End("interrupted", "error: " + ex.GetType().Name + ": " + ex.Message, run.Previous.Tick);
-                failed = true;
+                run.Fail(ex.GetType().Name + ": " + ex.Message, run.Previous.Tick);
             }
             run.RecordFrame(frame.Elapsed.TotalMilliseconds);
             if (run.Status == AdvanceRun.Running)
@@ -325,10 +340,7 @@ namespace RiMCP.Command
                 return;
             }
 
-            // The run owns time until it ends: pause when it completes, stops, or fails. A pause or
-            // speed change by someone else is left alone.
-            bool ownsTime = failed || run.Status == "stopped" || run.Status == "completed";
-            if (ownsTime && Current.Game != null && ReferenceEquals(Current.Game, run.Game))
+            if (run.PausesGameAtEnd && Current.Game != null && ReferenceEquals(Current.Game, run.Game))
             {
                 Find.TickManager.Pause();
             }

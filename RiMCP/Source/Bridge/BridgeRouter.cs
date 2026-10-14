@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using RiMCP.Command;
 using RiMCP.Read;
 using RiMCP.Shared;
@@ -81,6 +82,15 @@ namespace RiMCP.Bridge
                         {
                             return BridgeResponse.Error(403, "Changes are disabled. Enable \"Allow changes\" in RimWorld's RimMCP mod settings to use this command.");
                         }
+                        if (!route.MethodMatches("GET"))
+                        {
+                            string expected = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest).ExpectedLoadId;
+                            string loaded = GameContext.LoadId;
+                            if (expected != null && expected != loaded)
+                            {
+                                return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
+                            }
+                        }
                         return route.Handle(bridgeRequest, match);
                     }
                 }
@@ -95,6 +105,13 @@ namespace RiMCP.Bridge
             {
                 return BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        [DataContract]
+        private sealed class LoadGuardBody
+        {
+            [DataMember(Name = "expectedLoadId")]
+            public string ExpectedLoadId { get; set; }
         }
 
         private static BridgeRoute[] CreateRoutes()

@@ -142,6 +142,7 @@ namespace RiMCP.Read
         {
             Dictionary<string, object> dto = Dto.Obj(
                 Dto.Field("schemaVersion", SchemaVersion),
+                Dto.Field("loadId", GameContext.LoadId),
                 Dto.Field("tick", Tick),
                 Dto.Field("mapId", MapId),
                 Dto.Field("truncated", Truncated),

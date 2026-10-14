@@ -79,7 +79,7 @@ namespace RiMCP.Command
         public static BridgeResponse GetAdvance(BridgeRequest request, RouteMatch route)
         {
             ReadRequest query = ReadRequest.FromUri(request.Uri);
-            AdvanceRun run = AdvanceRunner.Latest;
+            AdvanceRun run = AdvanceRunner.LatestInLoadedGame;
             string runIdText = query.Get("runId");
             if (!string.IsNullOrWhiteSpace(runIdText))
             {

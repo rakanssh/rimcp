@@ -654,6 +654,14 @@ mod tests {
         requests.push(json!({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 99}}));
         let (ids, received) = serve_requests(&requests);
         assert_eq!(ids.len(), WORKERS, "only the slow calls answer: {ids:?}");
+        assert_eq!(
+            received
+                .iter()
+                .filter(|line| line.contains("/v1/slow"))
+                .count(),
+            WORKERS,
+            "every slow call must reach the bridge: {received:?}"
+        );
         assert!(
             !received.iter().any(|line| line.contains("/v1/speed")),
             "the cancelled call reached the bridge: {received:?}"
