@@ -9,6 +9,9 @@ namespace RiMCP.Command
 {
     internal static class ProductionCommandService
     {
+        private const float MinIngredientSearchRadius = 3f;
+        private const float UnlimitedIngredientSearchRadius = 100f;
+
         public static BridgeResponse SetBill(BridgeRequest request, RouteMatch route)
         {
             string billId = route["id"];
@@ -45,7 +48,7 @@ namespace RiMCP.Command
             ResolvedBillSettings settings = ResolveBillSettings(record.Bill, body, context.Map);
             ApplyBillSettings(record.Bill, settings);
             BillSnapshot current = BillSnapshot.From(record.Bill);
-            bool changed = !previous.Equals(current) || settings.HasSpecificStockpileTarget;
+            bool changed = !previous.Equals(current);
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("previousBill", previousBill),
@@ -76,9 +79,14 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Recipe not found.");
             }
-            if (!RecipeAvailableAtWorkshop(workshop.Workbench.def, recipe))
+            if (!RecipeAvailableAtWorkshop(workshop.Workbench.def, recipe) || !recipe.AvailableOnNow(workshop.Workbench))
             {
                 throw new CommandException(409, "Recipe is not available at this workshop.");
+            }
+            // ITab_Bills hides Add bill once the stack is full.
+            if (workshop.Giver.BillStack.Count >= BillStack.MaxCount)
+            {
+                throw new CommandException(409, "Workshop already has the maximum of " + BillStack.MaxCount + " bills.");
             }
 
             Bill bill = BillUtility.MakeNewBill(recipe, null);
@@ -103,9 +111,14 @@ namespace RiMCP.Command
             if (body.IngredientSearchRadius.HasValue)
             {
                 float radius = body.IngredientSearchRadius.Value;
-                if (radius < 0f || radius > Bill.MaxIngredientSearchRadius)
+                if (float.IsNaN(radius) || float.IsInfinity(radius) || radius < MinIngredientSearchRadius || radius > Bill.MaxIngredientSearchRadius)
                 {
-                    throw new CommandException(400, "Ingredient search radius must be between 0 and " + Bill.MaxIngredientSearchRadius + ".");
+                    throw new CommandException(400, "Ingredient search radius must be between " + MinIngredientSearchRadius + " and " + Bill.MaxIngredientSearchRadius + "; " + UnlimitedIngredientSearchRadius + " or more means unlimited.");
+                }
+                // Dialog_BillConfig's slider stops at 100 and stores anything from there up as unlimited.
+                if (radius >= UnlimitedIngredientSearchRadius)
+                {
+                    radius = Bill.MaxIngredientSearchRadius;
                 }
                 settings.HasIngredientSearchRadius = true;
                 settings.IngredientSearchRadius = radius;
@@ -129,8 +142,7 @@ namespace RiMCP.Command
             if (!string.IsNullOrWhiteSpace(body.StoreModeDefName))
             {
                 settings.StoreMode = ResolveStoreMode(body.StoreModeDefName);
-                settings.StoreZone = ResolveStoreZone(map, settings.StoreMode, body.StoreZoneId);
-                settings.HasSpecificStockpileTarget = settings.StoreMode == BillStoreModeDefOf.SpecificStockpile;
+                settings.StoreZone = ResolveStoreZone(bill, map, settings.StoreMode, body.StoreZoneId);
             }
             else if (!string.IsNullOrWhiteSpace(body.StoreZoneId))
             {
@@ -176,8 +188,14 @@ namespace RiMCP.Command
             }
             if (body.UnpauseWhenYouHave.HasValue)
             {
+                int unpause = body.UnpauseWhenYouHave.Value;
+                int target = settings.HasTargetCount ? settings.TargetCount : bill.targetCount;
+                if (unpause < 0 || unpause >= target)
+                {
+                    throw new CommandException(400, "Field 'unpauseWhenYouHave' must be from 0 to targetCount - 1 (" + (target - 1) + ").");
+                }
                 settings.HasUnpauseWhenYouHave = true;
-                settings.UnpauseWhenYouHave = RequirePositive(body.UnpauseWhenYouHave.Value, "unpauseWhenYouHave");
+                settings.UnpauseWhenYouHave = unpause;
             }
         }
 
@@ -219,7 +237,13 @@ namespace RiMCP.Command
             }
             if (settings.HasTargetCount)
             {
+                int previousTarget = bill.targetCount;
                 bill.targetCount = settings.TargetCount;
+                if (!settings.HasUnpauseWhenYouHave)
+                {
+                    // Dialog_BillConfig moves the unpause threshold along with the target.
+                    bill.unpauseWhenYouHave = Math.Max(0, Math.Min(bill.unpauseWhenYouHave + (bill.targetCount - previousTarget), bill.targetCount - 1));
+                }
             }
             if (settings.HasPauseWhenSatisfied)
             {
@@ -251,7 +275,7 @@ namespace RiMCP.Command
             return def;
         }
 
-        private static ISlotGroup ResolveStoreZone(Map map, BillStoreModeDef storeMode, string storeZoneId)
+        private static ISlotGroup ResolveStoreZone(Bill bill, Map map, BillStoreModeDef storeMode, string storeZoneId)
         {
             if (storeMode == BillStoreModeDefOf.SpecificStockpile)
             {
@@ -270,6 +294,12 @@ namespace RiMCP.Command
                 if (slotGroup == null)
                 {
                     throw new CommandException(409, "Stockpile zone has no slot group.");
+                }
+                // Dialog_BillConfig lists these stockpiles as incompatible and disables them.
+                Bill_Production production = bill as Bill_Production;
+                if (production != null && !production.recipe.WorkerCounter.CanPossiblyStore(production, slotGroup))
+                {
+                    throw new CommandException(409, "Stockpile zone does not accept this bill's products.");
                 }
                 return slotGroup;
             }
@@ -355,6 +385,7 @@ namespace RiMCP.Command
             private int allowedSkillMin;
             private int allowedSkillMax;
             private string storeMode;
+            private ISlotGroup storeZone;
             private string repeatMode;
             private int repeatCount;
             private int targetCount;
@@ -372,6 +403,7 @@ namespace RiMCP.Command
                     allowedSkillMin = bill.allowedSkillRange.min,
                     allowedSkillMax = bill.allowedSkillRange.max,
                     storeMode = storeMode == null ? null : storeMode.defName,
+                    storeZone = bill.GetSlotGroup(),
                     repeatMode = production == null || production.repeatMode == null ? null : production.repeatMode.defName,
                     repeatCount = production == null ? 0 : production.repeatCount,
                     targetCount = production == null ? 0 : production.targetCount,
@@ -388,6 +420,7 @@ namespace RiMCP.Command
                        allowedSkillMin == other.allowedSkillMin &&
                        allowedSkillMax == other.allowedSkillMax &&
                        storeMode == other.storeMode &&
+                       storeZone == other.storeZone &&
                        repeatMode == other.repeatMode &&
                        repeatCount == other.repeatCount &&
                        targetCount == other.targetCount &&
@@ -407,7 +440,6 @@ namespace RiMCP.Command
             public int AllowedSkillMax;
             public BillStoreModeDef StoreMode;
             public ISlotGroup StoreZone;
-            public bool HasSpecificStockpileTarget;
             public BillRepeatModeDef RepeatMode;
             public bool HasRepeatCount;
             public int RepeatCount;

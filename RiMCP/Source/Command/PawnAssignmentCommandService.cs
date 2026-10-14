@@ -178,14 +178,29 @@ namespace RiMCP.Command
 
             Pawn pawn = ResolveManagedPawn(context, pawnId);
             Pawn_PlayerSettings settings = RequirePlayerSettings(pawn);
+            // Mirrors HealthCardUtility: the toggle exists only for non-baby colonists, and
+            // enabling it is rejected for pawns that can never do Doctor work.
+            if (!pawn.IsColonist || pawn.DevelopmentalStage.Baby())
+            {
+                throw new CommandException(409, "Self-tend is only available for colonists.");
+            }
             bool previous = settings.selfTend;
+            if (body.Enabled.Value && !previous && pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
+            {
+                throw new CommandException(409, "Pawn can never do Doctor work, so self-tend cannot be enabled.");
+            }
             settings.selfTend = body.Enabled.Value;
 
-            return CommandEnvelope.Ok(context, previous != settings.selfTend, Dto.Obj(
+            Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("assignmentKind", "selfTend"),
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
                 Dto.Field("previousSelfTend", previous),
-                Dto.Field("selfTend", settings.selfTend)));
+                Dto.Field("selfTend", settings.selfTend));
+            if (settings.selfTend && pawn.workSettings != null && pawn.workSettings.EverWork && pawn.workSettings.GetPriority(WorkTypeDefOf.Doctor) == 0)
+            {
+                data["warning"] = "Doctor work is disabled for this pawn, so it will not self-tend until Doctor has a priority.";
+            }
+            return CommandEnvelope.Ok(context, previous != settings.selfTend, data);
         }
 
         private static BridgeResponse SetHostilityResponse(CommandContext context, string pawnId, SetPawnAssignmentBody body)
@@ -295,11 +310,31 @@ namespace RiMCP.Command
                 pawn.guest.SetExclusiveInteraction(interactionMode);
             }
 
-            return CommandEnvelope.Ok(context, changed, Dto.Obj(
+            // ITab_Pawn_Visitor picks the conversion target when Convert is selected.
+            // Without it, WorkGiver_Warden_Convert never assigns a warden.
+            if (interactionMode == PrisonerInteractionModeDefOf.Convert && pawn.guest.ideoForConversion == null)
+            {
+                Ideo primaryIdeo = Faction.OfPlayer.ideos == null ? null : Faction.OfPlayer.ideos.PrimaryIdeo;
+                if (primaryIdeo != null)
+                {
+                    pawn.guest.ideoForConversion = primaryIdeo;
+                    changed = true;
+                }
+            }
+
+            Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("assignmentKind", "prisonerInteraction"),
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
                 Dto.Field("previousInteractionMode", CommandUtil.DefSummary(previous)),
-                Dto.Field("interactionMode", CommandUtil.DefSummary(pawn.guest.ExclusiveInteractionMode))));
+                Dto.Field("interactionMode", CommandUtil.DefSummary(pawn.guest.ExclusiveInteractionMode)));
+            if (interactionMode == PrisonerInteractionModeDefOf.Convert)
+            {
+                Ideo target = pawn.guest.ideoForConversion;
+                data["conversionIdeoligion"] = target == null ? null : Dto.Obj(
+                    Dto.Field("id", target.GetUniqueLoadID()),
+                    Dto.Field("name", target.name));
+            }
+            return CommandEnvelope.Ok(context, changed, data);
         }
 
         private static string NormalizeAssignmentKind(string assignmentKind)
@@ -367,12 +402,13 @@ namespace RiMCP.Command
                 throw new CommandException(400, "Missing required field '" + fieldName + "'.");
             }
 
-            T parsed;
-            if (!Enum.TryParse(value, true, out parsed) || !Enum.IsDefined(typeof(T), parsed))
+            // Match names only; Enum.TryParse also accepts numbers and comma-separated flag lists.
+            string name = Enum.GetNames(typeof(T)).FirstOrDefault(candidate => string.Equals(candidate, value.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (name == null)
             {
-                throw new CommandException(400, kind + " is invalid.");
+                throw new CommandException(400, kind + " is invalid. Expected one of: " + string.Join(", ", Enum.GetNames(typeof(T))) + ".");
             }
-            return parsed;
+            return (T)Enum.Parse(typeof(T), name);
         }
 
         private static T ResolvePolicy<T>(IEnumerable<T> policies, string policyId, string kind) where T : Policy
@@ -435,6 +471,8 @@ namespace RiMCP.Command
             return medicine;
         }
 
+        // Mirrors the mode filter in ITab_Pawn_Visitor. mustBeAwake is deliberately not
+        // checked: it gates when wardens run the interaction, not whether it can be selected.
         private static void ValidateInteractionMode(Pawn pawn, PrisonerInteractionModeDef interactionMode)
         {
             if (interactionMode.isNonExclusiveInteraction)
@@ -445,14 +483,44 @@ namespace RiMCP.Command
             {
                 throw new CommandException(409, "Interaction mode is not available for wild people.");
             }
-            if (interactionMode.mustBeAwake && !RestUtility.Awake(pawn))
-            {
-                throw new CommandException(409, "Interaction mode requires the prisoner to be awake.");
-            }
             if (interactionMode.hideIfNotRecruitable && !pawn.guest.Recruitable)
             {
                 throw new CommandException(409, "Interaction mode is not available for non-recruitable prisoners.");
             }
+            if (interactionMode.hideIfNoBloodfeeders && pawn.MapHeld != null && !ColonyHasAnyBloodfeeder(pawn.MapHeld))
+            {
+                throw new CommandException(409, "Interaction mode requires a bloodfeeder in the colony.");
+            }
+            if (interactionMode.hideOnHemogenicPawns && ModsConfig.BiotechActive && pawn.genes != null && pawn.genes.HasActiveGene(GeneDefOf.Hemogenic))
+            {
+                throw new CommandException(409, "Interaction mode is not available for hemogenic prisoners.");
+            }
+            if (!interactionMode.allowInClassicIdeoMode && Find.IdeoManager != null && Find.IdeoManager.classicMode)
+            {
+                throw new CommandException(409, "Interaction mode is not available in classic ideoligion mode.");
+            }
+            if (ModsConfig.AnomalyActive)
+            {
+                if (interactionMode.hideIfNotStudiableAsPrisoner && !IsStudiableAsPrisoner(pawn))
+                {
+                    throw new CommandException(409, "Interaction mode requires a prisoner that can be studied.");
+                }
+                if (interactionMode.hideIfGrayFleshNotAppeared && (Find.Anomaly == null || !Find.Anomaly.hasSeenGrayFlesh))
+                {
+                    throw new CommandException(409, "Interaction mode is not available until gray flesh has appeared.");
+                }
+            }
+        }
+
+        private static bool ColonyHasAnyBloodfeeder(Map map)
+        {
+            return ModsConfig.BiotechActive && map.mapPawns.FreeColonistsAndPrisonersSpawned.Any(pawn => pawn.IsBloodfeeder());
+        }
+
+        private static bool IsStudiableAsPrisoner(Pawn pawn)
+        {
+            CompStudiable studiable = pawn.TryGetComp<CompStudiable>();
+            return studiable != null && studiable.EverStudiable() && pawn.kindDef.studiableAsPrisoner && !pawn.everLostEgo;
         }
 
         private static ScheduleAssignment[] ParseScheduleAssignments(SetPawnScheduleAssignmentBody[] bodies)

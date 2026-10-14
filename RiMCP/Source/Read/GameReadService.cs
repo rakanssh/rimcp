@@ -11,6 +11,8 @@ namespace RiMCP.Read
 {
     internal static class GameReadService
     {
+        private const float LowFoodNutritionPerColonist = 4f;
+
         public static BridgeResponse GetGameContext(BridgeRequest request, RouteMatch route)
         {
             ReadContext context = ReadContext.From(request);
@@ -36,14 +38,14 @@ namespace RiMCP.Read
             List<Pawn> core = pawns.Where(role => PawnReadService.IsCoreRole(role.Role)).Select(role => role.Pawn).ToList();
             List<Pawn> hostiles = pawns.Where(role => role.Role == "hostile").Select(role => role.Pawn).ToList();
             List<ResourceReadService.ResourceGroup> resources = ResourceReadService.CollectResources(context.Map).ToList();
-            List<object> risks = BuildRisks(core, hostiles, resources);
+            List<object> risks = BuildRisks(context.Map, core, hostiles);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("map", ReadUtil.MapSummary(context.Map)),
                 Dto.Field("time", SerializeTime(context.Tick, context.Map)),
                 Dto.Field("topRisks", risks),
                 Dto.Field("pawns", CountPawns(pawns)),
-                Dto.Field("resources", ResourceReadService.SummarizeResources(resources)),
+                Dto.Field("resources", ResourceReadService.SummarizeResources(context.Map, resources)),
                 Dto.Field("medical", MedicalSummary(core)),
                 Dto.Field("mood", MoodSummary(core)),
                 Dto.Field("threats", ThreatReadService.SummarizeThreats(context.Map)),
@@ -176,7 +178,7 @@ namespace RiMCP.Read
                     Dto.Field("mood", pawn.needs.mood.CurLevelPercentage))).ToArray()));
         }
 
-        private static List<object> BuildRisks(List<Pawn> core, List<Pawn> hostiles, List<ResourceReadService.ResourceGroup> resources)
+        private static List<object> BuildRisks(Map map, List<Pawn> core, List<Pawn> hostiles)
         {
             List<object> risks = new List<object>();
             int downed = core.Count(pawn => pawn.Downed);
@@ -193,10 +195,15 @@ namespace RiMCP.Read
             {
                 risks.Add(Risk("threat", "hostilesPresent", "Hostile pawns are spawned on the map.", hostiles.Count, "list_threats"));
             }
-            float nutrition = resources.Sum(group => group.Nutrition);
-            if (core.Count > 0 && nutrition < core.Count * 2f)
+            // Mirrors Alert_LowFood: stored human-edible nutrition below 4 per free colonist on a home map.
+            if (map != null && map.IsPlayerHome)
             {
-                risks.Add(Risk("resources", "lowFood", "Estimated stored nutrition is low relative to core pawn count.", (int)nutrition, "list_resources?include=food"));
+                int colonists = map.mapPawns.FreeColonistsSpawnedCount;
+                float nutrition = ResourceReadService.StoredHumanNutrition(map);
+                if (colonists > 0 && nutrition < LowFoodNutritionPerColonist * colonists)
+                {
+                    risks.Add(Risk("resources", "lowFood", "Stored human-edible nutrition is below the game's Low food threshold of 4 per colonist.", (int)nutrition, "list_resources"));
+                }
             }
             return risks;
         }

@@ -3,6 +3,7 @@ using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using Verse;
+using Verse.AI.Group;
 
 namespace RiMCP.Command
 {
@@ -31,6 +32,11 @@ namespace RiMCP.Command
             bool changed = previous != current;
             if (changed)
             {
+                AcceptanceReport allowed = CanToggleDraft(pawn);
+                if (!allowed.Accepted)
+                {
+                    throw new CommandException(409, string.IsNullOrWhiteSpace(allowed.Reason) ? "Pawn cannot be drafted or undrafted right now." : allowed.Reason.StripTags());
+                }
                 pawn.drafter.Drafted = current;
             }
 
@@ -69,16 +75,26 @@ namespace RiMCP.Command
                 throw new CommandException(409, "Pawn cannot do this work type.");
             }
 
-            int previous = pawn.workSettings.GetPriority(workType);
-            int current = body.Priority.Value;
-            bool manualPrioritiesChanged = Find.PlaySettings != null && !Find.PlaySettings.useWorkPriorities;
-            if (manualPrioritiesChanged)
+            if (!pawn.workSettings.EverWork)
             {
-                Find.PlaySettings.useWorkPriorities = true;
+                throw new CommandException(409, "Pawn does not do work.");
             }
 
+            // In simple mode the work tab shows every non-zero priority as 3, so 0 and 3 can be
+            // applied without switching the colony to manual priorities.
+            int previous = pawn.workSettings.GetPriority(workType);
+            int current = body.Priority.Value;
+            bool manualPrioritiesChanged = Find.PlaySettings != null && !Find.PlaySettings.useWorkPriorities &&
+                                           pawn.RaceProps.Humanlike && current != 0 && current != 3;
+            if (manualPrioritiesChanged)
+            {
+                EnableManualPriorities();
+            }
+
+            // Re-read after a mode switch: stored priorities may differ from the simple-mode view.
+            int stored = pawn.workSettings.GetPriority(workType);
             bool changed = previous != current || manualPrioritiesChanged;
-            if (previous != current)
+            if (stored != current)
             {
                 pawn.workSettings.SetPriority(workType, current);
             }
@@ -89,6 +105,54 @@ namespace RiMCP.Command
                 Dto.Field("previousPriority", previous),
                 Dto.Field("priority", pawn.workSettings.GetPriority(workType)),
                 Dto.Field("manualPrioritiesChanged", manualPrioritiesChanged)));
+        }
+
+        // Mirrors the draft toggle in Pawn.GetGizmos and Pawn_DraftController.GetGizmos.
+        private static AcceptanceReport CanToggleDraft(Pawn pawn)
+        {
+            if (!pawn.drafter.ShowDraftGizmo)
+            {
+                return "Pawn has no draft control.";
+            }
+            if (pawn.Downed)
+            {
+                return "Pawn is downed.";
+            }
+            if (pawn.Deathresting)
+            {
+                return "Pawn is deathresting.";
+            }
+            if (ModsConfig.BiotechActive && pawn.IsColonyMech)
+            {
+                AcceptanceReport mechReport = MechanitorUtility.CanDraftMech(pawn);
+                if (!mechReport.Accepted)
+                {
+                    return mechReport;
+                }
+            }
+            Lord lord = pawn.GetLord();
+            if (lord != null)
+            {
+                AcceptanceReport lordReport = lord.AllowsDrafting(pawn);
+                if (!lordReport.Accepted)
+                {
+                    return lordReport;
+                }
+            }
+            return AcceptanceReport.WasAccepted;
+        }
+
+        // Mirrors MainTabWindow_Work: every player pawn caches its work giver order by priority mode.
+        private static void EnableManualPriorities()
+        {
+            Find.PlaySettings.useWorkPriorities = true;
+            foreach (Pawn pawn in PawnsFinder.AllMapsWorldAndTemporary_Alive)
+            {
+                if (pawn.Faction == Faction.OfPlayer && pawn.workSettings != null)
+                {
+                    pawn.workSettings.Notify_UseWorkPrioritiesChanged();
+                }
+            }
         }
 
         [DataContract]

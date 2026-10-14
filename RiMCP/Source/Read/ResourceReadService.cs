@@ -23,27 +23,29 @@ namespace RiMCP.Read
                 .ToArray();
 
             return ReadEnvelope.Ok(context, Dto.Obj(
-                Dto.Field("summary", SummarizeResources(groups)),
+                Dto.Field("summary", SummarizeResources(context.Map, groups)),
                 Dto.Field("resources", resources)), page.Truncated, page.NextCursor);
         }
 
-        public static object SummarizeResources(Map map)
+        public static object SummarizeResources(Map map, List<ResourceGroup> groups)
         {
-            return SummarizeResources(CollectResources(map).ToList());
-        }
-
-        public static object SummarizeResources(List<ResourceGroup> groups)
-        {
-            float totalNutrition = groups.Sum(group => group.Nutrition);
             int medicine = groups.Where(group => group.IsMedicine).Sum(group => group.Count);
             int meals = groups.Where(group => group.IsMeal).Sum(group => group.Count);
             int foodTypes = groups.Count(group => group.Nutrition > 0f);
             return Dto.Obj(
                 Dto.Field("trackedTypes", groups.Count),
                 Dto.Field("foodTypes", foodTypes),
-                Dto.Field("estimatedNutrition", totalNutrition),
+                Dto.Field("storedHumanNutrition", StoredHumanNutrition(map)),
                 Dto.Field("meals", meals),
                 Dto.Field("medicine", medicine));
+        }
+
+        // The game's own count behind the Low food alert: fresh, unfogged, human-edible food in
+        // storage. Summing every ingestible on the map would include corpses, hay, and food lying
+        // outside storage.
+        public static float StoredHumanNutrition(Map map)
+        {
+            return map == null || map.resourceCounter == null ? 0f : map.resourceCounter.TotalHumanEdibleNutrition;
         }
 
         public static IEnumerable<ResourceGroup> CollectResources(Map map)

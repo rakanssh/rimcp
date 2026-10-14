@@ -99,18 +99,8 @@ internal static class Program
         });
         Test("research write at main menu rejects with 409", () =>
         {
-            try
-            {
-                Invoke("RiMCP.Command.ResearchCommandService", "SetCurrent",
-                    Request("/v1/research/current", "PUT", "{\"projectDefName\":\"RegressionAlpha\"}"), Route());
-            }
-            catch (Exception e)
-            {
-                Check(e.GetType().FullName == "RiMCP.Command.CommandException", "expected a controlled command error, got " + e.GetType().Name);
-                Check((int)e.GetType().GetField("StatusCode").GetValue(e) == 409, "expected status 409");
-                return;
-            }
-            throw new Exception("research mutation unexpectedly succeeded without a game");
+            ExpectCommandError(409, () => Invoke("RiMCP.Command.ResearchCommandService", "SetCurrent",
+                Request("/v1/research/current", "PUT", "{\"projectDefName\":\"RegressionAlpha\"}"), Route()));
         });
         Test("numeric cursor survives JSON and selects the next page", () =>
         {
@@ -127,6 +117,34 @@ internal static class Program
             Check(!(bool)last["truncated"] && !last.ContainsKey("nextCursor"), "last page must finish pagination");
         });
         Test("bill repeatCount appears in summary and full detail", CheckBillRepeatCount);
+        Test("bill settings reject values the bill dialog cannot produce", CheckBillSettingsValidation);
+        Test("pawn work reads leave uninitialized work settings untouched", () =>
+        {
+            // Visitors and raiders have a tracker without priorities. Reading priorities
+            // from it logs an error and initializes it, mutating the save.
+            var pawn = new Pawn();
+            pawn.workSettings = new Pawn_WorkSettings(pawn);
+            Check(Invoke("RiMCP.Read.PawnReadService", "SerializePawnWork", pawn) == null, "get_pawn must omit work for pawns that never work");
+            Check(((object[])Invoke("RiMCP.Read.WorkReadService", "CompactWork", pawn)).Length == 0, "list_work must omit work for pawns that never work");
+            Check(!pawn.workSettings.EverWork, "reads must not initialize work settings");
+        });
+        Test("permanent game conditions report no duration", () =>
+        {
+            // GameCondition.Duration and TicksLeft log an error for permanent conditions.
+            var condition = new GameCondition { def = new GameConditionDef { defName = "RegressionPermanent", label = "regression permanent" }, Permanent = true };
+            var row = (Dictionary<string, object>)Invoke("RiMCP.Read.EnvironmentReadService", "SerializeGameCondition", condition, "world");
+            Check((bool)row["permanent"] && (string)row["scope"] == "world", "permanent world condition must be labelled");
+            Check(!row.ContainsKey("durationTicks") && !row.ContainsKey("ticksLeft"), "permanent conditions have no duration");
+        });
+        Test("medical care parsing accepts enum names only", () =>
+        {
+            MethodInfo parse = mod.GetType("RiMCP.Command.PawnAssignmentCommandService", true).GetMethod("ParseEnum", Static).MakeGenericMethod(typeof(MedicalCareCategory));
+            Func<string, object> call = value => parse.Invoke(null, new object[] { value, "care", "Medical care" });
+            Check((MedicalCareCategory)call("best") == MedicalCareCategory.Best, "names must parse case-insensitively");
+            // Enum.TryParse would turn these into other, valid categories.
+            foreach (string value in new[] { "3", "NoMeds,HerbalOrWorse" })
+                ExpectCommandError(400, () => call(value));
+        });
         Test("colony research still reports real finished and progress values", () =>
         {
             // Bypass the Game constructor, which boots native engine systems;
@@ -182,6 +200,55 @@ internal static class Program
             Check(row.ContainsKey("repeatCount") && (int)row["repeatCount"] == 7, "repeatCount missing/incorrect in " + detail);
             Check((int)row["targetCount"] == 99, "repeatCount must not replace targetCount in " + detail);
         }
+    }
+
+    private static void CheckBillSettingsValidation()
+    {
+        const string service = "RiMCP.Command.ProductionCommandService";
+        Type bodyType = mod.GetType(service + "+BillSettingsBody", true);
+        var bill = new Bill_Production
+        {
+            recipe = new RecipeDef { defName = "RegressionSettingsRecipe", label = "Regression settings recipe" },
+            targetCount = 10,
+            unpauseWhenYouHave = 5
+        };
+        Func<string, object, object> resolve = (property, value) =>
+        {
+            object body = Activator.CreateInstance(bodyType, true);
+            bodyType.GetProperty(property).SetValue(body, value);
+            return Invoke(service, "ResolveBillSettings", bill, body, null);
+        };
+
+        // NaN passes a plain range check and makes WorkGiver_DoBill find no ingredients.
+        foreach (float radius in new[] { float.NaN, float.PositiveInfinity, 0f, 2.5f, 1000f })
+            ExpectCommandError(400, () => resolve("IngredientSearchRadius", (float?)radius));
+        object unlimited = resolve("IngredientSearchRadius", (float?)150f);
+        Check((float)unlimited.GetType().GetField("IngredientSearchRadius").GetValue(unlimited) == Bill.MaxIngredientSearchRadius, "a radius of 100 or more must be stored as unlimited");
+
+        resolve("UnpauseWhenYouHave", (int?)0);
+        ExpectCommandError(400, () => resolve("UnpauseWhenYouHave", (int?)10));
+
+        // Like Dialog_BillConfig, changing the target moves the unpause threshold with it.
+        Invoke(service, "ApplyBillSettings", bill, resolve("TargetCount", (int?)20));
+        Check(bill.targetCount == 20 && bill.unpauseWhenYouHave == 15, "raising the target must keep the unpause gap");
+        Invoke(service, "ApplyBillSettings", bill, resolve("TargetCount", (int?)3));
+        Check(bill.targetCount == 3 && bill.unpauseWhenYouHave == 0, "lowering the target must keep unpause below it");
+    }
+
+    private static void ExpectCommandError(int status, Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception e)
+        {
+            if (e is TargetInvocationException && e.InnerException != null) e = e.InnerException;
+            Check(e.GetType().FullName == "RiMCP.Command.CommandException", "expected a controlled command error, got " + e.GetType().Name + ": " + e.Message);
+            Check((int)e.GetType().GetField("StatusCode").GetValue(e) == status, "expected status " + status + ", got " + e.GetType().GetField("StatusCode").GetValue(e));
+            return;
+        }
+        throw new Exception("expected status " + status + " but the call succeeded");
     }
 
     private static object Detail(string name) => Enum.Parse(mod.GetType("RiMCP.Read.ReadDetail", true), name);

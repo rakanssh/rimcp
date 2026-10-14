@@ -304,8 +304,8 @@ namespace RiMCP.Shared
             props["repeatCount"] = Int("Repeat count for RepeatCount mode.", 1, 999999);
             props["targetCount"] = Int("Target count for TargetCount mode.", 1, 999999);
             props["pauseWhenSatisfied"] = Bool("Whether the bill pauses when its target is satisfied.");
-            props["unpauseWhenYouHave"] = Int("Inventory count where a paused bill can unpause.", 1, 999999);
-            props["ingredientSearchRadius"] = Number("Ingredient search radius from 0 to RimWorld's maximum.");
+            props["unpauseWhenYouHave"] = Int("Inventory count where a paused bill can unpause. Must be less than targetCount.", 0, 999998);
+            props["ingredientSearchRadius"] = J(F("type", "number"), F("minimum", 3), F("maximum", 999), F("description", "Ingredient search radius in cells. 100 or more means unlimited and is stored as 999."));
             props["allowedSkillMin"] = Int("Minimum allowed pawn skill.", 0, 20);
             props["allowedSkillMax"] = Int("Maximum allowed pawn skill.", 0, 20);
             props["storeModeDefName"] = J(F("type", "string"), F("description", "BillStoreModeDef defName from search_defs kind=billStoreMode. SpecificStockpile also requires storeZoneId."), F("examples", A("DropOnFloor", "BestStockpile", "SpecificStockpile")));
@@ -395,11 +395,6 @@ namespace RiMCP.Shared
         private static Dictionary<string, object> Int(string description, int minimum, int maximum)
         {
             return J(F("type", "integer"), F("minimum", minimum), F("maximum", maximum), F("description", description));
-        }
-
-        private static Dictionary<string, object> Number(string description)
-        {
-            return J(F("type", "number"), F("description", description));
         }
 
         private static Dictionary<string, object> EnumString(string description, params string[] values)

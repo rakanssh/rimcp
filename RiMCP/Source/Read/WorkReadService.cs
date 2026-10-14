@@ -44,7 +44,8 @@ namespace RiMCP.Read
 
         private static object CompactWork(Pawn pawn)
         {
-            if (pawn.workSettings == null)
+            // Prisoners are core pawns but usually have no initialized work settings; see SerializePawnWork.
+            if (pawn.workSettings == null || !pawn.workSettings.EverWork)
             {
                 return new object[0];
             }

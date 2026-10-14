@@ -61,18 +61,32 @@ namespace RiMCP.Read
 
         private static object SerializeGameConditions(Map map)
         {
-            if (map.gameConditionManager == null)
+            // The map's manager holds only map conditions; world-wide ones (such as a
+            // world-level toxic fallout) live on its Parent.
+            List<object> conditions = new List<object>();
+            string scope = "map";
+            for (GameConditionManager manager = map.gameConditionManager; manager != null; manager = manager.Parent)
             {
-                return new object[0];
+                foreach (GameCondition condition in manager.ActiveConditions.OrderBy(condition => condition.def.defName))
+                {
+                    conditions.Add(SerializeGameCondition(condition, scope));
+                }
+                scope = "world";
             }
-            return map.gameConditionManager.ActiveConditions
-                .OrderBy(condition => condition.def.defName)
-                .Select(condition => Dto.Obj(
-                    Dto.Field("defName", condition.def.defName),
-                    Dto.Field("label", ReadUtil.DefLabel(condition.def)),
-                    Dto.Field("durationTicks", condition.Duration),
-                    Dto.Field("ticksLeft", condition.TicksLeft)))
-                .ToArray();
+            return conditions;
+        }
+
+        private static object SerializeGameCondition(GameCondition condition, string scope)
+        {
+            // Duration and TicksLeft log an error and return a sentinel for permanent conditions.
+            bool permanent = condition.Permanent;
+            return Dto.Obj(
+                Dto.Field("defName", condition.def.defName),
+                Dto.Field("label", ReadUtil.DefLabel(condition.def)),
+                Dto.Field("scope", scope),
+                Dto.Field("permanent", permanent),
+                Dto.Field("durationTicks", permanent ? null : (object)condition.Duration),
+                Dto.Field("ticksLeft", permanent ? null : (object)condition.TicksLeft));
         }
 
         private static object SerializeRooms(Map map, ReadRequest request)

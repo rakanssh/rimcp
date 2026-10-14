@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The ten checks cover:
+The fourteen checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values.
@@ -37,6 +37,12 @@ The ten checks cover:
   subsequent pages and termination on the last page.
 - `repeatCount` in both summary and full bill serialization, independently of
   `targetCount`.
+- Bill settings that the bill dialog cannot produce: non-finite or sub-minimum
+  ingredient radii, and unpause thresholds at or above the target. Also checks that
+  changing the target moves the unpause threshold as the dialog does.
+- Pawn and work reads that leave uninitialized work settings untouched.
+- Permanent game conditions without duration lookups.
+- Medical care parsing that rejects numeric and comma-separated enum values.
 - Real research progress and completion values when a research manager exists.
 
 The ideology check calls the real private `Ideos()` enumerable shared by both
@@ -49,4 +55,5 @@ dictionary. It does not emulate research calculations.
 Exit code 0 means all checks passed; 1 means a regression failed; 2 means setup
 failed. To verify the tests detect regressions, run the same executable with a
 saved pre-fix mod DLL as its second argument. The unmodified 0.5.5 DLL fails nine
-checks and retains the passing colony-research control.
+checks and retains the passing colony-research control. The unmodified 0.5.6 DLL
+fails the four checks added after it.

@@ -323,6 +323,13 @@ namespace RiMCP.Read
 
         public static object SerializePawnWork(Pawn pawn)
         {
+            // Visitors, raiders, and wild people have an uninitialized tracker. Reading
+            // priorities from it logs an error and initializes it, which mutates the save.
+            if (pawn.workSettings == null || !pawn.workSettings.EverWork)
+            {
+                return null;
+            }
+
             List<object> work = new List<object>();
             foreach (WorkTypeDef workType in DefDatabase<WorkTypeDef>.AllDefsListForReading.OrderBy(def => def.naturalPriority))
             {
@@ -332,7 +339,7 @@ namespace RiMCP.Read
                 try
                 {
                     disabled = pawn.WorkTypeIsDisabled(workType);
-                    if (!disabled && pawn.workSettings != null)
+                    if (!disabled)
                     {
                         active = pawn.workSettings.WorkIsActive(workType);
                         priority = pawn.workSettings.GetPriority(workType);

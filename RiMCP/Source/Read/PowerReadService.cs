@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -29,7 +30,7 @@ namespace RiMCP.Read
                 return null;
             }
             List<PowerNet> nets = PowerNets(map).ToList();
-            float generationRate = nets.Sum(net => net.CurrentEnergyGainRate());
+            float netPower = nets.Sum(NetPowerWatts);
             float stored = nets.Sum(net => net.CurrentStoredEnergy());
             int componentCount = 0;
             int poweredOff = 0;
@@ -48,7 +49,7 @@ namespace RiMCP.Read
             }
             return Dto.Obj(
                 Dto.Field("gridCount", nets.Count),
-                Dto.Field("netEnergyGainRate", generationRate),
+                Dto.Field("netPowerW", netPower),
                 Dto.Field("storedEnergy", stored),
                 Dto.Field("poweredComponents", componentCount),
                 Dto.Field("poweredOff", poweredOff));
@@ -58,7 +59,7 @@ namespace RiMCP.Read
         {
             return Dto.Obj(
                 Dto.Field("storedEnergy", net.CurrentStoredEnergy()),
-                Dto.Field("energyGainRate", net.CurrentEnergyGainRate()),
+                Dto.Field("netPowerW", NetPowerWatts(net)),
                 Dto.Field("powerComps", net.powerComps.Count),
                 Dto.Field("batteryComps", net.batteryComps.Count));
         }
@@ -85,6 +86,12 @@ namespace RiMCP.Read
                     Dto.Field("fuel", fuel == null ? null : (object)fuel.Fuel)));
             }
             return components;
+        }
+
+        // CurrentEnergyGainRate is in Wd per tick; report watts to match building powerOutput.
+        private static float NetPowerWatts(PowerNet net)
+        {
+            return (float)Math.Round(net.CurrentEnergyGainRate() / CompPower.WattsToWattDaysPerTick, 1);
         }
 
         private static IEnumerable<PowerNet> PowerNets(Map map)

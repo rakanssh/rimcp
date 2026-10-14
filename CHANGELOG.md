@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Commands follow the game's own checks: drafting, prisoner modes (Convert now works), work priorities, animal designations, and bills.
+- Reads no longer log errors or modify the save.
+- Power is reported in watts (`netPowerW`), and food uses the game's Low food count (`storedHumanNutrition`).
+
 ## [0.5.6] - 2026-10-13
 
 ### Changed

@@ -24,7 +24,7 @@ namespace RiMCP.Command
             CommandUtil.RequireAnimal(pawn);
 
             DesignationDef target = DesignationForAction(action);
-            ValidateDesignationAction(pawn, action);
+            ValidateDesignationAction(context.Map, pawn, action);
 
             List<DesignationDef> previous = CurrentAnimalDesignations(context.Map, pawn);
             bool hadTarget = target != null && previous.Contains(target);
@@ -37,6 +37,11 @@ namespace RiMCP.Command
                 if (target != null)
                 {
                     context.Map.designationManager.AddDesignation(new Designation(new LocalTargetInfo(pawn), target, null));
+                }
+                if (target == DesignationDefOf.Slaughter)
+                {
+                    // Designator_Slaughter cancels a pending release to the wild.
+                    context.Map.designationManager.TryRemoveDesignationOn(pawn, DesignationDefOf.ReleaseAnimalToWild);
                 }
             }
 
@@ -122,14 +127,27 @@ namespace RiMCP.Command
             }
         }
 
-        private static void ValidateDesignationAction(Pawn pawn, string action)
+        // Mirrors CanDesignateThing on Designator_Hunt, Designator_Tame, and Designator_Slaughter.
+        private static void ValidateDesignationAction(Map map, Pawn pawn, string action)
         {
+            if (action != "none" && pawn.Position.Fogged(map))
+            {
+                throw new CommandException(409, "Animal is in an unexplored area.");
+            }
             switch (action)
             {
                 case "hunt":
                     if (pawn.IsColonyAnimal)
                     {
                         throw new CommandException(409, "Colony animals cannot be designated for hunting; use slaughter instead.");
+                    }
+                    if (pawn.Faction != null && pawn.Faction.def.humanlikeFaction)
+                    {
+                        throw new CommandException(409, "Animal belongs to another faction; hunting it would harm relations.");
+                    }
+                    if (pawn.IsPrisonerInPrisonCell())
+                    {
+                        throw new CommandException(409, "Animal is a prisoner in a prison cell.");
                     }
                     return;
                 case "tame":
@@ -141,9 +159,17 @@ namespace RiMCP.Command
                     {
                         throw new CommandException(409, "Animal cannot be tamed.");
                     }
+                    if (pawn.health.hediffSet.HasHediff(HediffDefOf.Scaria))
+                    {
+                        throw new CommandException(409, "Animals with scaria cannot be tamed.");
+                    }
                     return;
                 case "slaughter":
                     CommandUtil.RequireColonyAnimal(pawn);
+                    if (pawn.InAggroMentalState)
+                    {
+                        throw new CommandException(409, "Animal is in an aggressive mental state.");
+                    }
                     return;
                 default:
                     return;
