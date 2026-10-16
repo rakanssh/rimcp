@@ -1,5 +1,6 @@
 using RiMCP.Bridge;
 using RiMCP.Command;
+using RiMCP.Read;
 using UnityEngine;
 
 namespace RiMCP
@@ -25,6 +26,7 @@ namespace RiMCP
         private void Update()
         {
             AdvanceRunner.Update();
+            FoodHistory.Update();
             BridgeRuntime.ProcessMainThreadQueue();
             // Read after handling requests: set_game_settings may have just turned this off, and an
             // unfocused game stops calling Update before the next frame.

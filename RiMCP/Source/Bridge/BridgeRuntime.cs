@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using RiMCP.Command;
 using RiMCP.Settings;
+using RiMCP.Shared;
 
 namespace RiMCP.Bridge
 {
@@ -15,13 +18,13 @@ namespace RiMCP.Bridge
         private static readonly RecentLog RecentLog = new RecentLog(12);
         private static BridgeServer server;
         private static RiMCPSettings settings;
-        private static volatile bool allowColonyChanges;
+        private static volatile AccessState access = AccessState.None;
         private static volatile bool applicationFocused = true;
         private static volatile bool runInBackground;
 
-        public static bool AllowColonyChanges
+        public static AccessState Access
         {
-            get { return allowColonyChanges; }
+            get { return access; }
         }
 
         public static bool IsRunning
@@ -113,27 +116,28 @@ namespace RiMCP.Bridge
             }
 
             settings.EnsureToken();
+            settings.EnsureAccess();
 
             if (!settings.BridgeEnabled)
             {
+                Disable();
                 Stop();
                 return;
             }
 
+            ApplyAccess(settings.AccessPreset, settings.EnabledGroups);
             if (server != null && server.IsRunning && server.Port == settings.Port)
             {
                 server.UpdateToken(settings.Token);
-                allowColonyChanges = settings.AllowColonyChanges;
                 return;
             }
 
             Stop();
-            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, Dispatch, RecentLog, () => AllowColonyChanges);
+            BridgeServer newServer = new BridgeServer(settings.Port, settings.Token, Dispatch, RecentLog, () => access);
             try
             {
                 newServer.Start();
                 server = newServer;
-                allowColonyChanges = settings.AllowColonyChanges;
             }
             catch (Exception ex)
             {
@@ -143,9 +147,33 @@ namespace RiMCP.Bridge
             }
         }
 
+        // Main thread only. Requests still waiting for the main thread are refused when they reach
+        // the router, and an advance the agent owns ends and pauses. Saved settings are untouched, so
+        // enabling RimMCP again restores the same access through ApplyAccess.
+        internal static void Disable()
+        {
+            access = access.Disabled();
+            AdvanceRunner.Revoke("RimMCP was disabled in its settings.");
+        }
+
+        // Main thread only. Turning off Time ends and pauses an advance the agent owns; other groups
+        // only affect new requests, because their commands finish within a frame.
+        internal static void ApplyAccess(string preset, IEnumerable<string> groups)
+        {
+            string[] enabled = groups.ToArray();
+            AccessState current = access;
+            if (!current.SameAs(preset, enabled))
+            {
+                access = new AccessState(preset, enabled, current.Revision + 1);
+            }
+            if (!access.Allows(ToolGroups.Time))
+            {
+                AdvanceRunner.Revoke("Time access was turned off in RimMCP settings.");
+            }
+        }
+
         public static void Stop()
         {
-            allowColonyChanges = false;
             if (server != null)
             {
                 server.Stop();

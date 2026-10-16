@@ -82,6 +82,26 @@ namespace RiMCP.Command
             }
         }
 
+        // The game's designators and right-click options read Find.CurrentMap, so commands built on
+        // them act on the map shown in game.
+        public static void RequireCurrentMap(CommandContext context)
+        {
+            RequireMap(context);
+            if (context.Map != Find.CurrentMap)
+            {
+                throw new CommandException(409, "This command acts on the map shown in game (map " + Find.CurrentMap.uniqueID + "). Switch to map " + context.Map.uniqueID + " in game first.");
+            }
+        }
+
+        public static string ValidateRequestId(string requestId)
+        {
+            if (requestId != null && (requestId.Trim().Length == 0 || requestId.Length > 100))
+            {
+                throw new CommandException(400, "Field 'requestId' must be 1 to 100 characters.");
+            }
+            return requestId;
+        }
+
         public static Pawn ResolveSpawnedPawn(CommandContext context, string pawnId)
         {
             Pawn pawn = PawnReadService.FindPawn(context.Map, pawnId);

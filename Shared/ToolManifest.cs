@@ -8,6 +8,8 @@ namespace RiMCP.Shared
     internal sealed class ToolSpec
     {
         public readonly string HandlerId;
+        // Access group from ToolGroups; null for bridge routes that are always reachable.
+        public readonly string Group;
         public readonly string Name;
         public readonly string Description;
         public readonly string Method;
@@ -18,9 +20,10 @@ namespace RiMCP.Shared
         public readonly Dictionary<string, object> Annotations;
         public readonly bool ExposeAsMcp;
 
-        public ToolSpec(string handlerId, string name, string description, string method, string pathTemplate, string[] queryKeys, string[] bodyKeys, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, bool exposeAsMcp)
+        public ToolSpec(string handlerId, string group, string name, string description, string method, string pathTemplate, string[] queryKeys, string[] bodyKeys, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, bool exposeAsMcp)
         {
             HandlerId = handlerId;
+            Group = group;
             Name = name;
             Description = description;
             Method = method;
@@ -36,6 +39,7 @@ namespace RiMCP.Shared
         {
             return J(
                 F("handlerId", HandlerId),
+                F("group", Group),
                 F("name", Name),
                 F("description", Description),
                 F("method", Method),
@@ -72,6 +76,50 @@ namespace RiMCP.Shared
         {
             Name = name;
             Schema = schema;
+        }
+    }
+
+    // Players enable tools by group. A tool added later inherits its group's setting.
+    internal static class ToolGroups
+    {
+        public const string Observe = "observe";
+        public const string Diagnostics = "diagnostics";
+        public const string Time = "time";
+        public const string Administration = "administration";
+        public const string Orders = "orders";
+        public const string PawnControl = "pawnControl";
+        public const string GameSettings = "gameSettings";
+
+        public static readonly string[] All = { Observe, Diagnostics, Time, Administration, Orders, PawnControl, GameSettings };
+
+        public static string Label(string group)
+        {
+            switch (group)
+            {
+                case Observe: return "Observe";
+                case Diagnostics: return "Diagnostics";
+                case Time: return "Time";
+                case Administration: return "Administration";
+                case Orders: return "Orders";
+                case PawnControl: return "Pawn control";
+                case GameSettings: return "Game settings";
+                default: return group;
+            }
+        }
+
+        public static string Description(string group)
+        {
+            switch (group)
+            {
+                case Observe: return "Read the colony, pawns, map, defs, and time status.";
+                case Diagnostics: return "Read loaded mods, the game log, and game options.";
+                case Time: return "Pause, set the speed, and advance time.";
+                case Administration: return "Change work priorities, assignments, policies, bills, research, and animal training.";
+                case Orders: return "Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.";
+                case PawnControl: return "Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.";
+                case GameSettings: return "Change the storyteller, difficulty, and global game options.";
+                default: return "";
+            }
         }
     }
 
@@ -128,6 +176,10 @@ namespace RiMCP.Shared
                 {
                     errors.Add("Missing MCP name for " + routeKey);
                 }
+                if (!ToolGroups.All.Contains(spec.Group))
+                {
+                    errors.Add("Unknown access group '" + spec.Group + "' for " + spec.Name);
+                }
                 else if (!names.Add(spec.Name))
                 {
                     errors.Add("Duplicate MCP tool " + spec.Name);
@@ -151,68 +203,78 @@ namespace RiMCP.Shared
         {
             return new[]
             {
-                Get("game-context", "get_game_context", "Get game-wide context: current map, time, paused state, selected game speed, storyteller/difficulty, loaded mods, and map ids.", "/v1/game-context", Input()),
-                Get("mods", "list_mods", "List loaded mods in runtime order, or scope=installed for known installed mods including disabled ones. Includes game version, pending configuration changes, and RimWorld's warnings about the configured mod list. Load positions are zero-based.", "/v1/mods", Input(Prop("scope", EnumString("Mod inventory to inspect. Defaults to loaded.", "loaded", "installed")), Prop("query", Str("Optional search text for mod name or package id."))), "scope", "query"),
-                Get("mod", "get_mod", "Inspect one mod's metadata, dependencies, declared compatibility, loaded assemblies, and available settings panel names. Mod settings values are not exposed or editable.", "/v1/mods/{packageId}", RequiredOnly(Prop("packageId", Str("Exact package id from list_mods, preserving any suffix distinguishing local and Workshop copies.")))),
-                Get("game-log", "get_game_log", "Read retained in-game log entries, newest first. This is not the complete Player.log or startup history. Use include=[\"stackTrace\"] or detail=full for stack traces. The cursor is an offset into current history, not a durable polling cursor.", "/v1/debug/log", Input(Prop("level", EnumString("Severity filter. Defaults to all.", "all", "message", "warning", "error")), Prop("query", Str("Optional case-insensitive search in messages and stack traces."))), "level", "query"),
-                Get("game-settings", "get_game_settings", "Read supported global game options and the current colony's storyteller/difficulty, with available choices. Works without a colony for global options.", "/v1/settings", RequiredOnly()),
-                Put("set-game-settings", "set_game_settings", "Change supported global options or the current colony's storyteller/difficulty preset. Only supplied fields change. Global options are saved; colony settings persist with the normal game save. Changing only the storyteller preserves custom difficulty. Requires Allow changes.", "/v1/settings", GameSettingsInput(), IdempotentMutation(), Body("storytellerDefName", "difficultyDefName", "runInBackground", "pauseOnLoad", "automaticPauseMode", "autosaveIntervalDays", "volumeMaster", "volumeMusic")),
-                Get("colony-status", "get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints.", "/v1/colony-status", Input()),
-                Get("pawns", "list_pawns", "List pawns by validated filter. Use include=[\"assignments\"] for Assign-style pawn settings and include=[\"assignmentOptions\"] for valid policy, area, medical, hostility, medicine, and interaction options.", "/v1/pawns", Input(Prop("filter", PawnFilter())), "filter"),
-                Get("pawn", "get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", "/v1/pawns/{id}", Required(Prop("id", Str("Pawn ThingID or load id.")))),
-                Get("resources", "list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context.", "/v1/resources", Input()),
-                Get("work", "list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", "/v1/work", Input()),
-                Get("production", "list_production", "List production bills across colony bill givers.", "/v1/production", Input()),
-                Get("bill", "get_bill", "Get full details for one production bill by bill id.", "/v1/bills/{id}", Required(Prop("id", Str("Bill id returned by list_production.")))),
-                Put("set-bill", "set_bill", "Update or delete an existing production bill by bill id. Use mode=update to change fields, or mode=delete to remove it. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", "/v1/bills/{id}", SetBillInput(), IdempotentDestructiveMutation(), Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")),
-                Get("workshops", "list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", "/v1/workshops", Input()),
-                Get("workshop", "get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", "/v1/workshops/{id}", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops.")))),
-                Post("add-bill-to-workshop", "add_bill_to_workshop", "Add a new bill to a workshop for a recipe. This is intentionally additive and can create duplicate recipe bills. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", "/v1/workshops/{workshopId}/bills", AddBillToWorkshopInput(), AdditiveMutation(), Body("mapId", "recipeDefName", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")),
-                Get("zones", "list_zones", "List stockpiles, growing zones, and allowed areas.", "/v1/zones", Input()),
-                Get("zone", "get_zone", "Get full details for one zone or area by id.", "/v1/zones/{id}", Required(Prop("id", Str("Zone id returned by list_zones.")))),
-                Get("environment", "get_environment", "Get weather, season, game conditions, room temperature summaries, and hazards.", "/v1/environment", Input()),
-                Get("power", "get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", "/v1/power", Input()),
-                Get("threats", "list_threats", "List active threats such as hostile pawns, manhunters, predators, and fires.", "/v1/threats", Input()),
-                Get("research", "get_research", "Get current research and paged loaded research projects.", "/v1/research", Input()),
-                Get("ideoligions", "list_ideoligions", "List loaded Ideology ideoligions with summary identity, memes, culture, and mode flags. Returns active=false with an empty list when Ideology is inactive.", "/v1/ideoligions", Input()),
-                Get("ideoligion", "get_ideoligion", "Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.", "/v1/ideoligions/{id}", Required(Prop("id", Str("Ideoligion id returned by list_ideoligions.")))),
-                Get("quests", "list_quests", "List active quests and quest state exposed by RimWorld.", "/v1/quests", Input()),
-                Get("buildings", "list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", "/v1/buildings", Input(Prop("category", BuildingCategory())), "category"),
-                Get("building", "get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")))),
-                Get("world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input()),
-                Get("defs-search", "search_defs", "Search loaded game defs by kind, query, and category. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/search", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
-                Get("def", "get_def", "Get full detail for a loaded def by defName and optional kind. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/{defName}", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), "kind"),
-                Put("set-pawn-drafted", "set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", "/v1/pawns/{pawnId}/drafted", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), IdempotentMutation(), Body("mapId", "drafted")),
-                Put("set-pawn-work-priority", "set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", "/v1/pawns/{pawnId}/work/{workTypeDefName}", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), IdempotentMutation(), Body("mapId", "priority")),
-                Put("set-pawn-assignment", "set_pawn_assignment", "Set one Assign-style pawn setting: schedule, policy, medical care, self-tend, hostility response, allowed area, carried medicine, or prisoner interaction.", "/v1/pawns/{pawnId}/assignments/{assignmentKind}", PawnAssignmentInput(), IdempotentMutation(), Body("mapId", "assignments", "policyKind", "policyId", "care", "enabled", "mode", "areaId", "count", "medicineDefName", "interactionModeDefName")),
-                Put("designate-animal", "designate_animal", "Set or clear one animal's hunt, tame, or slaughter designation.", "/v1/animals/{pawnId}/designation", RequiredWithMap(Prop("pawnId", Str("Animal pawn ThingID or load id.")), Prop("action", AnimalDesignationAction())), IdempotentDestructiveMutation(), Body("mapId", "action")),
-                Put("set-animal-training", "set_animal_training", "Set desired training flags for one colony animal by TrainableDef defName.", "/v1/animals/{pawnId}/training", RequiredWithMap(Prop("pawnId", Str("Colony animal pawn ThingID or load id.")), Prop("assignments", TrainingAssignments())), IdempotentMutation(), Body("mapId", "assignments")),
-                Put("set-research-current", "set_research_project", "Set the current research project by ResearchProjectDef defName.", "/v1/research/current", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), IdempotentMutation(), Body("projectDefName")),
-                Put("set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time. Requires Allow changes.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
-                Post("advance-time", "advance_time", "Run the game for up to 24 in-game hours, then pause it. The run stops early, and pauses, when a stopOn condition happens; the result lists what happened and why it ended. One run at a time. Retrying with the same requestId and arguments returns the existing run (the last 32 runs of the loaded game are remembered); reusing a requestId with different arguments is rejected. Pass waitSeconds to wait for the result in this call, otherwise follow up with get_advance using the run id. Cancelling this call does not stop a run that has started; use set_game_speed. Requires Allow changes.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
-                Get("get-advance", "get_advance", "Get the game's tick and speed, and an advance_time run: its status, what happened, and why it ended. Defaults to the most recent run; pass runId for a specific one. Pass waitSeconds to wait for that run to end first.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("runId", J(F("type", "integer"), F("minimum", 1), F("description", "Run id returned by advance_time. Defaults to the most recent run."))), Prop("waitSeconds", WaitSeconds())), "runId", "waitSeconds"),
+                Get(ToolGroups.Observe, "game-context", "get_game_context", "Get game-wide context: current map, time, paused state, selected game speed, storyteller/difficulty, loaded mods, and map ids.", "/v1/game-context", Input()),
+                Get(ToolGroups.Diagnostics, "mods", "list_mods", "List loaded mods in runtime order, or scope=installed for known installed mods including disabled ones. Includes game version, pending configuration changes, and RimWorld's warnings about the configured mod list. Load positions are zero-based.", "/v1/mods", Input(Prop("scope", EnumString("Mod inventory to inspect. Defaults to loaded.", "loaded", "installed")), Prop("query", Str("Optional search text for mod name or package id."))), "scope", "query"),
+                Get(ToolGroups.Diagnostics, "mod", "get_mod", "Inspect one mod's metadata, dependencies, declared compatibility, loaded assemblies, and available settings panel names. Mod settings values are not exposed or editable.", "/v1/mods/{packageId}", RequiredOnly(Prop("packageId", Str("Exact package id from list_mods, preserving any suffix distinguishing local and Workshop copies.")))),
+                Get(ToolGroups.Diagnostics, "game-log", "get_game_log", "Read retained in-game log entries, newest first. This is not the complete Player.log or startup history. Use include=[\"stackTrace\"] or detail=full for stack traces. The cursor is an offset into current history, not a durable polling cursor.", "/v1/debug/log", Input(Prop("level", EnumString("Severity filter. Defaults to all.", "all", "message", "warning", "error")), Prop("query", Str("Optional case-insensitive search in messages and stack traces."))), "level", "query"),
+                Get(ToolGroups.Diagnostics, "game-settings", "get_game_settings", "Read supported global game options and the current colony's storyteller/difficulty, with available choices. Works without a colony for global options.", "/v1/settings", RequiredOnly()),
+                Put(ToolGroups.GameSettings, "set-game-settings", "set_game_settings", "Change supported global options or the current colony's storyteller/difficulty preset. Only supplied fields change. Global options are saved; colony settings persist with the normal game save. Changing only the storyteller preserves custom difficulty.", "/v1/settings", GameSettingsInput(), IdempotentMutation(), Body("storytellerDefName", "difficultyDefName", "runInBackground", "pauseOnLoad", "automaticPauseMode", "autosaveIntervalDays", "volumeMaster", "volumeMusic")),
+                Get(ToolGroups.Observe, "colony-status", "get_colony_status", "Get a compact dashboard for the active colony with top risks and drill-down hints. food gives stored nutrition as meals and raw food, how much the colonists eat per day, days left, and the change per day over up to the last three days (sampled hourly since the game was loaded). Only food in storage counts, so hauling food into storage shows as a rise.", "/v1/colony-status", Input()),
+                Get(ToolGroups.Observe, "pawns", "list_pawns", "List pawns by validated filter. Use include=[\"assignments\"] for Assign-style pawn settings and include=[\"assignmentOptions\"] for valid policy, area, medical, hostility, medicine, and interaction options.", "/v1/pawns", Input(Prop("filter", PawnFilter())), "filter"),
+                Get(ToolGroups.Observe, "pawn", "get_pawn", "Get full details for one pawn by ThingID or load id. This endpoint always returns the full pawn record.", "/v1/pawns/{id}", Required(Prop("id", Str("Pawn ThingID or load id.")))),
+                Get(ToolGroups.Observe, "resources", "list_resources", "List grouped map resources with compact food, medicine, stack, forbidden, roof, and rot context. Items under fog are hidden, as in game, and not counted.", "/v1/resources", Input()),
+                Get(ToolGroups.Observe, "things", "find_things", "Find items on a map: anything haulable, such as resources, food, medicine, weapons, apparel, chunks, corpses, and minified buildings. Each row gives id, def, label, x, z, count, forbidden, inStorage, and the storage id; storages labels those ids. Filter by def, category (subcategories included), excludeCategory (such as [\"Chunks\", \"Corpses\"]), label text, forbidden, inStorage, or distance from x and z; results are sorted by distance when x and z are given. Unexplored areas are never searched.", "/v1/things", Input(Prop("def", Str("Exact ThingDef defName, such as Steel or MealSimple.")), Prop("category", Str("ThingCategoryDef defName, such as Foods, Medicine, Weapons, or ResourcesRaw.")), Prop("excludeCategory", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "ThingCategoryDef defNames to leave out, subcategories included."))), Prop("query", Str("Text to find in the item label or defName.")), Prop("forbidden", Bool("Only forbidden (true) or only allowed (false) items.")), Prop("inStorage", Bool("Only items in storage that accepts them (true), or only items outside it (false).")), Prop("x", Int("Search centre x.", 0, 1000)), Prop("z", Int("Search centre z.", 0, 1000)), Prop("radius", Int("Search radius in cells around x and z.", 1, 500))), "def", "category", "excludeCategory", "query", "forbidden", "inStorage", "x", "z", "radius"),
+                Get(ToolGroups.Observe, "map-view", "get_map_view", "Get a character picture of part of a map, one character per cell. rows[0] is the north edge (z = origin.z + height - 1); each row runs west to east from x = origin.x. Each cell shows its most important feature: a pawn, then a building or blueprint, tree, item, zone, water, or soil fertility; unexplored cells show nothing. Capital letters are colonists, and the legend gives each one's name, id, and job; legend lists only the symbols shown. Defaults to 32x32 centred on the colonists, at most 40x40. layers adds grids over the same cells, each under layers with its own legend: roof, or designations (orders such as mine, cut, or deconstruct). A layer reports markedCells and leaves out its rows when it marks none.", "/v1/map/view", InputWithOptionalMap(true, new string[0], Prop("x", Int("West edge of the view.", 0, 1000)), Prop("z", Int("South edge of the view.", 0, 1000)), Prop("width", Int("Columns, 1 to 40. Defaults to 32.", 1, 40)), Prop("height", Int("Rows, 1 to 40. Defaults to 32.", 1, 40)), Prop("layers", J(F("type", "array"), F("items", EnumString("Extra layer.", "roof", "designations")), F("description", "Extra grids to include.")))), "x", "z", "width", "height", "layers"),
+                Get(ToolGroups.Observe, "check-placement", "check_placement", "Check whether a building fits at a position, or find where it fits among up to 20x20 positions, with the game's build checks. x and z are the building's position cell; footprintOffset gives the cells it covers from there, and interactionCellOffset where a worker stands. Returns fits (nearest the middle of the area first), rejected positions grouped by reason, the cost, and blockers such as missingMaterial or noConstructor. Changes nothing. Uses the map shown in game.", "/v1/placement", InputWithOptionalMap(true, new[] { "def", "x", "z" }, Prop("def", Str("Building defName, such as Campfire, FueledStove, ButcherSpot, or Wall.")), Prop("stuff", Str("Material defName for buildings made from one, such as WoodLog or Steel. Defaults to the game's choice.")), Prop("rotation", EnumString("Facing. Defaults to the building's usual facing.", "north", "east", "south", "west")), Prop("x", Int("Position x, or the west edge of the positions to check.", 0, 1000)), Prop("z", Int("Position z, or the south edge of the positions to check.", 0, 1000)), Prop("width", Int("Positions to check west to east, 1 to 20. Defaults to 1.", 1, 20)), Prop("height", Int("Positions to check south to north, 1 to 20. Defaults to 1.", 1, 20))), "def", "stuff", "rotation", "x", "z", "width", "height"),
+                Get(ToolGroups.Observe, "work", "list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", "/v1/work", Input()),
+                Get(ToolGroups.Observe, "production", "list_production", "List production bills across colony bill givers. Each bill has a state (active, suspended, done, paused, or targetReached) and, when active, blockers that stop it: missingIngredients, noWorker (counting the bill's skill range and pawn restriction), needsFuel, or workbenchUnusable. detail=normal adds the usable ingredients each needs and has, following the game's rules for mixing kinds. Ingredients other jobs have reserved still count, so a bill can look ready a moment before a colonist finds them taken.", "/v1/production", Input()),
+                Get(ToolGroups.Observe, "bill", "get_bill", "Get full details for one production bill by bill id, with its state, blockers, and the usable ingredients it needs and has: allowed, not forbidden, within its search radius, and reachable from the workbench. Reserved ingredients still count.", "/v1/bills/{id}", Required(Prop("id", Str("Bill id returned by list_production.")))),
+                Put(ToolGroups.Administration, "set-bill", "set_bill", "Update or delete an existing production bill by bill id. Use mode=update to change fields, or mode=delete to remove it. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", "/v1/bills/{id}", SetBillInput(), IdempotentDestructiveMutation(), Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")),
+                Get(ToolGroups.Observe, "workshops", "list_workshops", "List colony workshops/workbenches that can hold production bills, with current bill counts and available recipe counts. Use include=[\"recipes\"] or detail=full to include addable recipe summaries.", "/v1/workshops", Input()),
+                Get(ToolGroups.Observe, "workshop", "get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", "/v1/workshops/{id}", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops.")))),
+                Post(ToolGroups.Administration, "add-bill-to-workshop", "add_bill_to_workshop", "Add a new bill to a workshop for a recipe. This is intentionally additive and can create duplicate recipe bills. Like the game, a new bill does the recipe once unless repeatModeDefName says otherwise: Forever, or TargetCount with targetCount. Use search_defs for bill mode def names and list_zones for SpecificStockpile targets.", "/v1/workshops/{workshopId}/bills", AddBillToWorkshopInput(), AdditiveMutation(), Body("mapId", "recipeDefName", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId", "requestId")),
+                Get(ToolGroups.Observe, "zones", "list_zones", "List stockpiles, growing zones, and allowed areas. Stockpiles show their priority and accepts: the top-level categories they take fully (all), partly (some), or not at all (none), counting special filters that are off (specialFiltersOff), and the hit point and quality ranges they take when narrowed.", "/v1/zones", Input()),
+                Get(ToolGroups.Observe, "zone", "get_zone", "Get full details for one zone or area by id.", "/v1/zones/{id}", Required(Prop("id", Str("Zone id returned by list_zones.")))),
+                Get(ToolGroups.Observe, "environment", "get_environment", "Get weather, season, game conditions, hazards, and rooms: each room closed off from the map edge, with its role (such as Bedroom or Barracks), size, unroofed cells, temperature, and whether it uses the outdoor temperature. A room that is not closed in is part of the outdoors and is not listed, and neither is one still under fog.", "/v1/environment", Input()),
+                Get(ToolGroups.Observe, "power", "get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", "/v1/power", Input()),
+                Get(ToolGroups.Observe, "threats", "list_threats", "List active threats such as hostile pawns, manhunters, predators, and fires. As in game, anything under fog is hidden and not listed.", "/v1/threats", Input()),
+                Get(ToolGroups.Observe, "research", "get_research", "Get current research, blockers that stop it progressing (such as noProject, missingResearchBench, or noResearcher), and paged research projects. availableOnly lists only projects that can be started now.", "/v1/research", Input(Prop("availableOnly", Bool("Only projects that can be started now. Needs a loaded colony."))), "availableOnly"),
+                Get(ToolGroups.Observe, "ideoligions", "list_ideoligions", "List loaded Ideology ideoligions with summary identity, memes, culture, and mode flags. Returns active=false with an empty list when Ideology is inactive.", "/v1/ideoligions", Input()),
+                Get(ToolGroups.Observe, "ideoligion", "get_ideoligion", "Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.", "/v1/ideoligions/{id}", Required(Prop("id", Str("Ideoligion id returned by list_ideoligions.")))),
+                Get(ToolGroups.Observe, "quests", "list_quests", "List active quests and quest state exposed by RimWorld.", "/v1/quests", Input()),
+                Get(ToolGroups.Observe, "buildings", "list_buildings", "List colony buildings. Default rows are compact; detail=normal adds size, passability, power, battery, fuel, and billGiver. Filter category by production, power, bed, storage, or any defName substring. Use include=[\"contents\"] for storage-slot contents, or get_building to inspect one building by id.", "/v1/buildings", Input(Prop("category", BuildingCategory())), "category"),
+                Get(ToolGroups.Observe, "building", "get_building", "Get full details for one colony building by ThingID or load id. Returns size, passability, power, fuel, bill support, and contents={supported,items} for storage-slot buildings.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")))),
+                Get(ToolGroups.Observe, "world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input()),
+                Get(ToolGroups.Observe, "defs-search", "search_defs", "Search loaded game defs by kind, query, and category. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/search", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
+                Get(ToolGroups.Observe, "def", "get_def", "Get full detail for a loaded def by defName and optional kind. sourceMod identifies the defining mod, not later patch contributors. kind accepts any loaded Def type name without the Def suffix, compatibility aliases such as research/designation, or all.", "/v1/defs/{defName}", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), "kind"),
+                Put(ToolGroups.PawnControl, "set-pawn-drafted", "set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", "/v1/pawns/{pawnId}/drafted", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), IdempotentMutation(), Body("mapId", "drafted")),
+                Put(ToolGroups.Administration, "set-pawn-work-priority", "set_pawn_work_priority", "Set one player-controlled pawn's work priority for a work type. Priority 0 disables the work type; 1 is highest and 4 is lowest.", "/v1/pawns/{pawnId}/work/{workTypeDefName}", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), IdempotentMutation(), Body("mapId", "priority")),
+                Put(ToolGroups.Administration, "set-pawn-assignment", "set_pawn_assignment", "Set one Assign-style pawn setting: schedule, policy, medical care, self-tend, hostility response, allowed area, carried medicine, or prisoner interaction.", "/v1/pawns/{pawnId}/assignments/{assignmentKind}", PawnAssignmentInput(), IdempotentMutation(), Body("mapId", "assignments", "policyKind", "policyId", "care", "enabled", "mode", "areaId", "count", "medicineDefName", "interactionModeDefName")),
+                Put(ToolGroups.Orders, "designate-animal", "designate_animal", "Set or clear one animal's hunt, tame, or slaughter designation.", "/v1/animals/{pawnId}/designation", RequiredWithMap(Prop("pawnId", Str("Animal pawn ThingID or load id.")), Prop("action", AnimalDesignationAction())), IdempotentDestructiveMutation(), Body("mapId", "action")),
+                Put(ToolGroups.Administration, "set-animal-training", "set_animal_training", "Set desired training flags for one colony animal by TrainableDef defName.", "/v1/animals/{pawnId}/training", RequiredWithMap(Prop("pawnId", Str("Colony animal pawn ThingID or load id.")), Prop("assignments", TrainingAssignments())), IdempotentMutation(), Body("mapId", "assignments")),
+                Put(ToolGroups.Administration, "set-research-current", "set_research_project", "Set the current research project by ResearchProjectDef defName. Returns blockers that would stop it progressing, such as a missing research bench.", "/v1/research/current", RequiredOnly(Prop("projectDefName", Str("ResearchProjectDef defName."))), IdempotentMutation(), Body("projectDefName")),
+                Put(ToolGroups.Orders, "designate", "designate", "Forbid, unforbid, or mark items for hauling; cut plants, harvest crops, or chop trees for wood; mine rock, deconstruct buildings, or cancel orders, blueprints, and unfinished buildings. Target things by thingIds or by rectangles of cells (optionally only one defName). Uses the game's own checks and reports each target's outcome: applied, alreadySatisfied, or rejected with a reason. Unforbidden items are hauled to stockpiles that accept them; haul marks chunks and other things that are not hauled automatically. cut clears plants but leaves grown trees, which chopWood takes for wood; harvest gathers crops and wild plants that are ready, such as berries. Unexplored cells are never mined. Acts on the map shown in game.", "/v1/designations", DesignateInput(), Mutation(true, true), Body("mapId", "kind", "thingIds", "rects", "defName")),
+                Post(ToolGroups.Orders, "place-blueprint", "place_blueprint", "Place blueprints for colonists to build: up to 50 placements, each a building def with optional stuff (material) and rotation at x and z. Uses the game's build tool, so research and placement rules apply. Each placement reports applied or alreadySatisfied, with the id and state (blueprint, frame, or built) of what is there, or rejected with the reason. blockers lists missing materials (counting unforbidden, explored stock, including what other blueprints will use) or builders. Find a spot with check_placement first, and pass requestId for safe retries. Acts on the map shown in game.", "/v1/blueprints", PlaceBlueprintInput(), IdempotentMutation(), Body("mapId", "placements", "requestId")),
+                Put(ToolGroups.Administration, "set-zone", "set_zone", "Create, grow, shrink, rename, or delete a stockpile or growing zone. To create one, give kind and add rectangles, and pass requestId for safe retries; to change one, give zoneId. Cells are checked like the game's zone tools, and every rejected cell is listed with its reason. A zone only grows into cells touching it; after removing cells it keeps only its connected part. New stockpiles accept the usual items; use set_storage to change that. Acts on the map shown in game.", "/v1/zones", SetZoneInput(), Mutation(false, true), Body("mapId", "zoneId", "kind", "add", "remove", "delete", "label", "requestId")),
+                Put(ToolGroups.Administration, "set-storage", "set_storage", "Set a stockpile's or storage building's priority and what it accepts. allow and disallow take ThingCategoryDef names (such as FoodMeals, Medicine, ResourcesRaw) or ThingDef names (such as MealSimple); allowAll or disallowAll apply first. Each entry reports applied, alreadySatisfied, or rejected, for example when a shelf cannot hold it. Special filters, such as rotten food or tainted apparel, keep their settings unless named in allow or disallow (such as AllowRotten); an allowed category or thing lists those still refusing some of it, in specialFiltersOff (allow them by name to take those too) and fixedSpecialFiltersOff (the building refuses them whatever its settings). accepts lists the top-level categories the storage now takes fully (all), partly (some), or not at all (none), counting the special filters that are off in its settings (specialFiltersOff) or refused by the building whatever its settings (fixedSpecialFiltersOff, such as a shelf refusing large corpses), and the hit point and quality ranges it takes when narrowed.", "/v1/storage", SetStorageInput(), IdempotentMutation(), Body("mapId", "zoneId", "buildingId", "priority", "allowAll", "disallowAll", "allow", "disallow")),
+                Put(ToolGroups.Administration, "set-growing-zone", "set_growing_zone", "Set a growing zone's crop and whether colonists sow it and cut other plants in it. The crop must be one the game's crop menu offers for the zone, so research and map rules apply. Returns the zone's growing state: sowableCells (cells without the crop where it could be sown now), sown, harvestable, averageGrowth, notGrowing (sown plants not growing right now) with notGrowingReasons (resting: the nightly rest every plant takes from about 19:00 to 6:00, which is normal; tooDark; temperature; other, such as blight), and blockers such as noPlantableCells, outOfSeason, or noGrower. list_zones and get_zone report the same.", "/v1/growing", SetGrowingZoneInput(), IdempotentMutation(), Body("mapId", "zoneId", "plant", "allowSow", "allowCut")),
+                Put(ToolGroups.Administration, "set-area", "set_area", "Paint rectangles into or out of the Home area or an allowed area, rename or delete an allowed area, or create one by omitting areaId (pass requestId for safe retries). areaId is \"home\" or an area id from list_zones.", "/v1/areas", SetAreaInput(), Mutation(false, true), Body("mapId", "areaId", "label", "add", "remove", "delete", "requestId")),
+                Post(ToolGroups.PawnControl, "order-pawn", "order_pawn", "Order one player pawn, with the game's own right-click checks: equip a weapon or wear apparel (targetId of an item), move to a cell (x and z; the game picks a standable cell nearby, reported as destination), attack (targetId of a hostile, animal, or building; a pawn with a ranged weapon fires and is refused when out of range, so move it closer first, and others attack in melee), rescue a downed pawn to a bed, or tend a pawn (targetId of a pawn). move, attack, and tend need a drafted pawn: use set_pawn_drafted first. The order replaces what the pawn is doing; equip and wear can instead wait behind its current job and earlier orders with queue, like shift-click, and queuedJobs lists what is waiting. Returns jobIssued, alreadySatisfied, rejected (with the game's reason, such as no path), or awaitingInput when the game asks the player to confirm. Acts on the map shown in game.", "/v1/pawns/{pawnId}/orders", OrderPawnInput(), Mutation(true, true), Body("mapId", "order", "targetId", "x", "z", "queue", "requestId")),
+                Put(ToolGroups.Time, "set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
+                Post(ToolGroups.Time, "advance-time", "advance_time", "Run the game for up to 24 in-game hours, then pause it. The run stops early, and pauses, when a stopOn condition happens; the result lists what happened and why it ended. One run at a time. Retrying with the same requestId and arguments returns the existing run (the last 32 runs of the loaded game are remembered); reusing a requestId with different arguments is rejected. Pass waitSeconds to wait for the result in this call, otherwise follow up with get_advance using the run id. Cancelling this call does not stop a run that has started; use set_game_speed.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
+                Get(ToolGroups.Observe, "get-advance", "get_advance", "Get the game's tick and speed, and an advance_time run: its status, what happened, and why it ended. Defaults to the most recent run; pass runId for a specific one. Pass waitSeconds to wait for that run to end first.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("runId", J(F("type", "integer"), F("minimum", 1), F("description", "Run id returned by advance_time. Defaults to the most recent run."))), Prop("waitSeconds", WaitSeconds())), "runId", "waitSeconds"),
                 RouteOnly("tools", "GET", "/v1/tools")
             };
         }
 
         private static ToolSpec RouteOnly(string handlerId, string method, string pathTemplate)
         {
-            return new ToolSpec(handlerId, null, null, method, pathTemplate, new string[0], new string[0], null, null, false);
+            return new ToolSpec(handlerId, null, null, null, method, pathTemplate, new string[0], new string[0], null, null, false);
         }
 
-        private static ToolSpec Get(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, params string[] extraQueryKeys)
+        private static ToolSpec Get(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, params string[] extraQueryKeys)
         {
-            return new ToolSpec(handlerId, name, description, "GET", pathTemplate, SharedReadKeys.Concat(extraQueryKeys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), new string[0], inputSchema, ReadOnly(), true);
+            return new ToolSpec(handlerId, group, name, description, "GET", pathTemplate, SharedReadKeys.Concat(extraQueryKeys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), new string[0], inputSchema, ReadOnly(), true);
         }
 
-        private static ToolSpec Put(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
+        private static ToolSpec Put(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
         {
-            return new ToolSpec(handlerId, name, description, "PUT", pathTemplate, new string[0], WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
+            return new ToolSpec(handlerId, group, name, description, "PUT", pathTemplate, new string[0], WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
         }
 
-        private static ToolSpec Post(string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys, params string[] queryKeys)
+        private static ToolSpec Post(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys, params string[] queryKeys)
         {
-            return new ToolSpec(handlerId, name, description, "POST", pathTemplate, queryKeys, WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
+            return new ToolSpec(handlerId, group, name, description, "POST", pathTemplate, queryKeys, WithLoadGuard(inputSchema, bodyKeys), inputSchema, annotations, true);
         }
 
         // Writes accept the loadId from an earlier response; the bridge refuses them after another load.
@@ -222,15 +284,128 @@ namespace RiMCP.Shared
             return bodyKeys.Concat(new[] { "expectedLoadId" }).ToArray();
         }
 
+        private static Dictionary<string, object> CellRects(string description)
+        {
+            return J(
+                F("type", "array"),
+                F("maxItems", 20),
+                F("description", description + " Each rectangle starts at its south-west corner (x, z) and extends east by width and north by height."),
+                F("items", J(
+                    F("type", "object"),
+                    F("properties", J(
+                        F("x", Int("West edge.", 0, 1000)),
+                        F("z", Int("South edge.", 0, 1000)),
+                        F("width", Int("Columns, 1 to 60. Defaults to 1.", 1, 60)),
+                        F("height", Int("Rows, 1 to 60. Defaults to 1.", 1, 60)))),
+                    F("required", A("x", "z")),
+                    F("additionalProperties", false))));
+        }
+
+        private static Dictionary<string, object> DesignateInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["kind"] = EnumString("Order to apply.", "forbid", "unforbid", "haul", "cut", "harvest", "chopWood", "mine", "deconstruct", "cancel");
+            props["thingIds"] = J(F("type", "array"), F("items", J(F("type", "string"))), F("maxItems", 300), F("description", "Ids of the things to order, such as items from find_things. Give these or rects."));
+            props["rects"] = CellRects("Cells whose items or plants get the order. Give these or thingIds.");
+            props["defName"] = Str("With rects, only things of this ThingDef, such as Plant_Berry or Plant_TreeOak.");
+            return ObjectSchema(props, "kind");
+        }
+
+        // How long a requestId is remembered: CommandReceipts.MaxReceipts in the loaded game.
+        private const string RetryWindow = " The last 64 calls given a requestId in the loaded game are remembered.";
+
+        private static Dictionary<string, object> SetZoneInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["zoneId"] = Str("Zone id from list_zones. Omit to create a zone.");
+            props["kind"] = EnumString("Zone kind. Required when creating.", "stockpile", "growing");
+            props["add"] = CellRects("Cells to add.");
+            props["remove"] = CellRects("Cells to remove from the zone.");
+            props["delete"] = Bool("Delete the whole zone given by zoneId.");
+            props["label"] = Str("New name for the zone.");
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating: a repeat returns the original result." + RetryWindow));
+            return ObjectSchema(props);
+        }
+
+        private static Dictionary<string, object> SetStorageInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["zoneId"] = Str("Stockpile zone id from list_zones. Give this or buildingId.");
+            props["buildingId"] = Str("Storage building id, such as a shelf, from list_buildings. Give this or zoneId.");
+            props["priority"] = EnumString("Hauling priority.", "Low", "Normal", "Preferred", "Important", "Critical");
+            props["allowAll"] = Bool("Allow everything the storage can hold, before allow and disallow.");
+            props["disallowAll"] = Bool("Allow nothing, before allow and disallow.");
+            props["allow"] = J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "ThingCategoryDef, ThingDef, or SpecialThingFilterDef names to allow."));
+            props["disallow"] = J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "ThingCategoryDef, ThingDef, or SpecialThingFilterDef names to disallow."));
+            return ObjectSchema(props);
+        }
+
+        private static Dictionary<string, object> SetGrowingZoneInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["zoneId"] = Str("Growing zone id from list_zones.");
+            props["plant"] = Str("Plant defName to grow, such as Plant_Rice, Plant_Potato, Plant_Corn, or Plant_Cotton.");
+            props["allowSow"] = Bool("Whether colonists sow the crop.");
+            props["allowCut"] = Bool("Whether colonists cut other plants in the zone.");
+            return ObjectSchema(props, "zoneId");
+        }
+
+        private static Dictionary<string, object> PlaceBlueprintInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["placements"] = J(
+                F("type", "array"),
+                F("minItems", 1),
+                F("maxItems", 50),
+                F("description", "Buildings to place, in order."),
+                F("items", J(
+                    F("type", "object"),
+                    F("properties", J(
+                        F("def", Str("Building defName, such as Campfire, FueledStove, ButcherSpot, or Wall.")),
+                        F("stuff", Str("Material defName for buildings made from one, such as WoodLog, Steel, or BlocksGranite. Defaults to the game's choice.")),
+                        F("x", Int("Position x.", 0, 1000)),
+                        F("z", Int("Position z.", 0, 1000)),
+                        F("rotation", EnumString("Facing. Defaults to the building's usual facing.", "north", "east", "south", "west")))),
+                    F("required", A("def", "x", "z")),
+                    F("additionalProperties", false))));
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat returns the original result." + RetryWindow));
+            return ObjectSchema(props, "placements");
+        }
+
+        private static Dictionary<string, object> SetAreaInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["areaId"] = Str("\"home\" or an area id from list_zones. Omit to create an allowed area.");
+            props["label"] = Str("Name for an allowed area.");
+            props["add"] = CellRects("Cells to add to the area.");
+            props["remove"] = CellRects("Cells to remove from the area.");
+            props["delete"] = Bool("Delete the allowed area given by areaId.");
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating: a repeat returns the original result." + RetryWindow));
+            return ObjectSchema(props);
+        }
+
+        private static Dictionary<string, object> OrderPawnInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["pawnId"] = Str("Pawn ThingID or load id.");
+            props["order"] = EnumString("Order to give.", "equip", "wear", "move", "attack", "rescue", "tend");
+            props["targetId"] = Str("What the order acts on: an item id from find_things for equip and wear, a pawn or building id for attack, a pawn id for rescue and tend. Not used by move.");
+            props["x"] = Int("Cell x for move.", 0, 1000);
+            props["z"] = Int("Cell z for move.", 0, 1000);
+            props["queue"] = Bool("For equip and wear: wait behind the pawn's current job and earlier orders instead of replacing them, like shift-click. An idle pawn starts at once.");
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat returns the original result, whatever its outcome, without giving the order again, so it never overrides an order given in between." + RetryWindow));
+            return ObjectSchema(props, "pawnId", "order");
+        }
+
         private static Dictionary<string, object> AdvanceTimeInput()
         {
             Dictionary<string, object> schema = ObjectSchema(J(
-                F("hours", J(F("type", "number"), F("minimum", 0.1), F("maximum", 24), F("description", "In-game hours to run, from 0.1 to 24. One hour is 2,500 ticks."))),
+                F("hours", J(F("type", "number"), F("minimum", 0.01), F("maximum", 24), F("description", "In-game hours to run, from 0.01 to 24. One hour is 2,500 ticks, about 42 seconds at Normal speed; 0.01 hours is 25 ticks, for following a fight closely."))),
                 F("speed", EnumString("Speed while running. Defaults to Superfast. The game still drops to normal speed during danger, as it does for players. Ultrafast needs development mode.", "Normal", "Fast", "Superfast", "Ultrafast")),
                 F("stopOn", J(
                     F("type", "array"),
-                    F("items", EnumString("Condition.", "death", "downed", "injured", "mentalBreak", "hostiles", "threatLetter", "letter")),
-                    F("description", "Conditions that end the run early and pause. Defaults to death, downed, injured (new injury or bleeding), mentalBreak, hostiles (a visible hostile threat appears), and threatLetter. letter stops on any letter. An empty list runs to the end. Checked every frame."))),
+                    F("items", EnumString("Condition.", "death", "downed", "injured", "mentalBreak", "hostiles", "lowFood", "threatLetter", "letter")),
+                    F("description", "Conditions that end the run early and pause. Defaults to death, downed, injured (new injury or bleeding), mentalBreak, hostiles (a visible hostile threat appears), lowFood (stored food drops below the game's Low food threshold of 4 nutrition per colonist), and threatLetter. letter stops on any letter. An empty list runs to the end. Checked every frame; lowFood every 250 ticks."))),
                 F("requestId", J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat with the same id returns the existing run."))),
                 F("waitSeconds", WaitSeconds())),
                 "hours");
@@ -324,6 +499,7 @@ namespace RiMCP.Shared
             props["workshopId"] = Str("Workshop ThingID or load id from list_workshops.");
             props["recipeDefName"] = Str("RecipeDef defName from list_workshops include=[\"recipes\"] or get_workshop.");
             AddBillSettingProperties(props);
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat returns the bill it added instead of adding another." + RetryWindow));
             return ObjectSchema(props, "workshopId", "recipeDefName");
         }
 

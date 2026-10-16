@@ -63,13 +63,20 @@ namespace RiMCP.Read
             return ReadEnvelope.Ok(context, SerializePawn(pawn, RoleForPawn(context.Map, pawn), ReadDetail.Full, context.Request));
         }
 
+        // Pawns under fog, such as insects or sleeping mechanoids in an unopened ancient shrine, are
+        // hidden from the player, so every pawn read, and anything said about a pawn, leaves them out.
+        public static bool Visible(Map map, Pawn pawn)
+        {
+            return !pawn.Position.Fogged(map);
+        }
+
         public static Pawn FindPawn(Map map, string id)
         {
             if (map == null || string.IsNullOrWhiteSpace(id))
             {
                 return null;
             }
-            return map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.ThingID == id || p.GetUniqueLoadID() == id);
+            return map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => (p.ThingID == id || p.GetUniqueLoadID() == id) && Visible(map, p));
         }
 
         public static IEnumerable<PawnRole> PawnsForFilter(Map map, string filter)
@@ -82,6 +89,10 @@ namespace RiMCP.Read
             string normalized = (filter ?? "core").ToLowerInvariant();
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
+                if (!Visible(map, pawn))
+                {
+                    continue;
+                }
                 string role = RoleForPawn(map, pawn);
                 string roleKey = role.ToLowerInvariant();
                 if (normalized == "all" ||
@@ -150,6 +161,11 @@ namespace RiMCP.Read
             dto["position"] = ReadUtil.Cell(pawn.Position);
             dto["mentalState"] = pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName;
             dto["currentJob"] = SerializeCurrentJob(pawn);
+            object[] queuedJobs = SerializeQueuedJobs(pawn);
+            if (queuedJobs != null)
+            {
+                dto["queuedJobs"] = queuedJobs;
+            }
             dto["ideoligion"] = IdeoligionReadService.SerializePawnIdeoligionSummary(pawn);
 
             if (detail != ReadDetail.Summary || request.Wants("needs"))
@@ -210,6 +226,23 @@ namespace RiMCP.Read
                 Dto.Field("defName", jobDef.defName),
                 Dto.Field("label", ReadUtil.DefLabel(jobDef)),
                 Dto.Field("report", report));
+        }
+
+        // Orders waiting behind the current job, such as shift-click orders, in the order they run.
+        public static object[] SerializeQueuedJobs(Pawn pawn)
+        {
+            if (pawn.jobs == null || pawn.jobs.jobQueue == null || pawn.jobs.jobQueue.Count == 0)
+            {
+                return null;
+            }
+            return pawn.jobs.jobQueue
+                .Select(queued => (object)Dto.Obj(
+                    Dto.Field("defName", queued.job.def.defName),
+                    Dto.Field("label", ReadUtil.DefLabel(queued.job.def)),
+                    Dto.Field("target", queued.job.targetA.Thing == null ? null : Dto.Obj(
+                        Dto.Field("id", ReadUtil.ThingId(queued.job.targetA.Thing)),
+                        Dto.Field("label", queued.job.targetA.Thing.LabelShortCap)))))
+                .ToArray();
         }
 
         public static object SerializeNeeds(Pawn pawn, ReadDetail detail)

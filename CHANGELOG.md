@@ -6,16 +6,30 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Time control: `set_game_speed`, and `advance_time`/`get_advance` to run the game for up to 24 in-game hours, stopping and pausing on emergencies.
-- The proxy runs tool calls concurrently and honours cancellation. Requests fail immediately when RimWorld is in the background with Run in background off.
+- Colony control, through the game's own designators, right-click menus, and placement rules, so every in-game check applies and refusals give the game's reason:
+  - Storage and zones: `set_zone` (stockpiles and growing zones), `set_storage` (priority, categories, things, and special filters such as AllowRotten), `set_area` (Home and allowed areas), and `set_growing_zone`.
+  - Work orders: `designate` (forbid, haul, cut, harvest, chop, mine, deconstruct, cancel), and `check_placement` and `place_blueprint` for building.
+  - Pawn orders: `order_pawn` to equip, wear, move, attack, rescue, or tend, replacing the current job or queued like a shift-click.
+- Time control: `set_game_speed`, and `advance_time`/`get_advance` to run the game for 0.01 to 24 in-game hours, then pause, stopping early when a colonist dies, goes down, is hurt, or has a mental break, or on hostiles, low food, or a threat letter.
+- Finding things: `find_things`, and `get_map_view`, a text map with colonists by letter, other pawns, terrain, and roof and designation layers.
+- Blockers that say why something will not happen: bills (ingredients, workers, fuel, power), growing zones (season, sowable cells, growers, and why sown plants are not growing), blueprints (materials, skill), and research (no bench or researcher).
+- The dashboard tracks food: stored meals and raw nutrition, daily use, days left, what rots soon, and the trend, with risks for hungry pawns, blocked bills, and rotting food.
+- Safe retries: commands that create or order something take `requestId`, and a retry returns the first result without acting again, so it never undoes what a player did in between.
+
+### Changed
+
+- Access presets (Full control, Control, Administration, Read only) and per-group switches replace Allow changes, which carries over. Turning RimMCP or a group off applies at once, also to requests still waiting and a running advance, and writes and time control are refused during Multiplayer sessions.
+- Stockpiles report what they accept, by category and including special filters, building limits, and quality and hit point ranges, instead of an ingredient summary.
+- Power is reported in watts (`netPowerW`), and stored food uses the game's Low food count (`storedHumanNutrition`).
+- The proxy runs tool calls concurrently, honours cancellation, and fails at once when RimWorld is in the background with Run in background off.
+- Def search and large reads cost far less main-thread time, bursts of requests are spread across frames, and the settings log shows each request's main-thread time.
 
 ### Fixed
 
-- Commands follow the game's own checks: drafting, prisoner modes (Convert now works), work priorities, animal designations, and bills.
-- Reads no longer log errors or modify the save.
-- Power is reported in watts (`netPowerW`), and food uses the game's Low food count (`storedHumanNutrition`).
-- Def search and large list reads cost far less main-thread time, and bursts of requests are spread across frames. The settings log shows each request's main-thread time.
-- `search_defs` finds defs of modded def subclasses.
+- Commands follow the game's own checks for drafting, prisoner modes (Convert now works), work priorities, animal designations, and bills.
+- Reads no longer log errors, modify the save, or reveal anything under fog, such as an unopened ancient shrine's sleepers and loot.
+- `get_environment` lists real rooms only, without doorways or the outdoors.
+- `search_defs` finds modded def subclasses, and `list_work` lists every active work type.
 
 ## [0.5.6] - 2026-10-13
 

@@ -42,6 +42,8 @@ namespace RiMCP.Read
                 Dto.Field("schedule", request.Detail == ReadDetail.Summary && !request.Wants("schedule") ? null : PawnReadService.SerializeSchedule(pawn)));
         }
 
+        // Every active work type, highest priority first. Leaving any out would hide work a pawn
+        // will do, such as the only builder's Construction.
         private static object CompactWork(Pawn pawn)
         {
             // Prisoners are core pawns but usually have no initialized work settings; see SerializePawnWork.
@@ -63,7 +65,6 @@ namespace RiMCP.Read
                         return false;
                     }
                 })
-                .Take(8)
                 .Select(def => Dto.Obj(
                     Dto.Field("defName", def.defName),
                     Dto.Field("priority", pawn.workSettings.GetPriority(def))))

@@ -16,9 +16,10 @@ namespace RiMCP.Read
                 .OrderBy(record => record.Workbench.def.defName)
                 .ThenBy(record => record.Bill.Label);
             Page<BillRecord> page = new Page<BillRecord>(records, context.Request);
+            BillInputs inputs = new BillInputs(context.Map);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
-                Dto.Field("bills", page.Items.Select(record => SerializeBill(record, context.Request.Detail)).ToArray())),
+                Dto.Field("bills", page.Items.Select(record => SerializeBill(record, context.Request.Detail, inputs)).ToArray())),
                 page.Truncated,
                 page.NextCursor);
         }
@@ -32,9 +33,10 @@ namespace RiMCP.Read
                 .ThenBy(record => record.Workbench.ThingID);
             Page<WorkshopRecord> page = new Page<WorkshopRecord>(records, context.Request);
             bool includeRecipes = context.Request.Wants("recipes");
+            BillInputs inputs = new BillInputs(context.Map);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
-                Dto.Field("workshops", page.Items.Select(record => SerializeWorkshop(record, context.Request.Detail, includeRecipes)).ToArray())),
+                Dto.Field("workshops", page.Items.Select(record => SerializeWorkshop(record, context.Request.Detail, includeRecipes, inputs)).ToArray())),
                 page.Truncated,
                 page.NextCursor);
         }
@@ -114,7 +116,7 @@ namespace RiMCP.Read
             }
         }
 
-        public static object SerializeWorkshop(WorkshopRecord record, ReadDetail detail, bool includeRecipes)
+        public static object SerializeWorkshop(WorkshopRecord record, ReadDetail detail, bool includeRecipes, BillInputs inputs = null)
         {
             List<RecipeDef> recipes = AvailableRecipes(record.Workbench.def)
                 .OrderBy(recipe => recipe.defName)
@@ -132,7 +134,7 @@ namespace RiMCP.Read
             if (detail != ReadDetail.Summary)
             {
                 dto["currentBills"] = bills
-                    .Select(bill => SerializeBill(new BillRecord(record.Workbench, record.Giver, bill), detail))
+                    .Select(bill => SerializeBill(new BillRecord(record.Workbench, record.Giver, bill), detail, inputs ?? (inputs = new BillInputs(record.Workbench.Map))))
                     .ToArray();
             }
             if (includeRecipes)
@@ -144,7 +146,8 @@ namespace RiMCP.Read
             return dto;
         }
 
-        public static object SerializeBill(BillRecord record, ReadDetail detail)
+        // Bills read together pass the same inputs, so they share one scan of the map's items.
+        public static object SerializeBill(BillRecord record, ReadDetail detail, BillInputs inputs = null)
         {
             Bill_Production production = record.Bill as Bill_Production;
             Dictionary<string, object> dto = SummaryDto.Bill(record.Bill);
@@ -153,8 +156,21 @@ namespace RiMCP.Read
             dto["repeatCount"] = production == null ? null : (object)production.repeatCount;
             dto["targetCount"] = production == null ? null : (object)production.targetCount;
 
+            // Whether it will run now, and what stops it, worked out on every read.
+            BillStatus status = BillStatus.Of(record.Bill, record.Workbench, record.Giver, inputs, detail != ReadDetail.Summary);
+            dto["state"] = status.State;
+            if (status.Count.HasValue)
+            {
+                dto["currentCount"] = status.Count.Value;
+            }
+            if (status.Blocking.Count > 0)
+            {
+                dto["blockers"] = Blockers.ToArray(status.Blocking);
+            }
+
             if (detail != ReadDetail.Summary)
             {
+                dto["ingredientsAvailable"] = status.Ingredients.Select(need => need.ToDto()).ToArray();
                 BillStoreModeDef storeMode = record.Bill.GetStoreMode();
                 dto["pauseWhenSatisfied"] = production == null ? null : (object)production.pauseWhenSatisfied;
                 dto["unpauseWhenYouHave"] = production == null ? null : (object)production.unpauseWhenYouHave;

@@ -40,12 +40,12 @@ namespace RiMCP.Read
                 Dto.Field("medicine", medicine));
         }
 
-        // The game's own count behind the Low food alert: fresh, unfogged, human-edible food in
+        // The food the game counts for the Low food alert: fresh, unfogged, human-edible food in
         // storage. Summing every ingestible on the map would include corpses, hay, and food lying
         // outside storage.
         public static float StoredHumanNutrition(Map map)
         {
-            return map == null || map.resourceCounter == null ? 0f : map.resourceCounter.TotalHumanEdibleNutrition;
+            return map == null ? 0f : FoodSample.Take(map).Total;
         }
 
         public static IEnumerable<ResourceGroup> CollectResources(Map map)
@@ -57,10 +57,11 @@ namespace RiMCP.Read
             }
 
             // The haulable group holds spawned items without the plants, rocks, filth, and
-            // buildings that make up most of AllThings on a developed map.
+            // buildings that make up most of AllThings on a developed map. Items under fog, such as
+            // an unopened shrine's loot, are hidden from the player and left out.
             foreach (Thing thing in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver))
             {
-                if (thing == null || thing.def == null || !thing.Spawned)
+                if (thing == null || thing.def == null || !thing.Spawned || thing.Position.Fogged(map))
                 {
                     continue;
                 }

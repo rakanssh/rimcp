@@ -73,6 +73,63 @@ namespace RiMCP.Read
             return Query.TryGetValue(name, out value) ? value : null;
         }
 
+        public int? OptionalInt(string name)
+        {
+            string text = Get(name);
+            int value;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+            if (!int.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value))
+            {
+                throw new BridgeException(400, "Field '" + name + "' must be a whole number.");
+            }
+            return value;
+        }
+
+        public bool? OptionalBool(string name)
+        {
+            string text = Get(name);
+            bool value;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+            if (!bool.TryParse(text, out value))
+            {
+                throw new BridgeException(400, "Field '" + name + "' must be true or false.");
+            }
+            return value;
+        }
+
+        // A list field: arrays reach the bridge as comma-separated text.
+        public string[] List(string name)
+        {
+            return SplitCsv(Get(name)).ToArray();
+        }
+
+        public T OptionalDef<T>(string name) where T : Def
+        {
+            string defName = Get(name);
+            return string.IsNullOrWhiteSpace(defName) ? null : NamedDef<T>(name, defName.Trim());
+        }
+
+        public List<T> DefList<T>(string name) where T : Def
+        {
+            return List(name).Select(defName => NamedDef<T>(name, defName)).ToList();
+        }
+
+        private static T NamedDef<T>(string field, string defName) where T : Def
+        {
+            T def = DefDatabase<T>.GetNamedSilentFail(defName);
+            if (def == null)
+            {
+                throw new BridgeException(400, "Unknown " + field + " '" + defName + "'. Use a defName from search_defs.");
+            }
+            return def;
+        }
+
         public bool Wants(string include)
         {
             return Detail == ReadDetail.Full || Include.Contains(include);
@@ -365,6 +422,8 @@ namespace RiMCP.Read
                 Dto.Field("label", thing.LabelCap));
         }
 
+        // A thing someone holds, such as a pawn's weapon or what a container stores, is where its
+        // holder is, and heldBy says who that is. A thing nowhere on a map has no position.
         public static Dictionary<string, object> ThingWithPosition(Thing thing)
         {
             Dictionary<string, object> dto = Thing(thing);
@@ -372,7 +431,13 @@ namespace RiMCP.Read
             {
                 return null;
             }
-            dto["position"] = ReadUtil.Cell(thing.Position);
+            Thing spawned = ThingOwnerUtility.GetFirstSpawnedParentThing(thing);
+            dto["position"] = spawned == null ? null : ReadUtil.Cell(spawned.Position);
+            if (spawned != null && spawned != thing)
+            {
+                Pawn holder = spawned as Pawn;
+                dto["heldBy"] = holder != null ? Pawn(holder) : Thing(spawned);
+            }
             return dto;
         }
 

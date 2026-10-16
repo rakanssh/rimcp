@@ -11,7 +11,6 @@ namespace RiMCP.Read
 {
     internal static class GameReadService
     {
-        private const float LowFoodNutritionPerColonist = 4f;
 
         public static BridgeResponse GetGameContext(BridgeRequest request, RouteMatch route)
         {
@@ -38,7 +37,8 @@ namespace RiMCP.Read
             List<Pawn> core = pawns.Where(role => PawnReadService.IsCoreRole(role.Role)).Select(role => role.Pawn).ToList();
             List<Pawn> hostiles = pawns.Where(role => role.Role == "hostile").Select(role => role.Pawn).ToList();
             List<ResourceReadService.ResourceGroup> resources = ResourceReadService.CollectResources(context.Map).ToList();
-            List<object> risks = BuildRisks(context.Map, core, hostiles);
+            FoodSummary food = context.Map.IsPlayerHome ? FoodSummary.Of(context.Map) : null;
+            List<object> risks = BuildRisks(context.Map, core, hostiles, food);
 
             return ReadEnvelope.Ok(context, Dto.Obj(
                 Dto.Field("map", ReadUtil.MapSummary(context.Map)),
@@ -46,6 +46,7 @@ namespace RiMCP.Read
                 Dto.Field("topRisks", risks),
                 Dto.Field("pawns", CountPawns(pawns)),
                 Dto.Field("resources", ResourceReadService.SummarizeResources(context.Map, resources)),
+                Dto.Field("food", food == null ? null : food.ToDto(context.Map)),
                 Dto.Field("medical", MedicalSummary(core)),
                 Dto.Field("mood", MoodSummary(core)),
                 Dto.Field("threats", ThreatReadService.SummarizeThreats(context.Map)),
@@ -178,7 +179,7 @@ namespace RiMCP.Read
                     Dto.Field("mood", pawn.needs.mood.CurLevelPercentage))).ToArray()));
         }
 
-        private static List<object> BuildRisks(Map map, List<Pawn> core, List<Pawn> hostiles)
+        private static List<object> BuildRisks(Map map, List<Pawn> core, List<Pawn> hostiles, FoodSummary food)
         {
             List<object> risks = new List<object>();
             int downed = core.Count(pawn => pawn.Downed);
@@ -195,15 +196,26 @@ namespace RiMCP.Read
             {
                 risks.Add(Risk("threat", "hostilesPresent", "Hostile pawns are spawned on the map.", hostiles.Count, "list_threats"));
             }
-            // Mirrors Alert_LowFood: stored human-edible nutrition below 4 per free colonist on a home map.
-            if (map != null && map.IsPlayerHome)
+            int hungry = core.Count(pawn => pawn.needs != null && pawn.needs.food != null && pawn.needs.food.CurCategory >= HungerCategory.UrgentlyHungry);
+            if (hungry > 0)
             {
-                int colonists = map.mapPawns.FreeColonistsSpawnedCount;
-                float nutrition = ResourceReadService.StoredHumanNutrition(map);
-                if (colonists > 0 && nutrition < LowFoodNutritionPerColonist * colonists)
-                {
-                    risks.Add(Risk("resources", "lowFood", "Stored human-edible nutrition is below the game's Low food threshold of 4 per colonist.", (int)nutrition, "list_resources"));
-                }
+                risks.Add(Risk("resources", "hungryPawns", "Core pawns are urgently hungry or starving.", hungry, "list_pawns?filter=core&include=needs"));
+            }
+            // Only whether each bill is blocked: one shared scan, and counting stops at enough.
+            BillInputs inputs = map == null ? null : new BillInputs(map);
+            int blockedBills = map == null ? 0 : ProductionReadService.BillRecords(map)
+                .Count(record => BillStatus.Of(record.Bill, record.Workbench, record.Giver, inputs, false).Blocking.Count > 0);
+            if (blockedBills > 0)
+            {
+                risks.Add(Risk("production", "blockedBills", "Active bills cannot be done: missing ingredients, workers, fuel, or power.", blockedBills, "list_production"));
+            }
+            if (map != null && FoodSummary.IsLow(map))
+            {
+                risks.Add(Risk("resources", "lowFood", "Stored human-edible nutrition is below the game's Low food threshold of 4 per colonist.", (int)ResourceReadService.StoredHumanNutrition(map), "list_resources"));
+            }
+            if (food != null && food.Wasting)
+            {
+                risks.Add(Risk("resources", "foodRotting", "More stored food will rot within a day than the colonists eat in a day; cook it, or keep it cold.", (int)food.RotsWithinDay, "list_resources"));
             }
             return risks;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using RimWorld;
 using Verse;
 
@@ -8,7 +9,7 @@ namespace RiMCP.Bridge
     internal static class GameContext
     {
         // Distinguishes RimWorld sessions, so a load id cannot repeat after a restart.
-        private static readonly string SessionToken = Guid.NewGuid().ToString("N").Substring(0, 8);
+        public static readonly string SessionId = Guid.NewGuid().ToString("N").Substring(0, 8);
         private static readonly System.WeakReference<Game> loadedGame = new System.WeakReference<Game>(null);
         private static int loads;
 
@@ -29,7 +30,7 @@ namespace RiMCP.Bridge
                     loadedGame.SetTarget(game);
                     loads++;
                 }
-                return SessionToken + "-" + loads;
+                return SessionId + "-" + loads;
             }
         }
 
@@ -45,5 +46,26 @@ namespace RiMCP.Bridge
             }
             return Find.CurrentMap ?? Find.Maps.FirstOrDefault();
         }
+
+        // Whether this is a Multiplayer mod session, read from the mod's public API
+        // (Multiplayer.API.MP.IsInMultiplayer). Having the mod loaded for single-player games is
+        // not enough.
+        public static bool InMultiplayer
+        {
+            get
+            {
+                if (multiplayerCheck == null)
+                {
+                    Type api = AppDomain.CurrentDomain.GetAssemblies()
+                        .Select(assembly => assembly.GetType("Multiplayer.API.MP", false))
+                        .FirstOrDefault(type => type != null);
+                    PropertyInfo flag = api == null ? null : api.GetProperty("IsInMultiplayer", BindingFlags.Public | BindingFlags.Static);
+                    multiplayerCheck = flag == null ? (Func<bool>)(() => false) : () => (bool)flag.GetValue(null, null);
+                }
+                return multiplayerCheck();
+            }
+        }
+
+        private static Func<bool> multiplayerCheck;
     }
 }

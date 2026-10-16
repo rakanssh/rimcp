@@ -13,7 +13,7 @@ namespace RiMCP.Read
             ReadContext context = ReadContext.FromMap(request);
 
             IEnumerable<Thing> threats = context.Map.mapPawns.AllPawnsSpawned
-                .Where(IsThreatPawn)
+                .Where(pawn => IsThreatPawn(pawn) && PawnReadService.Visible(context.Map, pawn))
                 .OrderBy(pawn => pawn.LabelShortCap)
                 .Cast<Thing>()
                 .Concat(Fires(context.Map).OrderBy(fire => fire.Position.x).ThenBy(fire => fire.Position.z));
@@ -38,6 +38,10 @@ namespace RiMCP.Read
             int threatPawns = 0;
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
+                if (!PawnReadService.Visible(map, pawn))
+                {
+                    continue;
+                }
                 bool hostile = pawn.HostileTo(Faction.OfPlayer);
                 bool manhunter = IsManhunter(pawn);
                 bool predator = IsPredator(pawn);
@@ -130,13 +134,14 @@ namespace RiMCP.Read
             return "other";
         }
 
-        private static IEnumerable<Thing> Fires(Map map)
+        // Fires the player can see; one under fog is hidden like anything else there.
+        internal static IEnumerable<Thing> Fires(Map map)
         {
             if (map == null || map.listerThings == null)
             {
                 return Enumerable.Empty<Thing>();
             }
-            return map.listerThings.ThingsOfDef(ThingDefOf.Fire);
+            return map.listerThings.ThingsOfDef(ThingDefOf.Fire).Where(fire => !fire.Position.Fogged(map));
         }
     }
 }

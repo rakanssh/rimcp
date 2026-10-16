@@ -26,7 +26,7 @@ namespace RiMCP.Read
             {
                 return null;
             }
-            int fires = map.listerThings == null ? 0 : map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count;
+            int fires = ThreatReadService.Fires(map).Count();
             float outdoorTemp = map.mapTemperature == null ? 0f : map.mapTemperature.OutdoorTemp;
             int hotRooms = 0;
             int coldRooms = 0;
@@ -109,6 +109,7 @@ namespace RiMCP.Read
                 Dto.Field("id", firstCell.HasValue ? ReadUtil.StableSessionId("room", map.uniqueID, firstCell.Value, role == null ? null : role.defName) : null),
                 Dto.Field("role", role == null ? null : role.defName),
                 Dto.Field("cellCount", room.CellCount),
+                Dto.Field("openRoofCells", room.OpenRoofCount),
                 Dto.Field("temperatureC", room.Temperature),
                 Dto.Field("usesOutdoorTemperature", room.UsesOutdoorTemperature));
         }
@@ -116,7 +117,7 @@ namespace RiMCP.Read
         private static object SerializeHazards(Map map)
         {
             List<object> hazards = new List<object>();
-            foreach (Thing fire in map.listerThings.ThingsOfDef(ThingDefOf.Fire).Take(50))
+            foreach (Thing fire in ThreatReadService.Fires(map).Take(50))
             {
                 hazards.Add(Dto.Obj(
                     Dto.Field("kind", "fire"),
@@ -131,6 +132,10 @@ namespace RiMCP.Read
             return hazards;
         }
 
+        // Rooms closed off from the map edge. The game also counts each doorway, and the outdoors,
+        // as a room; leaving them out keeps the list to real rooms, so a room that is not closed in
+        // simply does not appear. A room still under fog, such as an unopened ancient shrine, is
+        // left out too, as the player cannot see it.
         private static IEnumerable<Room> Rooms(Map map)
         {
             if (map == null || map.regionGrid == null)
@@ -139,7 +144,7 @@ namespace RiMCP.Read
             }
             foreach (Room room in map.regionGrid.AllRooms)
             {
-                if (room != null)
+                if (room != null && !room.IsDoorway && !room.TouchesMapEdge && !room.Fogged)
                 {
                     yield return room;
                 }

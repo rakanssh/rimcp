@@ -10,15 +10,18 @@ Current MCP tools:
 
 | Area | Tools | Use these for |
 | --- | --- | --- |
-| Colony overview | `get_game_context`, `get_colony_status` | Current map, time, paused state, selected game speed, storyteller/difficulty, loaded mods, colony dashboard, and top risks. |
+| Colony overview | `get_game_context`, `get_colony_status` | Current map, time, paused state, selected game speed, storyteller/difficulty, loaded mods, colony dashboard, top risks, and food in nutrition with days left, what will rot soon, and its recent trend. |
 | Mods and logs | `list_mods`, `get_mod`, `get_game_log` | Inspect loaded/installed mods, load order, loader warnings, settings panel names, and retained game logs with optional stack traces. |
-| Game settings | `get_game_settings`, `set_game_settings` | Read or change storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume. Writes require **Allow changes**. |
+| Game settings | `get_game_settings`, `set_game_settings` | Read or change storyteller/difficulty presets, background running, pause options, autosave interval, and master/music volume. |
 | Pawns and work | `list_pawns`, `get_pawn`, `list_work`, `set_pawn_drafted`, `set_pawn_work_priority`, `set_pawn_assignment` | Inspect colonists, prisoners, animals, threats, work priorities, schedules, policies, medical care, allowed areas, and other Assign-tab settings. |
-| Production | `list_production`, `get_bill`, `set_bill`, `list_workshops`, `get_workshop`, `add_bill_to_workshop` | Inspect bills and workbenches, add new bills, update bill settings, suspend bills, or delete bills. |
+| Production | `list_production`, `get_bill`, `set_bill`, `list_workshops`, `get_workshop`, `add_bill_to_workshop` | Inspect bills and workbenches, see whether each bill will run and what stops it, add new bills, update bill settings, suspend bills, or delete bills. |
 | Map state | `list_resources`, `list_zones`, `get_zone`, `list_buildings`, `get_building`, `get_environment`, `get_power`, `list_threats` | Inspect stockpiles, growing zones, buildings, storage contents, weather, rooms, power grids, hazards, fires, and hostile activity. |
+| Items, map view and placement | `find_things`, `get_map_view`, `check_placement` | Find items with positions, stack sizes, forbidden state and storage; see part of the map as a character grid with colonists, pawns, blueprints, and optional roof and order layers; check where a building fits. Unexplored areas stay hidden. |
+| Zones, storage and areas | `set_zone`, `set_storage`, `set_growing_zone`, `set_area` | Create and edit stockpiles and growing zones, set what storage accepts and its priority, choose a zone's crop, and paint the Home and allowed areas. Each rejected cell is listed with its reason, and growing zones report what stops them, such as the season. |
+| Orders | `designate`, `place_blueprint`, `order_pawn` | Forbid, unforbid, haul, cut, harvest, chop wood, mine, deconstruct or cancel; place blueprints for colonists to build; and order a pawn to equip a weapon or wear apparel (at once or queued like shift-click), or, drafted, to move, attack, rescue, or tend. All with the game's own checks. |
 | Animals | `designate_animal`, `set_animal_training` | Set hunt/tame/slaughter designations and colony animal training flags. |
-| Research and ideology | `get_research`, `set_research_project`, `list_ideoligions`, `get_ideoligion` | Inspect or choose research, and inspect Ideology data when the expansion is active. |
-| Time | `set_game_speed`, `advance_time`, `get_advance` | Pause or set the speed, or run the game for a set number of in-game hours and pause again. A run stops early on deaths, downed or injured colonists, mental breaks, hostiles, or threat letters, and reports what happened. Changes require **Allow changes**. |
+| Research and ideology | `get_research`, `set_research_project`, `list_ideoligions`, `get_ideoligion` | Inspect or choose research, see what stops it progressing, and inspect Ideology data when the expansion is active. |
+| Time | `set_game_speed`, `advance_time`, `get_advance` | Pause or set the speed, or run the game for a set time, from 25 ticks to 24 in-game hours, and pause again. A run stops early on deaths, downed or injured colonists, mental breaks, hostiles, low food, or threat letters, and reports what happened. |
 | World and defs | `list_quests`, `list_world`, `search_defs`, `get_def` | Inspect quests, factions, world objects, and loaded definitions with their defining mod when known. |
 
 Most tools accept the same optional read controls:
@@ -48,7 +51,7 @@ The MCP proxy mirrors the structuredContent JSON in text content for clients tha
 1. Open the RimMCP mod settings page.
 2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
-4. **Allow changes** is on by default, including when upgrading from a version without this setting. Turn it off in RimMCP settings for read-only access. A saved off setting stays off.
+4. Choose what agents may do under **Access** in RimMCP settings. New installs start with **Full control**. Pick **Control** (everything but game settings), **Administration** (reads, colony settings and time control), or **Read only**, or switch individual groups: Observe, Diagnostics, Time, Administration, Orders, Pawn control and Game settings. A disabled tool is refused with a message naming the group that enables it. Settings from earlier versions carry over: Allow changes on becomes Full control, and off becomes Read only.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 
@@ -64,6 +67,11 @@ Current command HTTP endpoints:
 - `PUT /v1/research/current`
 - `PUT /v1/time/speed`
 - `POST /v1/time/advance`
+- `PUT /v1/designations`
+- `PUT /v1/zones`
+- `PUT /v1/storage`
+- `PUT /v1/areas`
+- `POST /v1/pawns/{pawnId}/orders`
 
 ## Building From Source
 

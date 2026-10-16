@@ -37,6 +37,8 @@ namespace RiMCP.Command
         public TimeSpeed Speed;
         // Label of a visible active threat to the colony, or null.
         public string Threat;
+        // Label of a home map whose stored food is below the Low food threshold, or null.
+        public string LowFood;
         public readonly Dictionary<string, ColonistState> Colonists = new Dictionary<string, ColonistState>();
         public readonly Dictionary<int, LetterState> Letters = new Dictionary<int, LetterState>();
     }
@@ -57,8 +59,8 @@ namespace RiMCP.Command
         public const string Running = "running";
         public const int MaxEvents = 50;
         // Also the order in which simultaneous events are reported.
-        public static readonly string[] Conditions = { "death", "downed", "injured", "mentalBreak", "hostiles", "threatLetter", "letter" };
-        public static readonly string[] DefaultStopOn = { "death", "downed", "injured", "mentalBreak", "hostiles", "threatLetter" };
+        public static readonly string[] Conditions = { "death", "downed", "injured", "mentalBreak", "hostiles", "lowFood", "threatLetter", "letter" };
+        public static readonly string[] DefaultStopOn = { "death", "downed", "injured", "mentalBreak", "hostiles", "lowFood", "threatLetter" };
 
         public readonly int Id;
         public readonly string RequestId;
@@ -80,6 +82,7 @@ namespace RiMCP.Command
         public double FrameMsTotal;
         public double FrameMsMax;
         public bool Failed;
+        public bool Revoked;
 
         public AdvanceRun(int id, string requestId, object game, TimeSpeed speed, int startTick, int targetTick, float hours, IEnumerable<string> stopOn, AdvanceObservation baseline)
         {
@@ -147,7 +150,13 @@ namespace RiMCP.Command
         // or speed change by someone else is left alone.
         public bool PausesGameAtEnd
         {
-            get { return Failed || Status == "stopped" || Status == "completed"; }
+            get { return Failed || Revoked || Status == "stopped" || Status == "completed"; }
+        }
+
+        public void Revoke(string reason, int tick)
+        {
+            Revoked = true;
+            End("interrupted", reason, tick);
         }
 
         public void Fail(string message, int tick)
@@ -212,6 +221,10 @@ namespace RiMCP.Command
             {
                 changes.Add(new AdvanceEvent { Kind = "hostiles", Tick = current.Tick, Detail = current.Threat });
             }
+            if (current.LowFood != null && previous.LowFood == null)
+            {
+                changes.Add(new AdvanceEvent { Kind = "lowFood", Tick = current.Tick, Detail = current.LowFood });
+            }
             foreach (LetterState letter in current.Letters.Values.OrderBy(letter => letter.Id))
             {
                 if (!previous.Letters.ContainsKey(letter.Id))
@@ -240,6 +253,11 @@ namespace RiMCP.Command
         private static AdvanceRun latest;
         private static int nextId;
         private static List<Pawn> tracked = new List<Pawn>();
+        // Summing stored food costs too much for every frame, so it is checked every 250 ticks and
+        // carried between checks.
+        private const int FoodCheckInterval = GenTicks.TickRareInterval;
+        private static int foodCheckedTick = int.MinValue;
+        private static string lowFood;
 
         // Replaceable so tests can simulate an observation failure.
         internal static Func<AdvanceObservation> Observer = Observe;
@@ -270,6 +288,7 @@ namespace RiMCP.Command
 
             // Take the starting snapshot before unpausing, so a failure here leaves the game as it was.
             tracked = new List<Pawn>();
+            foodCheckedTick = int.MinValue;
             AdvanceObservation baseline = Observe();
             TickManager ticks = Find.TickManager;
             ticks.CurTimeSpeed = speed;
@@ -313,6 +332,24 @@ namespace RiMCP.Command
                 return null;
             }
             run.End("interrupted", reason, Current.Game == null ? run.Previous.Tick : Find.TickManager.TicksGame);
+            run.Ended.Set();
+            return run;
+        }
+
+        // The agent lost time control while its run owned time: end the run and pause.
+        public static AdvanceRun Revoke(string reason)
+        {
+            AdvanceRun run = latest;
+            if (run == null || run.Status != AdvanceRun.Running)
+            {
+                return null;
+            }
+            bool loaded = Current.Game != null && ReferenceEquals(Current.Game, run.Game);
+            run.Revoke(reason, loaded ? Find.TickManager.TicksGame : run.Previous.Tick);
+            if (loaded)
+            {
+                Find.TickManager.Pause();
+            }
             run.Ended.Set();
             return run;
         }
@@ -371,6 +408,13 @@ namespace RiMCP.Command
                     observation.Threat = ThreatLabel(threat.Thing);
                 }
             }
+            if (observation.Tick < foodCheckedTick || observation.Tick >= foodCheckedTick + FoodCheckInterval)
+            {
+                foodCheckedTick = observation.Tick;
+                Map low = Find.Maps.FirstOrDefault(FoodSummary.IsLow);
+                lowFood = low == null ? null : "stored food on " + (low.Parent == null ? "map " + low.uniqueID : low.Parent.LabelCap) + " is below " + FoodSummary.LowPerColonist + " nutrition per colonist";
+            }
+            observation.LowFood = lowFood;
             // Colonists who died since the last frame are no longer spawned colonists.
             pawns.AddRange(tracked.Where(pawn => pawn.Dead && !pawns.Contains(pawn)));
             tracked = pawns.Where(pawn => !pawn.Dead).ToList();

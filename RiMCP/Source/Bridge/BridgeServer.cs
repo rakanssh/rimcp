@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using RiMCP.Settings;
 using RiMCP.Util;
 
 namespace RiMCP.Bridge
@@ -15,20 +16,20 @@ namespace RiMCP.Bridge
 
         private readonly Func<BridgeRequest, BridgeResponse> dispatch;
         private readonly RecentLog log;
-        private readonly Func<bool> colonyChangesAllowed;
+        private readonly Func<AccessState> access;
         private readonly HashSet<string> recentClients = new HashSet<string>();
         private HttpListener listener;
         private Thread thread;
         private volatile bool stopping;
         private string token;
 
-        public BridgeServer(int port, string token, Func<BridgeRequest, BridgeResponse> dispatch, RecentLog log, Func<bool> colonyChangesAllowed)
+        public BridgeServer(int port, string token, Func<BridgeRequest, BridgeResponse> dispatch, RecentLog log, Func<AccessState> access)
         {
             Port = port;
             this.token = token;
             this.dispatch = dispatch;
             this.log = log;
-            this.colonyChangesAllowed = colonyChangesAllowed;
+            this.access = access;
         }
 
         public int Port { get; private set; }
@@ -150,11 +151,12 @@ namespace RiMCP.Bridge
                 }
                 else if (context.Request.HttpMethod == "GET" && context.Request.Url.AbsolutePath == "/health")
                 {
-                    bool commands = colonyChangesAllowed();
+                    AccessState current = access();
                     response = BridgeResponse.Json(200, Json.Object(
                         Json.Prop("status", Json.String("ok")),
-                        Json.Prop("readOnly", Json.Bool(!commands)),
-                        Json.Prop("commands", Json.Bool(commands)),
+                        Json.Prop("readOnly", Json.Bool(!current.AllowsChanges)),
+                        Json.Prop("commands", Json.Bool(current.AllowsChanges)),
+                        Json.Prop("accessPreset", Json.String(current.Preset)),
                         Json.Prop("port", Json.Number(Port))));
                 }
                 else

@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Settings;
+using RiMCP.Shared;
 using RiMCP.Util;
 using UnityEngine;
 using Verse;
@@ -11,7 +14,7 @@ namespace RiMCP
 {
     public sealed class RiMCPMod : Mod
     {
-        private const float SettingsViewHeight = 740f;
+        private const float SettingsViewHeight = 1000f;
 
         public static RiMCPSettings Settings;
         private static string modRootPath;
@@ -46,7 +49,7 @@ namespace RiMCP
             listing.Label("RimMCP");
             listing.GapLine();
             listing.Label("Status: " + (BridgeRuntime.IsRunning ? "running" : "stopped"));
-            listing.Label("Access: " + (!BridgeRuntime.IsRunning ? "disabled" : BridgeRuntime.AllowColonyChanges ? "reads and changes" : "read-only"));
+            listing.Label("Access: " + (!BridgeRuntime.IsRunning ? "disabled" : AccessPresets.Label(Settings.AccessPreset)));
             listing.Label("Local address: http://127.0.0.1:" + Settings.Port);
             listing.Label("Recent clients: " + BridgeRuntime.RecentClientCount);
             listing.Label("Last request: " + BridgeRuntime.LastRequestDescription);
@@ -54,20 +57,14 @@ namespace RiMCP
 
             listing.Gap();
             bool enabled = Settings.BridgeEnabled;
-            listing.CheckboxLabeled("Enable RimMCP", ref enabled, "Enables the token-protected local bridge. Clients can read colony data. Changes require Allow changes.");
+            listing.CheckboxLabeled("Enable RimMCP", ref enabled, "Enables the token-protected local bridge. What clients can use is set under Access.");
             if (enabled != Settings.BridgeEnabled)
             {
                 Settings.BridgeEnabled = enabled;
                 BridgeRuntime.ApplySettings();
             }
 
-            bool allowColonyChanges = Settings.AllowColonyChanges;
-            listing.CheckboxLabeled("Allow changes", ref allowColonyChanges, "Allows connected clients to change pawn settings, research, production bills, and supported game options. On by default; turn off for read-only access.");
-            if (allowColonyChanges != Settings.AllowColonyChanges)
-            {
-                Settings.AllowColonyChanges = allowColonyChanges;
-                BridgeRuntime.ApplySettings();
-            }
+            DoAccessSettings(listing);
 
             listing.Gap();
             listing.Label("Connection");
@@ -97,6 +94,38 @@ namespace RiMCP
             Widgets.EndScrollView();
 
             base.DoSettingsWindowContents(inRect);
+        }
+
+        private static void DoAccessSettings(Listing_Standard listing)
+        {
+            listing.Gap();
+            listing.Label("Access");
+            listing.GapLine();
+            if (listing.ButtonText("Preset: " + AccessPresets.Label(Settings.AccessPreset)))
+            {
+                Find.WindowStack.Add(new FloatMenu(AccessPresets.Named
+                    .Select(preset => new FloatMenuOption(AccessPresets.Label(preset), () =>
+                    {
+                        Settings.SetPreset(preset);
+                        BridgeRuntime.ApplySettings();
+                    }))
+                    .ToList()));
+            }
+            listing.Label(AccessPresets.Description(Settings.AccessPreset));
+
+            HashSet<string> enabledGroups = new HashSet<string>(Settings.EnabledGroups);
+            foreach (string group in ToolGroups.All)
+            {
+                bool enabled = enabledGroups.Contains(group);
+                bool next = enabled;
+                int tools = ToolManifest.McpTools.Count(spec => spec.Group == group);
+                listing.CheckboxLabeled(ToolGroups.Label(group) + " (" + tools + (tools == 1 ? " tool)" : " tools)"), ref next, ToolGroups.Description(group));
+                if (next != enabled)
+                {
+                    Settings.SetGroup(group, next);
+                    BridgeRuntime.ApplySettings();
+                }
+            }
         }
 
         public override void WriteSettings()

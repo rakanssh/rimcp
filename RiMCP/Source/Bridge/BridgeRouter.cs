@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using RiMCP.Command;
 using RiMCP.Read;
+using RiMCP.Settings;
 using RiMCP.Shared;
 
 namespace RiMCP.Bridge
@@ -22,6 +23,16 @@ namespace RiMCP.Bridge
             { "pawns", PawnReadService.ListPawns },
             { "pawn", PawnReadService.GetPawn },
             { "resources", ResourceReadService.ListResources },
+            { "things", ThingReadService.FindThings },
+            { "map-view", MapViewReadService.GetMapView },
+            { "designate", DesignationCommandService.Designate },
+            { "set-zone", ZoneCommandService.SetZone },
+            { "set-storage", ZoneCommandService.SetStorage },
+            { "set-growing-zone", ZoneCommandService.SetGrowingZone },
+            { "check-placement", BuildService.CheckPlacement },
+            { "place-blueprint", BuildService.PlaceBlueprint },
+            { "set-area", ZoneCommandService.SetArea },
+            { "order-pawn", PawnOrderCommandService.OrderPawn },
             { "work", WorkReadService.ListWork },
             { "production", ProductionReadService.ListProduction },
             { "bill", ProductionReadService.GetBill },
@@ -78,12 +89,21 @@ namespace RiMCP.Bridge
                     pathMatched = true;
                     if (route.MethodMatches(bridgeRequest.Method))
                     {
-                        if (!route.MethodMatches("GET") && !BridgeRuntime.AllowColonyChanges)
+                        AccessState access = BridgeRuntime.Access;
+                        if (!access.Enabled)
                         {
-                            return BridgeResponse.Error(403, "Changes are disabled. Enable \"Allow changes\" in RimWorld's RimMCP mod settings to use this command.");
+                            return BridgeResponse.Error(403, "RimMCP is disabled in its settings.");
+                        }
+                        if (!access.Allows(route.Spec.Group))
+                        {
+                            return BridgeResponse.Error(403, (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
                         }
                         if (!route.MethodMatches("GET"))
                         {
+                            if (GameContext.InMultiplayer)
+                            {
+                                return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
+                            }
                             string expected = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest).ExpectedLoadId;
                             string loaded = GameContext.LoadId;
                             if (expected != null && expected != loaded)
@@ -117,7 +137,7 @@ namespace RiMCP.Bridge
         private static BridgeRoute[] CreateRoutes()
         {
             return ToolManifest.All
-                .Select(spec => BridgeRoute.Create(spec.Method, spec.PathTemplate, Handlers[spec.HandlerId]))
+                .Select(spec => BridgeRoute.Create(spec, Handlers[spec.HandlerId]))
                 .ToArray();
         }
 

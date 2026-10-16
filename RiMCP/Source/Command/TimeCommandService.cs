@@ -12,7 +12,8 @@ namespace RiMCP.Command
 {
     internal static class TimeCommandService
     {
-        private const float MinHours = 0.1f;
+        // 25 ticks: short enough to follow a fight.
+        private const float MinHours = 0.01f;
         private const float MaxHours = 24f;
         private const int MaxRequestIdLength = 100;
         private const double MaxWaitSeconds = 30;

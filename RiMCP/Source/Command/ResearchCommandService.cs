@@ -49,7 +49,8 @@ namespace RiMCP.Command
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("knowledgeCategory", category == null ? null : category.defName),
                 Dto.Field("previousProject", ResearchReadService.SerializeProject(previous, ReadDetail.Summary)),
-                Dto.Field("currentProject", ResearchReadService.SerializeProject(manager.GetProject(category), ReadDetail.Summary))));
+                Dto.Field("currentProject", ResearchReadService.SerializeProject(manager.GetProject(category), ReadDetail.Summary)),
+                Dto.Field("blockers", Blockers.ToArray(ResearchReadService.ResearchBlockers()))));
         }
 
         [DataContract]

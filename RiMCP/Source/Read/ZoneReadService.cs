@@ -84,16 +84,11 @@ namespace RiMCP.Read
                 Zone_Stockpile stockpile = (Zone_Stockpile)record.Zone;
                 dto["stockpile"] = Dto.Obj(
                     Dto.Field("priority", stockpile.settings == null ? null : stockpile.settings.Priority.ToString()),
-                    Dto.Field("filterSummary", stockpile.settings == null || stockpile.settings.filter == null ? null : stockpile.settings.filter.Summary));
+                    Dto.Field("accepts", StorageSummary.Accepts(stockpile)));
             }
             if (record.Zone is Zone_Growing)
             {
-                Zone_Growing growing = (Zone_Growing)record.Zone;
-                ThingDef plant = growing.GetPlantDefToGrow();
-                dto["growing"] = Dto.Obj(
-                    Dto.Field("plant", ReadUtil.Def(plant)),
-                    Dto.Field("allowSow", growing.allowSow),
-                    Dto.Field("allowCut", growing.allowCut));
+                dto["growing"] = GrowingSummary.Of((Zone_Growing)record.Zone);
             }
             if (record.Area != null)
             {
@@ -110,9 +105,18 @@ namespace RiMCP.Read
             return dto;
         }
 
-        private static string ZoneId(Map map, Zone zone)
+        public static string ZoneId(Map map, Zone zone)
         {
             return "zone:" + map.uniqueID + ":" + zone.ID;
+        }
+
+        public static Zone FindZone(Map map, string id)
+        {
+            if (map == null || string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+            return map.zoneManager.AllZones.FirstOrDefault(zone => ZoneId(map, zone) == id);
         }
 
         private sealed class ZoneRecord

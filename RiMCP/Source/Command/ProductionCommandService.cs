@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
@@ -64,11 +65,21 @@ namespace RiMCP.Command
             {
                 throw new CommandException(400, "Missing required field 'recipeDefName'.");
             }
+            string requestId = CommandUtil.ValidateRequestId(body.RequestId);
 
             CommandContext context = CommandUtil.ContextFor(body.MapId);
             CommandUtil.RequireMap(context);
+            // Adding is not idempotent, as the same recipe can have several bills, so a retry with the
+            // same requestId returns the bill it added instead of adding another.
+            RequestKey key = RequestKey.For("add_bill_to_workshop", requestId, context.Map, workshopId, body.RecipeDefName,
+                body.Suspended, body.RepeatModeDefName, body.RepeatCount, body.TargetCount, body.PauseWhenSatisfied, body.UnpauseWhenYouHave,
+                body.IngredientSearchRadius, body.AllowedSkillMin, body.AllowedSkillMax, body.StoreModeDefName, body.StoreZoneId);
+            return CommandReceipts.Once(context, key, () => AddBill(context.Map, workshopId, body));
+        }
 
-            ProductionReadService.WorkshopRecord workshop = ProductionReadService.FindWorkshop(context.Map, workshopId);
+        private static CommandResult AddBill(Map map, string workshopId, AddBillToWorkshopBody body)
+        {
+            ProductionReadService.WorkshopRecord workshop = ProductionReadService.FindWorkshop(map, workshopId);
             if (workshop == null)
             {
                 throw new CommandException(404, "Workshop not found.");
@@ -90,12 +101,12 @@ namespace RiMCP.Command
             }
 
             Bill bill = BillUtility.MakeNewBill(recipe, null);
-            ResolvedBillSettings settings = ResolveBillSettings(bill, body, context.Map);
+            ResolvedBillSettings settings = ResolveBillSettings(bill, body, map);
             workshop.Giver.BillStack.AddBill(bill);
             ApplyBillSettings(bill, settings);
 
             ProductionReadService.BillRecord record = new ProductionReadService.BillRecord(workshop.Workbench, workshop.Giver, bill);
-            return CommandEnvelope.Ok(context, true, Dto.Obj(
+            return new CommandResult(true, Dto.Obj(
                 Dto.Field("bill", ProductionReadService.SerializeBill(record, ReadDetail.Full)),
                 Dto.Field("workshop", SummaryDto.ThingWithPosition(workshop.Workbench))));
         }
@@ -503,6 +514,9 @@ namespace RiMCP.Command
         {
             [DataMember(Name = "recipeDefName")]
             public string RecipeDefName { get; set; }
+
+            [DataMember(Name = "requestId")]
+            public string RequestId { get; set; }
         }
     }
 }

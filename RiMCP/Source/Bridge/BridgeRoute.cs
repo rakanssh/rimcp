@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RiMCP.Shared;
 
 namespace RiMCP.Bridge
 {
@@ -35,15 +36,17 @@ namespace RiMCP.Bridge
         public string Method { get; private set; }
         public string Template { get; private set; }
         public Handler Handle { get; private set; }
+        // The manifest entry this route serves, for its access group and tool name.
+        public ToolSpec Spec { get; private set; }
 
         public static BridgeRoute Get(string template, Handler handle)
         {
             return new BridgeRoute("GET", template, handle);
         }
 
-        public static BridgeRoute Create(string method, string template, Handler handle)
+        public static BridgeRoute Create(ToolSpec spec, Handler handle)
         {
-            return new BridgeRoute(method, template, handle);
+            return new BridgeRoute(spec.Method, spec.PathTemplate, handle) { Spec = spec };
         }
 
         public static BridgeRoute Put(string template, Handler handle)
