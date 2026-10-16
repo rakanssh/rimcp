@@ -1,33 +1,65 @@
-[b]RimMCP[/b] lets you connect your colony to your favourite MCP-supporting AI agent.
+[h1]RimMCP[/h1]
+[i]Agentic intelligence - Now brought to the Rim.[/i]
+
+[h2]What is this?[/h2]
+RimMCP connects your colony to any AI agent that speaks MCP. Your agent will be able to see and do almost anything in the game: lay out zones, build, order pawns, run time forward, and tell you anything about the game.
 
 [i]For the modern high-impact 10x engineer looking to utilize agentic AI to drive business value in their colony.[/i]
 
+[h2]What can it do?[/h2]
 [list]
-[*]Ask deep questions about your stockpiles, pawns, recipes, and loaded content (including mods!).
-[*]Dictate your schedule and work priorities through a client with voice support and have an agent apply them.
-[*]Have the latest & greatest LLM pick your pawns' apparel policies.
-[*]Have your agent view and debug errors, loaded mods, and settings.
-[*]Many more possibilities!
+[*][b]See what you see.[/b] Pawns, stockpiles, bills, research, threats, the map itself, even your mod list and error log.
+[*][b]Tell you what's wrong.[/b] Why nobody is cooking, why the field isn't sown, what's about to rot.
+[*][b]Run the colony.[/b] Zones, stockpiles, blueprints, mining, bills, work priorities, policies, research.
+[*][b]Command your pawns.[/b] Draft, move, attack, rescue, tend, equip.
+[*][b]Mind the clock.[/b] Let time run, and pause the moment something goes wrong.
+[/list]
+
+[h2]Fair play[/h2]
+[list]
+[*][b]Plays by the rules.[/b] Everything goes through the game's own right-click menus, designators and placement rules. The Agent can't cheat.
+[*][b]No peeking.[/b] Fog of war applies. It can't see information not available to you.
+[*][b]Access control.[/b] You can choose how much access the agent has to the game, see table below.
+[/list]
+
+[table]
+[tr][th]Access[/th][th]Agents can[/th][/tr]
+[tr][td][b]Full control[/b] (default)[/td][td]Do everything, including storyteller and difficulty.[/td][/tr]
+[tr][td][b]Control[/b][/td][td]Do everything except change game settings.[/td][/tr]
+[tr][td][b]Administration[/b][/td][td]Read, manage colony settings and run time, but not give direct orders.[/td][/tr]
+[tr][td][b]Read only[/b][/td][td]Look, but no actions.[/td][/tr]
+[/table]
+
+[h2]Things to try[/h2]
+[list]
+[*]"Anyone worth trying to recruit from the injured raiders?"
+[*]"Make a potato field on the rich soil, queue up meals."
+[*]"Figure out the most efficient fabric available, order clothes for the colony and set up apparel policies."
+[*]"Which mod is throwing that red error and why?"
+[*]"Destroy the Mechhive, make no mistakes."
 [/list]
 
 [h2]Requirements[/h2]
 [list]
 [*][b]RimWorld 1.6 or 1.7[/b].
-[*]An agentic AI client with support for local (stdio) MCP servers.
+[*]An AI client with support for local (stdio) MCP servers. Tested with Codex & OpenCode.
 [/list]
-
-[b]Tested with:[/b] Codex & OpenCode.
 
 [h2]Setup[/h2]
 [olist]
 [*]Enable RimMCP in your mod list and restart the game.
 [*]Go to Options > Mod settings > RimMCP and click [b]Copy MCP config[/b].
-[*]Add that config to your client's MCP settings, (Or paste the config to your agent and tell it to configure itself, who has time to edit tomls nowadays).
+[*]Add that config to your client's MCP settings (or paste it to your agent and tell it to configure itself, who has time to edit tomls nowadays).
 [*]Turn on RimWorld's [b]Run in background[/b] option so requests work while you're alt-tabbed.
 [/olist]
 
-Agents get [b]Full control[/b] by default. Choose Control, Administration, Read only, or individual groups under [b]Access[/b] in mod settings.
+[h2]Frequently asked[/h2]
+[b]Mid-save compatible?[/b] Yes. RimMCP does not save anything on your colony. Feel free to add or remove at will.
 
-If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?
+[b]Performance?[/b] Near 0 impact when idling. When your agent calls tools, most requests are handled in milliseconds.
+
+[b]Multiplayer?[/b] Your agent can look, but anything that changes the game or the clock is refused during a Multiplayer session.
+
+[b]Privacy?[/b] If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?
 
 [url=https://github.com/rakanssh/rimcp]Source[/url] | [url=https://github.com/rakanssh/rimcp/issues]Bugs[/url]
