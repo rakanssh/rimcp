@@ -906,6 +906,8 @@ internal static class Program
             Check(status(change) == 409 && body(change).Contains("held unchanged"), "changes wait while the game is held for a replacement: " + body(change));
             Check(status(handle.Invoke(null, new[] { Request("/v1/research", "GET", null) })) == 200, "reads still answer");
             object stop = handle.Invoke(null, new[] { Request("/v1/operations/" + OperationId(holding) + "/cancel", "POST", "{}") });
+            object again = handle.Invoke(null, new[] { Request("/v1/session/load", "POST", "{\"name\":\"x\",\"requestId\":\"held-1\"}") });
+            Check(!body(again).Contains("held unchanged"), "a retry of the holding operation is not refused by the hold: " + body(again));
             Check(status(stop) == 200, "the held operation can still be stopped");
             released = true;
             RunnerUpdate();
@@ -1120,6 +1122,12 @@ internal static class Program
             runtime.GetMethod("Configure", Static).Invoke(null, new[] { settings });
             ExpectCommandError(409, () => answer("confirm-2", true));
             Check(answered == null, "an answer to another question does nothing");
+            Runner().GetMethod("Update", Static).Invoke(null, null);
+            Runner().GetMethod("Cancel", Static).Invoke(null, new object[] { operation, "Cancelled with cancel_operation." });
+            operation.GetType().GetField("ConfirmationId", Any).SetValue(operation, "confirm-1");
+            ExpectCommandError(409, () => answer("confirm-1", true));
+            Check(answered == null, "an answer sent after a cancel, before the operation's next step, does nothing");
+            operation.GetType().GetField("CancelRequested", Any).SetValue(operation, null);
             answer("confirm-1", false);
             Check(answered == false, "in unattended setup the answer reaches the question asked");
             Check(OperationState(operation) == "running", "an answered operation goes on");

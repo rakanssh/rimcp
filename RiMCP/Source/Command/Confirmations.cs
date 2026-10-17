@@ -35,12 +35,27 @@ namespace RiMCP.Command
             {
                 confirmation[field.Name] = field.Value;
             }
+            // Every way of accepting checks first, right before it acts: the dialog's buttons and Enter
+            // key, the mod list dialog's Load anyway, and answer_confirmation. A stop asked for, or a
+            // stale question, refuses it, even before the operation's next step.
+            Func<string> refusal = () => operation.Done ? "The operation has ended, so its question no longer applies."
+                : operation.CancelRequested != null || operation.RevokeRequested != null ? "The operation is stopping, so its question no longer applies."
+                : stale();
+            foreach (Dialog_MessageBox each in asking.OfType<Dialog_MessageBox>())
+            {
+                each.buttonAAction = Guard(each.buttonAAction, refusal);
+                each.acceptAction = Guard(each.acceptAction, refusal);
+            }
+            foreach (Dialog_ModMismatch each in asking.OfType<Dialog_ModMismatch>())
+            {
+                SetupController.Set(each, "loadAction", Guard((Action)SetupController.Get(each, "loadAction"), refusal));
+            }
             operation.State = Operation.AwaitingConfirmation;
             operation.ConfirmationId = id;
             operation.Confirmation = confirmation;
             operation.Answer = !answerable ? (Func<bool, string>)null : accept =>
             {
-                string reason = stale();
+                string reason = refusal();
                 if (reason != null)
                 {
                     return reason;
@@ -86,6 +101,24 @@ namespace RiMCP.Command
                     operation.Answer = null;
                 }
             }
+        }
+
+        private static Action Guard(Action action, Func<string> refusal)
+        {
+            if (action == null)
+            {
+                return null;
+            }
+            return () =>
+            {
+                string reason = refusal();
+                if (reason != null)
+                {
+                    Messages.Message(reason, MessageTypeDefOf.RejectInput, false);
+                    return;
+                }
+                action();
+            };
         }
 
         // A setup question goes stale once the setup changes from the revision it was asked at.

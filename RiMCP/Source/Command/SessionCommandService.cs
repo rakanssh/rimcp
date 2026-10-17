@@ -346,31 +346,49 @@ namespace RiMCP.Command
             RequireSameGame(loadId);
             string before = Current.Game == null ? null : GameContext.LoadId;
             AdvanceRunner.Revoke("load_game (" + operation.Id + ") is replacing the game.");
-            List<Window> open = Find.WindowStack.Windows.ToList();
-            GameDataSaveLoader.CheckVersionAndLoadGame(name);
-            if (!LongEventHandler.AnyEventNowOrWaiting)
+            // A colony saved first is held as saved while the game asks: the notice under the
+            // question blocks input to the map, which some questions let through.
+            RiMCP.UI.HeldGameNotice notice = null;
+            if (saveFirst != null)
             {
-                // The game asked the player first, about the save's version or mods. Every window it
-                // opened for that counts, since a game version may open more than one.
-                List<Window> asking = Find.WindowStack.Windows.Where(window => !open.Contains(window)).ToList();
-                if (asking.Count == 0)
-                {
-                    throw new OperationEnded(Operation.Failed, "The game did not start loading '" + name + "'.");
-                }
-                // The question belongs to this file as it was when asked; while the player answers,
-                // a colony saved first stays held as it was saved.
-                string file = GenFilePaths.FilePathForSavedGame(name);
-                DateTime written = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
-                string message;
-                string kind = LoadQuestion(name, asking, out message);
-                Func<string> stale = () => !File.Exists(file) || File.GetLastWriteTimeUtc(file) != written ? "The save '" + name + "' changed while the game was asking, so the question was withdrawn." : null;
-                foreach (string step in Confirmations.Await(operation, asking, kind, message, false, () => LongEventHandler.AnyEventNowOrWaiting, stale, saveFirst != null ? (Action)KeepPaused : null, Dto.Field("save", name)))
-                {
-                    yield return step;
-                }
+                notice = new RiMCP.UI.HeldGameNotice("RimMCP saved the colony as '" + saveFirst + "' and is loading '" + name + "'. The colony is held as saved until you answer.");
+                Find.WindowStack.Add(notice);
+            }
+            try
+            {
+                List<Window> open = Find.WindowStack.Windows.ToList();
+                GameDataSaveLoader.CheckVersionAndLoadGame(name);
                 if (!LongEventHandler.AnyEventNowOrWaiting)
                 {
-                    throw new OperationEnded(Operation.Declined, "The player chose not to load '" + name + "'.");
+                    // The game asked the player first, about the save's version or mods. Every window it
+                    // opened for that counts, since a game version may open more than one.
+                    List<Window> asking = Find.WindowStack.Windows.Where(window => !open.Contains(window)).ToList();
+                    if (asking.Count == 0)
+                    {
+                        throw new OperationEnded(Operation.Failed, "The game did not start loading '" + name + "'.");
+                    }
+                    // The question belongs to this file as it was when asked; while the player answers,
+                    // a colony saved first stays held as it was saved.
+                    string file = GenFilePaths.FilePathForSavedGame(name);
+                    DateTime written = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
+                    string message;
+                    string kind = LoadQuestion(name, asking, out message);
+                    Func<string> stale = () => !File.Exists(file) || File.GetLastWriteTimeUtc(file) != written ? "The save '" + name + "' changed while the game was asking, so the question was withdrawn." : null;
+                    foreach (string step in Confirmations.Await(operation, asking, kind, message, false, () => LongEventHandler.AnyEventNowOrWaiting, stale, saveFirst != null ? (Action)KeepPaused : null, Dto.Field("save", name)))
+                    {
+                        yield return step;
+                    }
+                    if (!LongEventHandler.AnyEventNowOrWaiting)
+                    {
+                        throw new OperationEnded(Operation.Declined, "The player chose not to load '" + name + "'.");
+                    }
+                }
+            }
+            finally
+            {
+                if (notice != null && Find.WindowStack.IsOpen(notice))
+                {
+                    notice.Close(false);
                 }
             }
             foreach (string step in AwaitTransition(operation, "loading", () => Current.ProgramState == ProgramState.Playing && Current.Game != null && GameContext.LoadId != before))

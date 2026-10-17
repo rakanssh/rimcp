@@ -197,6 +197,10 @@ namespace RiMCP.Command
             {
                 throw new CommandException(409, "Operation " + operation.Id + " is not waiting for confirmation " + body.ConfirmationId + "; get_operation shows what it is waiting for.");
             }
+            if (operation.CancelRequested != null || operation.RevokeRequested != null)
+            {
+                throw new CommandException(409, "Operation " + operation.Id + " is stopping, so its question no longer applies.");
+            }
             if (!body.Accept.HasValue)
             {
                 throw new CommandException(400, "Field 'accept' is required.");

@@ -144,18 +144,23 @@ namespace RiMCP.Bridge
                             {
                                 return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
                             }
-                            if (OperationRunner.ProtectingGame && !ChangeWhileHeld.Contains(route.Spec.HandlerId))
+                            LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
+                            // A retry of a request already recorded gets its operation back: while that
+                            // operation holds the game, and after it loaded another game. The registry
+                            // refuses a requestId reused with other arguments.
+                            RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
+                            if (retried != null && retried.Tool != route.Spec.Name)
                             {
-                                Operation holding = OperationRunner.Active;
+                                retried = null;
+                            }
+                            Operation holding = OperationRunner.ProtectingGame ? OperationRunner.Active : null;
+                            if (holding != null && !ChangeWhileHeld.Contains(route.Spec.HandlerId) && (retried == null || retried.OperationId != holding.Id))
+                            {
                                 return BridgeResponse.Error(409, "Operation " + holding.Id + " (" + holding.Tool + ") saved the colony and is about to replace the game, so the game is held unchanged until then. Check it with get_operation.");
                             }
-                            LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
                             string expected = guard.ExpectedLoadId;
                             string loaded = GameContext.LoadId;
-                            // A retry of a request already recorded gets its operation back, even after
-                            // that operation loaded another game.
-                            RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
-                            if (expected != null && expected != loaded && (retried == null || retried.Tool != route.Spec.Name))
+                            if (expected != null && expected != loaded && retried == null)
                             {
                                 return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
                             }
