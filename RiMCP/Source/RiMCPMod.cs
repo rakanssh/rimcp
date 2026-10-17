@@ -34,8 +34,8 @@ namespace RiMCP
 
         private enum SettingsTab
         {
-            Access,
             Connection,
+            Access,
             Activity,
             Safety
         }
@@ -45,7 +45,9 @@ namespace RiMCP
         private const float GroupRowHeight = 30f;
         private const float ToolRowHeight = 46f;
 
-        private static SettingsTab tab = SettingsTab.Access;
+        // Until an agent has made a request, the settings open on Connection; after that, on the
+        // tab last used.
+        private static SettingsTab? tab;
         private static string selectedGroup = ToolGroups.Observe;
         private static string search = "";
         private static Vector2 toolScroll;
@@ -59,7 +61,7 @@ namespace RiMCP
             Rect tabs = new Rect(inRect.x, inRect.y + HeaderHeight + 6f, inRect.width, TabHeight);
             DoTabs(tabs);
             Rect body = new Rect(inRect.x, tabs.yMax + 10f, inRect.width, inRect.yMax - tabs.yMax - 10f);
-            switch (tab)
+            switch (CurrentTab)
             {
                 case SettingsTab.Access:
                     DoAccessTab(body);
@@ -77,17 +79,28 @@ namespace RiMCP
             base.DoSettingsWindowContents(inRect);
         }
 
-        // The status line and the master switch: Agents on or off.
+        private static SettingsTab CurrentTab
+        {
+            get
+            {
+                if (!tab.HasValue)
+                {
+                    tab = BridgeRuntime.LastRequestUtc.HasValue ? SettingsTab.Access : SettingsTab.Connection;
+                }
+                return tab.Value;
+            }
+        }
+
+        // The status line and the master switch, Agents on or off. The window already shows the
+        // mod's name above.
         private static void DoHeader(Rect rect)
         {
-            Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(rect.x, rect.y, 140f, rect.height), "RimMCP");
             Text.Font = GameFont.Small;
             string status = !Settings.BridgeEnabled ? "Agents are off"
                 : !BridgeRuntime.IsRunning ? "Not running; see Activity"
                 : "Running · " + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " client" : " clients") + " · last request " + BridgeRuntime.LastRequestDescription;
             GUI.color = Settings.BridgeEnabled && BridgeRuntime.IsRunning ? new Color(0.55f, 0.85f, 0.55f) : Color.gray;
-            LabelMiddle(new Rect(rect.x + 120f, rect.y, rect.width - 320f, rect.height), status);
+            LabelMiddle(new Rect(rect.x, rect.y, rect.width - 200f, rect.height), status);
             GUI.color = Color.white;
             bool enabled = Settings.BridgeEnabled;
             Widgets.CheckboxLabeled(new Rect(rect.xMax - 150f, rect.y + 5f, 150f, 24f), "Agents on", ref enabled);
@@ -102,14 +115,14 @@ namespace RiMCP
         private static void DoTabs(Rect rect)
         {
             float x = rect.x;
-            foreach (SettingsTab each in new[] { SettingsTab.Access, SettingsTab.Connection, SettingsTab.Activity, SettingsTab.Safety })
+            foreach (SettingsTab each in new[] { SettingsTab.Connection, SettingsTab.Access, SettingsTab.Activity, SettingsTab.Safety })
             {
                 Rect button = new Rect(x, rect.y, 130f, rect.height);
                 if (Button(button, each.ToString()))
                 {
                     tab = each;
                 }
-                if (each == tab)
+                if (each == CurrentTab)
                 {
                     Widgets.DrawBoxSolid(new Rect(button.x, button.yMax - 3f, button.width, 3f), new Color(0.85f, 0.85f, 0.85f));
                 }
@@ -339,28 +352,79 @@ namespace RiMCP
             return end > 0 ? description.Substring(0, end + 1) : description;
         }
 
+        // Connecting an agent: whether one is connected, the config to give it, and the details
+        // most people never need.
         private static void DoConnectionTab(Rect rect)
         {
-            Listing_Standard listing = new Listing_Standard();
-            listing.Begin(rect);
-            listing.Label("Local address: http://127.0.0.1:" + Settings.Port);
-            listing.Label("Status: " + (BridgeRuntime.IsRunning ? "running" : Settings.BridgeEnabled ? "not running" : "off (Agents are off)"));
-            listing.Gap();
-            listing.Label("Agents connect through the RimMCP helper, which this config starts. It includes the token, so keep it private.");
-            if (listing.ButtonText("Copy MCP config"))
+            float y = rect.y;
+            bool connected = Settings.BridgeEnabled && BridgeRuntime.IsRunning && BridgeRuntime.RecentClientCount > 0;
+            string status;
+            Color color;
+            if (!Settings.BridgeEnabled)
+            {
+                status = "Agents are off. Turn on Agents on, above, to connect one.";
+                color = Color.gray;
+            }
+            else if (!BridgeRuntime.IsRunning)
+            {
+                status = "RimMCP isn't running; the Activity tab shows why.";
+                color = new Color(0.95f, 0.45f, 0.4f);
+            }
+            else if (connected)
+            {
+                status = "Connected: " + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " agent" : " agents") + ", last request " + BridgeRuntime.LastRequestDescription + ".";
+                color = new Color(0.55f, 0.85f, 0.55f);
+            }
+            else
+            {
+                status = "Waiting for an agent to connect.";
+                color = new Color(0.95f, 0.75f, 0.3f);
+            }
+            Text.Font = GameFont.Medium;
+            GUI.color = color;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 34f), status);
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            y += 44f;
+
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "1. Copy the MCP config.");
+            y += 28f;
+            if (Button(new Rect(rect.x + 18f, y, 320f, 40f), "Copy MCP config"))
             {
                 GUIUtility.systemCopyBuffer = BuildMcpConfig();
                 Messages.Message("RimMCP config copied.", MessageTypeDefOf.PositiveEvent, false);
             }
-            if (listing.ButtonText("Regenerate token"))
+            y += 50f;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "2. Add it to your agent's MCP servers, or paste it into the agent's chat and ask it to add it.");
+            y += 28f;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "3. The agent shows as connected here, and its tools follow the Access tab.");
+            y += 28f;
+            GUI.color = Color.gray;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "The config includes the token, so keep it private. Agents connect through the RimMCP helper, which it starts.");
+            GUI.color = Color.white;
+            y += 44f;
+
+            Widgets.DrawLineHorizontal(rect.x, y, rect.width);
+            y += 10f;
+            GUI.color = Color.gray;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "Advanced");
+            GUI.color = Color.white;
+            y += 28f;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "Local address: http://127.0.0.1:" + Settings.Port);
+            y += 28f;
+            if (Button(new Rect(rect.x, y, 200f, 30f), "Regenerate token"))
             {
                 Settings.RegenerateToken();
                 BridgeRuntime.ApplySettings();
                 Messages.Message("RimMCP token regenerated. Copy MCP config again.", MessageTypeDefOf.NeutralEvent, false);
             }
-            listing.Gap();
-            listing.Label("RimWorld config folder: " + GenFilePaths.ConfigFolderPath);
-            listing.End();
+            GUI.color = Color.gray;
+            LabelMiddle(new Rect(rect.x + 212f, y, rect.width - 212f, 30f), "Connected agents need the new config afterwards.");
+            GUI.color = Color.white;
+            y += 40f;
+            GUI.color = Color.gray;
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RimWorld config folder: " + GenFilePaths.ConfigFolderPath);
+            GUI.color = Color.white;
         }
 
         private static void DoActivityTab(Rect rect)
