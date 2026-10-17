@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Sessions: `save_game`, `load_game` and `leave_game` run as operations that outlive the game they replace, followed with `get_operation` and stopped with `cancel_operation`. A save counts only once verified, because the game hides its own save errors: the file is complete, and nothing was logged as an error while it saved. Replacing a loaded colony always needs a save first or an explicit discard, and commitment mode keeps the game's own save rules.
+- `list_saves` lists saves with their game version, whether their mods match the running ones, and commitment mode.
+- A Game setup access group for saving, loading and leaving games, on only under Full control.
+
+### Changed
+
+- While RimWorld loads, saves or changes games, requests other than operation status get a 503 instead of reading a half-built game.
+
 ## [1.0.0] - 2026-10-17
 
 ### Added

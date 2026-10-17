@@ -154,10 +154,12 @@ namespace RiMCP.Bridge
         {
             access = access.Disabled();
             AdvanceRunner.Revoke("RimMCP was disabled in its settings.");
+            OperationRunner.Revoke(ToolGroups.GameSetup, "RimMCP was disabled in its settings.");
         }
 
-        // Main thread only. Turning off Time ends and pauses an advance the agent owns; other groups
-        // only affect new requests, because their commands finish within a frame.
+        // Main thread only. Turning off Time ends and pauses an advance the agent owns, and turning off
+        // Game setup stops its operations; other groups only affect new requests, because their
+        // commands finish within a frame.
         internal static void ApplyAccess(string preset, IEnumerable<string> groups)
         {
             string[] enabled = groups.ToArray();
@@ -169,6 +171,11 @@ namespace RiMCP.Bridge
             if (!access.Allows(ToolGroups.Time))
             {
                 AdvanceRunner.Revoke("Time access was turned off in RimMCP settings.");
+            }
+            // A queued operation never starts; a running one stops at its next step.
+            if (!access.Allows(ToolGroups.GameSetup))
+            {
+                OperationRunner.Revoke(ToolGroups.GameSetup, "Game setup access was turned off in RimMCP settings.");
             }
         }
 

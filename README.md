@@ -23,6 +23,7 @@ Current MCP tools:
 | Research and ideology | `get_research`, `set_research_project`, `list_ideoligions`, `get_ideoligion` | Inspect or choose research, see what stops it progressing, and inspect Ideology data when the expansion is active. |
 | Time | `set_game_speed`, `advance_time`, `get_advance` | Pause or set the speed, or run the game for a set time, from 25 ticks to 24 in-game hours, and pause again. A run stops early on deaths, downed or injured colonists, mental breaks, hostiles, low food, or threat letters, and reports what happened. |
 | World and defs | `list_quests`, `list_world`, `search_defs`, `get_def` | Inspect quests, factions, world objects, and loaded definitions with their defining mod when known. |
+| Sessions | `list_saves`, `save_game`, `load_game`, `leave_game`, `get_operation`, `cancel_operation` | List saves, and save, load, or return to the main menu. Each runs as an operation that keeps reporting through loads. A save counts only once verified, and replacing a loaded colony always asks for a save first or an explicit discard. |
 
 Most tools accept the same optional read controls:
 
@@ -51,7 +52,7 @@ The MCP proxy mirrors the structuredContent JSON in text content for clients tha
 1. Open the RimMCP mod settings page.
 2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
-4. Choose what agents may do under **Access** in RimMCP settings. New installs start with **Full control**. Pick **Control** (everything but game settings), **Administration** (reads, colony settings and time control), or **Read only**, or switch individual groups: Observe, Diagnostics, Time, Administration, Orders, Pawn control and Game settings. A disabled tool is refused with a message naming the group that enables it. Settings from earlier versions carry over: Allow changes on becomes Full control, and off becomes Read only.
+4. Choose what agents may do under **Access** in RimMCP settings. New installs start with **Full control**. Pick **Control** (everything but game settings and game setup), **Administration** (reads, colony settings and time control), or **Read only**, or switch individual groups: Observe, Diagnostics, Time, Administration, Orders, Pawn control, Game settings and Game setup (saving, loading and leaving games). A disabled tool is refused with a message naming the group that enables it. Settings from earlier versions carry over: Allow changes on becomes Full control, and off becomes Read only.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 

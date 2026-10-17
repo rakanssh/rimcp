@@ -89,8 +89,9 @@ namespace RiMCP.Shared
         public const string Orders = "orders";
         public const string PawnControl = "pawnControl";
         public const string GameSettings = "gameSettings";
+        public const string GameSetup = "gameSetup";
 
-        public static readonly string[] All = { Observe, Diagnostics, Time, Administration, Orders, PawnControl, GameSettings };
+        public static readonly string[] All = { Observe, Diagnostics, Time, Administration, Orders, PawnControl, GameSettings, GameSetup };
 
         public static string Label(string group)
         {
@@ -103,6 +104,7 @@ namespace RiMCP.Shared
                 case Orders: return "Orders";
                 case PawnControl: return "Pawn control";
                 case GameSettings: return "Game settings";
+                case GameSetup: return "Game setup";
                 default: return group;
             }
         }
@@ -118,6 +120,7 @@ namespace RiMCP.Shared
                 case Orders: return "Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.";
                 case PawnControl: return "Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.";
                 case GameSettings: return "Change the storyteller, difficulty, and global game options.";
+                case GameSetup: return "Save, load, and leave games. It can abandon a colony or overwrite a save, so only Full control includes it.";
                 default: return "";
             }
         }
@@ -253,8 +256,54 @@ namespace RiMCP.Shared
                 Put(ToolGroups.Time, "set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
                 Post(ToolGroups.Time, "advance-time", "advance_time", "Run the game for up to 24 in-game hours, then pause it. The run stops early, and pauses, when a stopOn condition happens; the result lists what happened and why it ended. One run at a time. Retrying with the same requestId and arguments returns the existing run (the last 32 runs of the loaded game are remembered); reusing a requestId with different arguments is rejected. Pass waitSeconds to wait for the result in this call, otherwise follow up with get_advance using the run id. Cancelling this call does not stop a run that has started; use set_game_speed.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
                 Get(ToolGroups.Observe, "get-advance", "get_advance", "Get the game's tick and speed, and an advance_time run: its status, what happened, and why it ended. Defaults to the most recent run; pass runId for a specific one. Pass waitSeconds to wait for that run to end first.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("runId", J(F("type", "integer"), F("minimum", 1), F("description", "Run id returned by advance_time. Defaults to the most recent run."))), Prop("waitSeconds", WaitSeconds())), "runId", "waitSeconds"),
+                Get(ToolGroups.Observe, "get-operation", "get_operation", "Get a save, load, or leave operation by operationId: its state (queued, running, awaitingConfirmation, succeeded, failed, unverified, declined, cancelled, or revoked), current step, any question the game is asking the player, and its result. Works while RimWorld is loading, and after the game the operation started in is gone. Every running operation and the last 32 finished ones are kept. Pass waitSeconds to wait for it to finish first.", "/v1/operations/{operationId}", InputWithOptionalMap(false, new[] { "operationId" }, Prop("operationId", Str("Operation id returned by save_game, load_game, or leave_game.")), Prop("waitSeconds", OperationWaitSeconds())), "waitSeconds"),
+                PostAnyGame(ToolGroups.Observe, "cancel-operation", "cancel_operation", "Stop an operation at its next safe step, keeping whatever it already did. A native step that cannot be interrupted, such as loading or returning to the main menu, finishes first. Stopping a save, load, or leave needs the Game setup group. Works while RimWorld is loading.", "/v1/operations/{operationId}/cancel", RequiredOnly(Prop("operationId", Str("Operation id returned by save_game, load_game, or leave_game."))), IdempotentMutation(), Body()),
+                Get(ToolGroups.Observe, "list-saves", "list_saves", "List save files, newest first, with name, last write time, size, game version, whether the save's mods match the running ones (as the game checks before loading), and commitment mode. loadedColony says whether the loaded colony is a commitment-mode game. Works at the main menu.", "/v1/saves", Input()),
+                Post(ToolGroups.GameSetup, "save-game", "save_game", "Save the loaded colony under a name, as an operation: it returns at once with an operationId to follow with get_operation. A save succeeds only once verified: the file was written and is complete, and the game logged no error while saving, because the game hides its own save errors. failed or unverified means do not rely on the file. Refuses to replace an existing save unless overwrite is true. Not available in commitment mode, as in game." + OperationRetries, "/v1/saves", SaveGameInput(), Mutation(false, true), Body("name", "overwrite", "requestId"), "waitSeconds"),
+                Post(ToolGroups.GameSetup, "load-game", "load_game", "Load a save by name, as an operation to follow with get_operation. When a colony is loaded, pass saveFirst (a save name) to save it first, or discardUnsaved: true; one is always required, because changes made while paused cannot be detected. A failed save stops the load. When the save's version or mods differ, the game asks the player, and the operation waits (awaitingConfirmation) until they answer in game. A running advance stops. Not available while a commitment-mode game is loaded: leave it first." + OperationRetries, "/v1/session/load", ReplaceInput(true), Mutation(false, true), Body("name", "saveFirst", "discardUnsaved", "overwrite", "requestId"), "waitSeconds"),
+                Post(ToolGroups.GameSetup, "leave-game", "leave_game", "Return to the main menu, as an operation to follow with get_operation. Pass saveFirst (a save name) to save first, or discardUnsaved: true; one is always required. A failed save stops it. Commitment-mode games always save to their own slot first, as in game, and take neither. A running advance stops." + OperationRetries, "/v1/session/leave", ReplaceInput(false), Mutation(false, true), Body("saveFirst", "discardUnsaved", "overwrite", "requestId"), "waitSeconds"),
                 RouteOnly("tools", "GET", "/v1/tools")
             };
+        }
+
+        // How long an operation's requestId is remembered: OperationRunner.MaxRequestRecords.
+        private const string OperationRetries = " Retrying with the same requestId and arguments returns the original operation, even after a load; the last 1,000 requests in this RimWorld process are recognised.";
+
+        // An operation outlives the game it started in, so acting on it does not depend on which game
+        // is loaded: no expectedLoadId.
+        private static ToolSpec PostAnyGame(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
+        {
+            return new ToolSpec(handlerId, group, name, description, "POST", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
+        }
+
+        private static Dictionary<string, object> OperationWaitSeconds()
+        {
+            return J(F("type", "number"), F("minimum", 0), F("maximum", 30), F("description", "Seconds to wait for the operation to finish before replying, up to 30. Defaults to 0."));
+        }
+
+        private static Dictionary<string, object> SaveGameInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["name"] = Str("Save name: the file name without .rws, as list_saves shows it.");
+            props["overwrite"] = Bool("Replace an existing save with this name.");
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries."));
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props, "name");
+        }
+
+        private static Dictionary<string, object> ReplaceInput(bool load)
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            if (load)
+            {
+                props["name"] = Str("The save to load, as list_saves shows it.");
+            }
+            props["saveFirst"] = Str("Save the loaded colony under this name first. Give this or discardUnsaved when a colony is loaded.");
+            props["discardUnsaved"] = Bool("Drop any unsaved changes to the loaded colony. Give this or saveFirst when a colony is loaded.");
+            props["overwrite"] = Bool("Let saveFirst replace an existing save with that name.");
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries."));
+            props["waitSeconds"] = OperationWaitSeconds();
+            return load ? ObjectSchema(props, "name") : ObjectSchema(props);
         }
 
         private static ToolSpec RouteOnly(string handlerId, string method, string pathTemplate)

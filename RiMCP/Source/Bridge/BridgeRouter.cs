@@ -63,8 +63,18 @@ namespace RiMCP.Bridge
             { "set-game-speed", TimeCommandService.SetGameSpeed },
             { "advance-time", TimeCommandService.StartAdvance },
             { "get-advance", TimeCommandService.GetAdvance },
+            { "get-operation", SessionCommandService.GetOperation },
+            { "cancel-operation", SessionCommandService.CancelOperation },
+            { "list-saves", SessionCommandService.ListSaves },
+            { "save-game", SessionCommandService.SaveGame },
+            { "load-game", SessionCommandService.LoadGame },
+            { "leave-game", SessionCommandService.LeaveGame },
             { "tools", ToolReadService.GetTools }
         };
+
+        // While RimWorld loads, saves, or changes games, the game may be half built, so only these
+        // answer: they read the operation registry, not the game.
+        private static readonly HashSet<string> AnswerWhileBusy = new HashSet<string> { "get-operation", "cancel-operation", "tools" };
 
         private static readonly BridgeRoute[] Routes = CreateRoutes();
 
@@ -98,6 +108,11 @@ namespace RiMCP.Bridge
                         {
                             return BridgeResponse.Error(403, (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
                         }
+                        if (!AnswerWhileBusy.Contains(route.Spec.HandlerId) && GameIsChanging())
+                        {
+                            Operation changing = OperationRunner.Active;
+                            return BridgeResponse.Error(503, "RimWorld is loading, saving, or changing games" + (changing == null ? "" : " (operation " + changing.Id + ", " + changing.Tool + ")") + ", so the game cannot be read or changed right now. Check progress with get_operation, then try again.");
+                        }
                         if (!route.MethodMatches("GET"))
                         {
                             if (GameContext.InMultiplayer)
@@ -125,6 +140,11 @@ namespace RiMCP.Bridge
             {
                 return BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        private static bool GameIsChanging()
+        {
+            return OperationRunner.ReplacingGame || Verse.LongEventHandler.AnyEventNowOrWaiting;
         }
 
         [DataContract]

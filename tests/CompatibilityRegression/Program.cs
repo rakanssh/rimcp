@@ -200,12 +200,19 @@ internal static class Program
         {
             IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
             Dictionary<string, int> counts = tools.Cast<object>().GroupBy(tool => Field<string>(tool, "Group") ?? "(none)").ToDictionary(group => group.Key, group => group.Count());
-            var expected = new Dictionary<string, int> { { "observe", 28 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 } };
+            var expected = new Dictionary<string, int> { { "observe", 31 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 3 } };
             int count;
             Check(counts.Count == expected.Count && expected.All(pair => counts.TryGetValue(pair.Key, out count) && count == pair.Value),
                 "group sizes: " + string.Join(", ", counts.Select(pair => pair.Key + "=" + pair.Value).ToArray()));
         });
         Test("presets choose groups, and settings saved before presets migrate", CheckAccessPresets);
+        Test("operations run one at a time, a step per frame, and stop at a safe step when cancelled or revoked", CheckOperationRunner);
+        Test("operation retries return the original operation or an expired answer, for the last 1,000 requests", CheckOperationRetries);
+        Test("replacing a loaded colony needs a save or a discard, and commitment mode keeps the game's rules", CheckReplaceRefusal);
+        Test("a save file passes only when written by the save, complete, and plain XML with its header", CheckSaveFileCheck);
+        Test("the save log watch counts errors on the saving thread and sees its marker", CheckSaveLogWatch);
+        Test("save headers give version, mods, and commitment mode, and mods match as the game checks", CheckSaveHeader);
+        Test("while the game changes only operation status answers, and cancelling follows the target's group", CheckBusyRouterAndCancel);
         Test("disabled groups are refused, and the access endpoint stays reachable", CheckAccessEnforcement);
         Test("turning off Time ends and pauses a running advance", CheckTimeRevocation);
         Test("cell rectangles are bounded, clipped to the map, and de-duplicated", CheckCellRects);
@@ -663,13 +670,374 @@ internal static class Program
         return Field<int>(access, "Revision");
     }
 
+    // Operations: a step factory for tests, built as the internal Func<Operation, IEnumerable<string>>.
+    private static Delegate Steps(Func<object, IEnumerable<string>> body)
+    {
+        Type operation = mod.GetType("RiMCP.Command.Operation", true);
+        ParameterExpression parameter = Expression.Parameter(operation, "operation");
+        Expression call = Expression.Invoke(Expression.Constant(body), Expression.Convert(parameter, typeof(object)));
+        return Expression.Lambda(typeof(Func<,>).MakeGenericType(operation, typeof(IEnumerable<string>)), call, parameter).Compile();
+    }
+
+    private static Type Runner()
+    {
+        return mod.GetType("RiMCP.Command.OperationRunner", true);
+    }
+
+    private static object StartOperation(string tool, string group, string requestId, string fingerprint, Func<object, IEnumerable<string>> body)
+    {
+        try { return Runner().GetMethod("Start", Static).Invoke(null, new object[] { tool, group, requestId, fingerprint, Steps(body) }); }
+        catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+    }
+
+    private static void RunnerUpdate()
+    {
+        Runner().GetMethod("Update", Static).Invoke(null, null);
+    }
+
+    private static object OperationById(string id)
+    {
+        return Runner().GetMethod("Find", Static).Invoke(null, new object[] { id });
+    }
+
+    private static string OperationState(object operation)
+    {
+        return Field<string>(operation, "State");
+    }
+
+    private static string OperationId(object operation)
+    {
+        return Field<string>(operation, "Id");
+    }
+
+    private static void SetOperationField(object operation, string name, object value)
+    {
+        operation.GetType().GetField(name).SetValue(operation, value);
+    }
+
+    private static IEnumerable<string> TwoSteps(List<string> log)
+    {
+        log.Add("a");
+        yield return "a";
+        log.Add("b");
+        yield return "b";
+    }
+
+    private static IEnumerable<string> Finish()
+    {
+        yield break;
+    }
+
+    private static void CheckOperationRunner()
+    {
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            List<string> log = new List<string>();
+            object first = StartOperation("save_game", "gameSetup", null, null, _ => TwoSteps(log));
+            Check(OperationState(first) == "queued" && log.Count == 0, "starting queues the operation; its steps run on later frames");
+            ExpectCommandError(409, () => StartOperation("load_game", "gameSetup", null, null, _ => Finish()));
+            RunnerUpdate();
+            Check(OperationState(first) == "running" && Field<string>(first, "Step") == "a", "each frame runs one step");
+            RunnerUpdate();
+            RunnerUpdate();
+            Check(OperationState(first) == "succeeded" && log.SequenceEqual(new[] { "a", "b" }) && (bool)first.GetType().GetProperty("Done").GetValue(first), "the operation succeeds after its last step");
+
+            // A step can end the operation with another outcome.
+            Type ended = mod.GetType("RiMCP.Command.OperationEnded", true);
+            object failing = StartOperation("save_game", "gameSetup", null, null, _ => Throws((Exception)Activator.CreateInstance(ended, "unverified", "log hidden")));
+            RunnerUpdate();
+            Check(OperationState(failing) == "unverified" && Field<string>(failing, "Message") == "log hidden", "a step's OperationEnded sets the outcome");
+
+            // Cancelled before it starts, it never runs; cancelling a finished one changes nothing.
+            log.Clear();
+            object queued = StartOperation("save_game", "gameSetup", null, null, _ => TwoSteps(log));
+            MethodInfo cancel = Runner().GetMethod("Cancel", Static);
+            Check((bool)cancel.Invoke(null, new object[] { queued, "stop" }) && OperationState(queued) == "cancelled" && log.Count == 0, "a queued operation cancels at once");
+            Check(!(bool)cancel.Invoke(null, new object[] { first, "stop" }), "cancelling a finished operation reports that it had finished");
+
+            // A native step cannot be interrupted: cancellation waits for it, then stops before the next.
+            log.Clear();
+            object native = StartOperation("leave_game", "gameSetup", null, null, operation => NativeThenMore(operation, log));
+            RunnerUpdate();
+            Check(Field<bool>(native, "InNativeStep"), "the operation is in its native step");
+            cancel.Invoke(null, new object[] { native, "stop" });
+            RunnerUpdate();
+            Check(OperationState(native) == "running" && log.Contains("native done"), "the native step finishes despite the cancellation");
+            RunnerUpdate();
+            Check(OperationState(native) == "cancelled" && !log.Contains("after"), "the operation stops at the next step boundary");
+
+            // Revocation affects only its group; a queued operation never starts.
+            object observe = StartOperation("find_starting_sites", "observe", null, null, _ => TwoSteps(new List<string>()));
+            MethodInfo revoke = Runner().GetMethod("Revoke", Static);
+            revoke.Invoke(null, new object[] { "gameSetup", "access off" });
+            Check(OperationState(observe) == "queued", "revoking Game setup leaves other groups' operations alone");
+            revoke.Invoke(null, new object[] { "observe", "access off" });
+            Check(OperationState(observe) == "revoked" && Field<string>(observe, "Message") == "access off", "a queued operation of the revoked group never starts");
+
+            // Only finished operations are evicted, oldest first, past the limit.
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+            int max = (int)Runner().GetField("MaxCompleted", Static).GetValue(null);
+            List<string> ids = new List<string>();
+            for (int i = 0; i < max + 8; i++)
+            {
+                object operation = StartOperation("save_game", "gameSetup", null, null, _ => Finish());
+                ids.Add(OperationId(operation));
+                RunnerUpdate();
+            }
+            Check(ids.Take(8).All(id => OperationById(id) == null) && ids.Skip(8).All(id => OperationById(id) != null), "the last " + max + " finished operations are kept");
+        }
+        finally
+        {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static IEnumerable<string> Throws(Exception exception)
+    {
+        throw exception;
+#pragma warning disable CS0162
+        yield break;
+#pragma warning restore CS0162
+    }
+
+    private static IEnumerable<string> NativeThenMore(object operation, List<string> log)
+    {
+        SetOperationField(operation, "InNativeStep", true);
+        yield return "native";
+        SetOperationField(operation, "InNativeStep", false);
+        log.Add("native done");
+        yield return "native done";
+        log.Add("after");
+        yield return "after";
+    }
+
+    private static void CheckOperationRetries()
+    {
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        MethodInfo recall = Runner().GetMethod("Recall", Static);
+        Func<string, string, string, object[]> remember = (tool, requestId, fingerprint) =>
+        {
+            object[] args = { tool, requestId, fingerprint, null };
+            try { return new[] { recall.Invoke(null, args), args[3] }; }
+            catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+        };
+        try
+        {
+            object op = StartOperation("load_game", "gameSetup", "r1", "fp1", _ => Finish());
+            object[] again = remember("load_game", "r1", "fp1");
+            Check(again[0] != null && ReferenceEquals(again[1], op), "a repeated requestId recalls its operation");
+            ExpectCommandError(409, () => remember("load_game", "r1", "fp2"));
+            ExpectCommandError(409, () => remember("save_game", "r1", "fp1"));
+            Check(remember("load_game", "r2", "fp1")[0] == null, "a new requestId is not recalled");
+            RunnerUpdate();
+
+            // Once the detailed record is evicted, the compact record still answers, without the operation.
+            int max = (int)Runner().GetField("MaxCompleted", Static).GetValue(null);
+            for (int i = 0; i < max; i++)
+            {
+                StartOperation("save_game", "gameSetup", "churn" + i, "fp", _ => Finish());
+                RunnerUpdate();
+            }
+            object[] expired = remember("load_game", "r1", "fp1");
+            Check(expired[0] != null && expired[1] == null && Field<string>(expired[0], "Outcome").StartsWith("succeeded"), "an evicted operation's requestId gets its outcome, not a new run");
+
+            // Past the request records' limit, the oldest request is no longer recognised.
+            int records = (int)Runner().GetField("MaxRequestRecords", Static).GetValue(null);
+            for (int i = max; i < records; i++)
+            {
+                StartOperation("save_game", "gameSetup", "churn" + i, "fp", _ => Finish());
+                RunnerUpdate();
+            }
+            Check(remember("load_game", "r1", "fp1")[0] == null && remember("save_game", "churn" + (records - 1), "fp")[0] != null, "the last " + records + " requests are recognised, and no more");
+        }
+        finally
+        {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckReplaceRefusal()
+    {
+        MethodInfo refusal = mod.GetType("RiMCP.Command.SessionCommandService", true).GetMethod("ReplaceRefusal", Static);
+        Func<bool, bool, bool, string, string, string> why = (colony, commitment, discard, saveFirst, action) => (string)refusal.Invoke(null, new object[] { colony, commitment, discard, saveFirst, action });
+        Check(why(false, false, false, null, "load") == null, "nothing to replace at the main menu");
+        Check((why(true, false, false, null, "leave") ?? "").Contains("saveFirst"), "a loaded colony needs saveFirst or discardUnsaved, even with no detectable changes");
+        Check(why(true, false, true, null, "leave") == null && why(true, false, false, "Backup", "load") == null, "either choice is enough");
+        Check((why(true, false, true, "Backup", "load") ?? "").Contains("not both"), "both at once is refused");
+        Check(why(true, true, false, null, "leave") == null, "commitment mode leaves, saving to its own slot");
+        Check(why(true, true, true, null, "leave") != null && why(true, true, false, "Other", "leave") != null, "commitment mode takes neither discardUnsaved nor saveFirst");
+        Check((why(true, true, false, null, "load") ?? "").Contains("commitment"), "commitment mode refuses loading another save, as in game");
+    }
+
+    private static void CheckSaveFileCheck()
+    {
+        MethodInfo check = mod.GetType("RiMCP.Command.SaveVerifier", true).GetMethod("CheckFile", Static);
+        Func<string, DateTime?, string> verdict = (path, before) => (string)check.Invoke(null, new object[] { path, before });
+        string dir = Path.Combine(Path.GetTempPath(), "rimmcp-save-check-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string good = Path.Combine(dir, "good.rws");
+            string xml = "\uFEFF<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<savegame>\n\t<meta>\n\t\t<gameVersion>1.6.4871 rev591</gameVersion>\n\t</meta>\n\t<game>\n\t\t<info />\n\t</game>\n</savegame>";
+            File.WriteAllText(good, xml, new System.Text.UTF8Encoding(false));
+            Check(verdict(good, null) == null, "a complete save with its header passes: " + verdict(good, null));
+            Check((verdict(good, DateTime.UtcNow.AddHours(1)) ?? "").Contains("not updated"), "a file older than the save attempt was not written by it");
+            Check((verdict(Path.Combine(dir, "missing.rws"), null) ?? "").Contains("not written"), "a missing file was not written");
+
+            string cut = Path.Combine(dir, "cut.rws");
+            File.WriteAllText(cut, xml.Substring(0, xml.Length - 14), new System.Text.UTF8Encoding(false));
+            Check((verdict(cut, null) ?? "").Contains("incomplete"), "a file cut short is incomplete: " + verdict(cut, null));
+
+            string headless = Path.Combine(dir, "headless.rws");
+            File.WriteAllText(headless, "<savegame><game /></savegame>");
+            Check((verdict(headless, null) ?? "").Contains("meta header"), "a save without its meta header is refused");
+
+            string packed = Path.Combine(dir, "packed.rws");
+            File.WriteAllBytes(packed, new byte[] { 0x04, 0x22, 0x4D, 0x18, 0x60, 0x40, 0x82 });
+            Check((verdict(packed, null) ?? "").Contains("not plain XML"), "a file in another format cannot be checked, and says so");
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    private static void CheckSaveLogWatch()
+    {
+        // Built without its constructor, which attaches to Unity's log; OnLog is what Unity calls.
+        Type watchType = mod.GetType("RiMCP.Command.SaveVerifier+LogWatch", true);
+        object watch = FormatterServices.GetUninitializedObject(watchType);
+        BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        watchType.GetField("thread", any).SetValue(watch, Thread.CurrentThread.ManagedThreadId);
+        watchType.GetField("Marker").SetValue(watch, "RimMCP: saving \"Test\" (1)");
+        MethodInfo onLog = watchType.GetMethod("OnLog", any);
+        Action<string, UnityEngine.LogType> log = (message, type) => onLog.Invoke(watch, new object[] { message, "", type });
+
+        log("unrelated message", UnityEngine.LogType.Log);
+        Check(!Field<bool>(watch, "MarkerSeen"), "only the marker shows the log is working");
+        log("RimMCP: saving \"Test\" (1)", UnityEngine.LogType.Log);
+        Check(Field<bool>(watch, "MarkerSeen") && Field<int>(watch, "Errors") == 0, "the marker is seen and is not an error");
+        log("a warning", UnityEngine.LogType.Warning);
+        log("Exception while saving Map: boom", UnityEngine.LogType.Error);
+        log("second", UnityEngine.LogType.Exception);
+        Check(Field<int>(watch, "Errors") == 2 && Field<string>(watch, "FirstError") == "Exception while saving Map: boom", "errors and exceptions count, warnings do not");
+        Task.Run(() => log("another thread", UnityEngine.LogType.Error)).Wait();
+        Check(Field<int>(watch, "Errors") == 2, "errors from other threads are not the save's");
+    }
+
+    private static void CheckSaveHeader()
+    {
+        Type header = mod.GetType("RiMCP.Command.SaveHeader", true);
+        MethodInfo read = header.GetMethod("Read", Static);
+        string dir = Path.Combine(Path.GetTempPath(), "rimmcp-save-header-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string path = Path.Combine(dir, "commit.rws");
+            File.WriteAllText(path, "<?xml version=\"1.0\" encoding=\"utf-8\"?><savegame><meta><gameVersion>1.6.4871 rev591</gameVersion><modIds><li>ludeon.rimworld</li><li>Rakanssh.RimCP</li></modIds><modNames><li>Core</li><li>RimMCP</li></modNames></meta><game><currentMapIndex>0</currentMapIndex><info><permadeathMode>True</permadeathMode><permadeathModeUniqueName>Colony</permadeathModeUniqueName></info><world>" + new string('x', 200) + "</world></game></savegame>");
+            object parsed = read.Invoke(null, new object[] { path });
+            Check(Field<string>(parsed, "GameVersion") == "1.6.4871 rev591" && Field<bool>(parsed, "CommitmentMode") && Field<string>(parsed, "Problem") == null, "version and commitment mode come from the header");
+            Check(((IList)header.GetField("ModIds").GetValue(parsed)).Cast<string>().SequenceEqual(new[] { "ludeon.rimworld", "Rakanssh.RimCP" }), "mod ids come from meta/modIds only, not modNames");
+            MethodInfo match = header.GetMethod("ModsMatch");
+            Check((bool)match.Invoke(parsed, new object[] { new List<string> { "Ludeon.RimWorld", "rakanssh.rimcp" }, new List<string> { "Core", "RimMCP" } }), "mods match in order, ignoring case");
+            Check(!(bool)match.Invoke(parsed, new object[] { new List<string> { "rakanssh.rimcp", "ludeon.rimworld" }, new List<string>() }), "a different order does not match, as the game checks");
+
+            string plain = Path.Combine(dir, "plain.rws");
+            File.WriteAllText(plain, "<savegame><meta><gameVersion>1.6</gameVersion></meta><game><info><realPlayTimeInteracting>10</realPlayTimeInteracting></info></game></savegame>");
+            Check(!Field<bool>(read.Invoke(null, new object[] { plain }), "CommitmentMode"), "without permadeathMode it is not commitment mode");
+            string broken = Path.Combine(dir, "broken.rws");
+            File.WriteAllText(broken, "not xml");
+            Check(Field<string>(read.Invoke(null, new object[] { broken }), "Problem") != null, "an unreadable header reports a problem");
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    private static IEnumerable<string> LoadingUntil(object operation, Func<bool> released)
+    {
+        SetOperationField(operation, "InNativeStep", true);
+        SetOperationField(operation, "ReplacingGame", true);
+        while (!released())
+        {
+            yield return "loading";
+        }
+        SetOperationField(operation, "InNativeStep", false);
+        SetOperationField(operation, "ReplacingGame", false);
+        yield return "loaded";
+        yield return "after";
+    }
+
+    private static void CheckBusyRouterAndCancel()
+    {
+        MethodInfo handle = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static);
+        Func<string, string, object> send = (method, path) => handle.Invoke(null, new[] { Request(path, method, method == "GET" ? null : "{}") });
+        Func<object, int> status = response => (int)response.GetType().GetField("StatusCode").GetValue(response);
+        Func<object, string> body = response => (string)response.GetType().GetField("Body").GetValue(response);
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            SetAccess("full", AllGroups());
+            bool released = false;
+            object loading = StartOperation("load_game", "gameSetup", null, null, operation => LoadingUntil(operation, () => released));
+            string id = OperationId(loading);
+            RunnerUpdate();
+
+            object read = send("GET", "/v1/research");
+            Check(status(read) == 503 && body(read).Contains("changing games") && body(read).Contains(id), "while the game is replaced, game reads wait: " + body(read));
+            object progress = send("GET", "/v1/operations/" + id);
+            Dictionary<string, object> data = Data(Json.Deserialize<Dictionary<string, object>>(body(progress)));
+            Check(status(progress) == 200 && (string)data["state"] == "running" && (string)data["step"] == "loading", "operation status still answers: " + body(progress));
+            Check(status(send("GET", "/v1/operations/op-none")) == 404, "an unknown operation is not found");
+
+            // Stopping a Game setup operation needs Game setup, although the tool itself is Observe.
+            // Turning Game setup off also revokes the load, which waits for its native step.
+            SetAccess("readOnly", new[] { "observe", "diagnostics" });
+            object refused = send("POST", "/v1/operations/" + id + "/cancel");
+            Check(status(refused) == 403 && body(refused).Contains("Game setup"), "an Observe-only agent cannot stop a load: " + body(refused));
+            SetAccess("full", AllGroups());
+            RunnerUpdate();
+            Check(OperationState(loading) == "running", "revocation waits for the native step");
+            released = true;
+            RunnerUpdate();
+            RunnerUpdate();
+            Check(OperationState(loading) == "revoked" && Field<string>(loading, "Step") == "loaded", "revoked at the step after the native one: " + OperationState(loading) + " at " + Field<string>(loading, "Step"));
+            Check(status(send("GET", "/v1/research")) == 200, "game reads answer again");
+
+            // Cancelling during a native step waits for it too, then stops before the next step.
+            bool done = false;
+            object second = StartOperation("load_game", "gameSetup", null, null, operation => LoadingUntil(operation, () => done));
+            RunnerUpdate();
+            object stopping = send("POST", "/v1/operations/" + OperationId(second) + "/cancel");
+            Check(status(stopping) == 200 && body(stopping).Contains("cannot be interrupted"), "cancelling during the native step says it waits for it: " + body(stopping));
+            RunnerUpdate();
+            Check(OperationState(second) == "running", "the native step keeps running");
+            done = true;
+            RunnerUpdate();
+            RunnerUpdate();
+            Check(OperationState(second) == "cancelled" && Field<string>(second, "Step") == "loaded", "cancelled at the step after the native one: " + OperationState(second) + " at " + Field<string>(second, "Step"));
+
+            // An Observe operation can be stopped with Observe alone.
+            object search = StartOperation("find_starting_sites", "observe", null, null, _ => TwoSteps(new List<string>()));
+            SetAccess("readOnly", new[] { "observe", "diagnostics" });
+            Check(status(send("POST", "/v1/operations/" + OperationId(search) + "/cancel")) == 200 && OperationState(search) == "cancelled", "an Observe-only agent can stop its own search");
+        }
+        finally
+        {
+            SetAccess("full", AllGroups());
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
     private static void CheckAccessPresets()
     {
         Type presets = mod.GetType("RiMCP.Settings.AccessPresets", true);
         Func<string, string[]> groups = preset => (string[])presets.GetMethod("Groups").Invoke(null, new object[] { preset });
         Func<string, bool, string> migrate = (saved, legacy) => (string)presets.GetMethod("Migrate").Invoke(null, new object[] { saved, legacy });
         Check(groups("full").SequenceEqual(AllGroups()), "Full control must enable every group");
-        Check(groups("control").SequenceEqual(AllGroups().Where(group => group != "gameSettings")), "Control must leave out only game settings");
+        Check(groups("control").SequenceEqual(AllGroups().Where(group => group != "gameSettings" && group != "gameSetup")), "Control must leave out game settings and game setup");
         Check(groups("administration").SequenceEqual(new[] { "observe", "diagnostics", "time", "administration" }), "Administration must include time control");
         Check(groups("readOnly").SequenceEqual(new[] { "observe", "diagnostics" }), "Read only must allow reads only");
         Check(migrate(null, true) == "full" && migrate(null, false) == "readOnly", "Allow changes on or off must become Full control or Read only");
@@ -682,7 +1050,8 @@ internal static class Program
         settingsType.GetField("AccessPreset").SetValue(settings, "full");
         MethodInfo setGroup = settingsType.GetMethod("SetGroup", BindingFlags.Instance | BindingFlags.NonPublic);
         setGroup.Invoke(settings, new object[] { "gameSettings", false });
-        Check((string)settingsType.GetField("AccessPreset").GetValue(settings) == "control", "turning off game settings from Full control is the Control preset");
+        setGroup.Invoke(settings, new object[] { "gameSetup", false });
+        Check((string)settingsType.GetField("AccessPreset").GetValue(settings) == "control", "turning off game settings and game setup from Full control is the Control preset");
         setGroup.Invoke(settings, new object[] { "orders", false });
         string[] enabled = (string[])settingsType.GetProperty("EnabledGroups", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(settings);
         Check((string)settingsType.GetField("AccessPreset").GetValue(settings) == "custom" && !enabled.Contains("orders") && enabled.Contains("time"), "a hand-picked set must be Custom: " + string.Join(", ", enabled));

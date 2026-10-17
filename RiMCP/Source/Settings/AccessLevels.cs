@@ -23,7 +23,8 @@ namespace RiMCP.Settings
                 case Full:
                     return ToolGroups.All;
                 case Control:
-                    return ToolGroups.All.Where(group => group != ToolGroups.GameSettings).ToArray();
+                    // Game setup can abandon a colony or overwrite a save, so only Full control has it.
+                    return ToolGroups.All.Where(group => group != ToolGroups.GameSettings && group != ToolGroups.GameSetup).ToArray();
                 case Administration:
                     return new[] { ToolGroups.Observe, ToolGroups.Diagnostics, ToolGroups.Time, ToolGroups.Administration };
                 default:
@@ -66,8 +67,8 @@ namespace RiMCP.Settings
         {
             switch (preset)
             {
-                case Full: return "Every tool, including game settings such as storyteller and difficulty.";
-                case Control: return "Everything except game settings.";
+                case Full: return "Every tool, including game settings such as storyteller and difficulty, and saving, loading, and leaving games.";
+                case Control: return "Everything except game settings and game setup (saving, loading, and leaving games).";
                 case Administration: return "Reads, colony settings, and time control, so an agent can check its changes by advancing time. No direct orders.";
                 case ReadOnly: return "Reads only. Agents cannot change anything.";
                 default: return "A hand-picked set of groups.";

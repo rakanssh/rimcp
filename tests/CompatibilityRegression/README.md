@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The forty-six checks cover:
+The fifty-three checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -97,6 +97,18 @@ The forty-six checks cover:
 - Permanent game conditions without duration lookups.
 - Medical care parsing that rejects numeric and comma-separated enum values.
 - Real research progress and completion values when a research manager exists.
+- Session operations: one at a time, one step per frame, cancelled or revoked only at a
+  safe step and after any native step, with the last 32 finished operations kept.
+  Retries return the original operation, or an expired answer once its details are
+  evicted, for the last 1,000 requests.
+- Replacing a loaded colony only with a save first or an explicit discard, and
+  commitment mode keeping the game's rules.
+- Save verification: a file written by this save, complete, and plain XML with its
+  header; the log watch counting errors on the saving thread and seeing its marker;
+  and save headers giving version, mods (matched as the game checks) and commitment
+  mode.
+- Only operation status answering while a game is replaced, and cancelling an
+  operation needing its own group.
 
 The ideology check calls the real private `Ideos()` enumerable shared by both
 ideology endpoints. Full endpoint invocation would initialize `ModsConfig` and
