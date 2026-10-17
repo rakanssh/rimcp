@@ -19,6 +19,8 @@ namespace RiMCP.Command
         public const string Declined = "declined";
         public const string Cancelled = "cancelled";
         public const string Revoked = "revoked";
+        // Something outside the operation, such as the player, changed what it was working on.
+        public const string Interrupted = "interruptedByChange";
 
         public readonly string Id;
         public readonly string Tool;
@@ -43,6 +45,10 @@ namespace RiMCP.Command
         internal IEnumerator<string> Steps;
         internal string CancelRequested;
         internal string RevokeRequested;
+        // Set while a confirmation an agent may answer is pending: its id, and how to answer it
+        // (true accepts; returns null once answered, otherwise why it could not be).
+        internal string ConfirmationId;
+        internal Func<bool, string> Answer;
 
         public Operation(string id, string tool, string group, string requestId)
         {
@@ -64,7 +70,7 @@ namespace RiMCP.Command
 
         public static bool IsTerminal(string state)
         {
-            return state == Succeeded || state == Failed || state == Unverified || state == Declined || state == Cancelled || state == Revoked;
+            return state == Succeeded || state == Failed || state == Unverified || state == Declined || state == Cancelled || state == Revoked || state == Interrupted;
         }
     }
 
@@ -261,6 +267,8 @@ namespace RiMCP.Command
             operation.State = state;
             operation.Message = message;
             operation.Confirmation = null;
+            operation.ConfirmationId = null;
+            operation.Answer = null;
             operation.InNativeStep = false;
             operation.ReplacingGame = false;
             operation.FinishedUtc = DateTime.UtcNow;

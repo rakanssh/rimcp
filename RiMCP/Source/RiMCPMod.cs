@@ -126,6 +126,9 @@ namespace RiMCP
                     BridgeRuntime.ApplySettings();
                 }
             }
+
+            listing.Gap();
+            listing.CheckboxLabeled("Unattended game setup", ref Settings.UnattendedSetup, "Lets agents answer the game's questions while setting up a new game, and start the colony without asking you. Off: you approve the start and answer those questions on screen.");
         }
 
         public override void WriteSettings()

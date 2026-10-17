@@ -204,7 +204,12 @@ namespace RiMCP.Command
 
         // A repeated requestId gets what it did before; a new request is validated and started.
         // prepare throws on invalid requests, so nothing is recorded for them.
-        private static BridgeResponse Begin(BridgeRequest request, string tool, string requestId, Func<Func<Operation, IEnumerable<string>>> prepare, params object[] arguments)
+        internal static BridgeResponse Begin(BridgeRequest request, string tool, string requestId, Func<Func<Operation, IEnumerable<string>>> prepare, params object[] arguments)
+        {
+            return Begin(request, tool, null, requestId, prepare, arguments);
+        }
+
+        internal static BridgeResponse Begin(BridgeRequest request, string tool, string group, string requestId, Func<Func<Operation, IEnumerable<string>>> prepare, params object[] arguments)
         {
             RequestKey key = RequestKey.For(tool, requestId, null, arguments);
             string fingerprint = key == null ? null : key.Fingerprint;
@@ -223,7 +228,7 @@ namespace RiMCP.Command
                 return WithWait(request, known, () => Envelope(false, Serialize(known)));
             }
             Func<Operation, IEnumerable<string>> steps = prepare();
-            Operation operation = OperationRunner.Start(tool, ToolGroups.GameSetup, requestId, fingerprint, steps);
+            Operation operation = OperationRunner.Start(tool, group ?? ToolGroups.GameSetup, requestId, fingerprint, steps);
             return WithWait(request, operation, () => Envelope(true, Serialize(operation)));
         }
 
@@ -328,7 +333,7 @@ namespace RiMCP.Command
                 Dto.Field("saved", saved));
         }
 
-        private static IEnumerable<string> Leave(Operation operation, string saveFirst, bool overwrite, string loadId)
+        internal static IEnumerable<string> Leave(Operation operation, string saveFirst, bool overwrite, string loadId)
         {
             object saved = null;
             if (saveFirst != null)
@@ -354,7 +359,7 @@ namespace RiMCP.Command
 
         // Waits for a native game change to settle. It cannot be interrupted, so cancellation and
         // revocation wait for it; a return to the main menu partway through a load means it failed.
-        private static IEnumerable<string> AwaitTransition(Operation operation, string step, Func<bool> arrived)
+        internal static IEnumerable<string> AwaitTransition(Operation operation, string step, Func<bool> arrived)
         {
             operation.InNativeStep = true;
             operation.ReplacingGame = true;
@@ -407,12 +412,12 @@ namespace RiMCP.Command
                 Dto.Field("dialogs", asking.Select(window => window.GetType().Name).ToArray()));
         }
 
-        private static bool ColonyLoaded()
+        internal static bool ColonyLoaded()
         {
             return Current.ProgramState == ProgramState.Playing && Current.Game != null;
         }
 
-        private static void RequireSettled()
+        internal static void RequireSettled()
         {
             if (LongEventHandler.AnyEventNowOrWaiting)
             {
@@ -424,7 +429,7 @@ namespace RiMCP.Command
             }
         }
 
-        private static void RequireSavable()
+        internal static void RequireSavable()
         {
             RequireSettled();
             if (!ColonyLoaded())
@@ -437,7 +442,7 @@ namespace RiMCP.Command
             }
         }
 
-        private static string ValidateSaveName(string name, string field)
+        internal static string ValidateSaveName(string name, string field)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -451,7 +456,7 @@ namespace RiMCP.Command
             return trimmed;
         }
 
-        private static void RequireFreeName(string name, bool overwrite, string field)
+        internal static void RequireFreeName(string name, bool overwrite, string field)
         {
             if (!overwrite && File.Exists(GenFilePaths.FilePathForSavedGame(name)))
             {
@@ -487,7 +492,7 @@ namespace RiMCP.Command
 
         // A wait changes when the reply arrives, not what it describes. Waiting happens off the main
         // thread, so a load or a scene change keeps running.
-        private static BridgeResponse WithWait(BridgeRequest request, Operation operation, Func<BridgeResponse> reply)
+        internal static BridgeResponse WithWait(BridgeRequest request, Operation operation, Func<BridgeResponse> reply)
         {
             BridgeResponse response = reply();
             double seconds;
@@ -501,7 +506,7 @@ namespace RiMCP.Command
 
         // Session replies avoid reading the game while it is being replaced, when its maps and clock
         // may be half built.
-        private static BridgeResponse Envelope(bool changed, object data)
+        internal static BridgeResponse Envelope(bool changed, object data)
         {
             bool settled = !LongEventHandler.AnyEventNowOrWaiting && !OperationRunner.ReplacingGame && Current.ProgramState != ProgramState.MapInitializing;
             Game game = settled ? Current.Game : null;

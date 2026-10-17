@@ -69,6 +69,19 @@ namespace RiMCP.Bridge
             { "save-game", SessionCommandService.SaveGame },
             { "load-game", SessionCommandService.LoadGame },
             { "leave-game", SessionCommandService.LeaveGame },
+            { "list-scenarios", SetupCommandService.ListScenarios },
+            { "get-setup", SetupCommandService.GetSetup },
+            { "find-starting-sites", SetupCommandService.FindStartingSites },
+            { "start-setup", SetupCommandService.StartSetup },
+            { "cancel-setup", SetupCommandService.CancelSetup },
+            { "setup-back", SetupCommandService.SetupBack },
+            { "set-setup-storyteller", SetupCommandService.SetStoryteller },
+            { "generate-world", SetupCommandService.GenerateWorld },
+            { "choose-starting-site", SetupCommandService.ChooseStartingSite },
+            { "set-setup-ideoligion", SetupCommandService.SetIdeoligion },
+            { "set-starting-pawns", SetupCommandService.SetStartingPawns },
+            { "start-game", SetupCommandService.StartGame },
+            { "answer-confirmation", SetupCommandService.AnswerConfirmation },
             { "tools", ToolReadService.GetTools }
         };
 

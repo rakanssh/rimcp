@@ -120,7 +120,7 @@ namespace RiMCP.Shared
                 case Orders: return "Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.";
                 case PawnControl: return "Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.";
                 case GameSettings: return "Change the storyteller, difficulty, and global game options.";
-                case GameSetup: return "Save, load, and leave games. It can abandon a colony or overwrite a save, so only Full control includes it.";
+                case GameSetup: return "Save, load, and leave games, and set up new ones. It can abandon a colony or overwrite a save, so only Full control includes it.";
                 default: return "";
             }
         }
@@ -256,12 +256,25 @@ namespace RiMCP.Shared
                 Put(ToolGroups.Time, "set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
                 Post(ToolGroups.Time, "advance-time", "advance_time", "Run the game for up to 24 in-game hours, then pause it. The run stops early, and pauses, when a stopOn condition happens; the result lists what happened and why it ended. One run at a time. Retrying with the same requestId and arguments returns the existing run (the last 32 runs of the loaded game are remembered); reusing a requestId with different arguments is rejected. Pass waitSeconds to wait for the result in this call, otherwise follow up with get_advance using the run id. Cancelling this call does not stop a run that has started; use set_game_speed.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
                 Get(ToolGroups.Observe, "get-advance", "get_advance", "Get the game's tick and speed, and an advance_time run: its status, what happened, and why it ended. Defaults to the most recent run; pass runId for a specific one. Pass waitSeconds to wait for that run to end first.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("runId", J(F("type", "integer"), F("minimum", 1), F("description", "Run id returned by advance_time. Defaults to the most recent run."))), Prop("waitSeconds", WaitSeconds())), "runId", "waitSeconds"),
-                Get(ToolGroups.Observe, "get-operation", "get_operation", "Get a save, load, or leave operation by operationId: its state (queued, running, awaitingConfirmation, succeeded, failed, unverified, declined, cancelled, or revoked), current step, any question the game is asking the player, and its result. Works while RimWorld is loading, and after the game the operation started in is gone. Every running operation and the last 32 finished ones are kept. Pass waitSeconds to wait for it to finish first.", "/v1/operations/{operationId}", InputWithOptionalMap(false, new[] { "operationId" }, Prop("operationId", Str("Operation id returned by save_game, load_game, or leave_game.")), Prop("waitSeconds", OperationWaitSeconds())), "waitSeconds"),
-                PostAnyGame(ToolGroups.Observe, "cancel-operation", "cancel_operation", "Stop an operation at its next safe step, keeping whatever it already did. A native step that cannot be interrupted, such as loading or returning to the main menu, finishes first. Stopping a save, load, or leave needs the Game setup group. Works while RimWorld is loading.", "/v1/operations/{operationId}/cancel", RequiredOnly(Prop("operationId", Str("Operation id returned by save_game, load_game, or leave_game."))), IdempotentMutation(), Body()),
+                Get(ToolGroups.Observe, "get-operation", "get_operation", "Get an operation by operationId, such as a save, load, world generation, or site search: its state (queued, running, awaitingConfirmation, succeeded, failed, unverified, declined, cancelled, revoked, or interruptedByChange when someone else changed the setup), current step, any question the game is asking the player, and its result. Works while RimWorld is loading, and after the game the operation started in is gone. Every running operation and the last 32 finished ones are kept. Pass waitSeconds to wait for it to finish first.", "/v1/operations/{operationId}", InputWithOptionalMap(false, new[] { "operationId" }, Prop("operationId", Str("Operation id returned by the tool that started it.")), Prop("waitSeconds", OperationWaitSeconds())), "waitSeconds"),
+                PostAnyGame(ToolGroups.Observe, "cancel-operation", "cancel_operation", "Stop an operation at its next safe step, keeping whatever it already did. A native step that cannot be interrupted, such as loading or returning to the main menu, finishes first. Stopping a Game setup operation needs the Game setup group. Works while RimWorld is loading.", "/v1/operations/{operationId}/cancel", RequiredOnly(Prop("operationId", Str("Operation id returned by the tool that started it."))), IdempotentMutation(), Body()),
                 Get(ToolGroups.Observe, "list-saves", "list_saves", "List save files, newest first, with name, last write time, size, game version, whether the save's mods match the running ones (as the game checks before loading), and commitment mode. loadedColony says whether the loaded colony is a commitment-mode game. Works at the main menu.", "/v1/saves", Input()),
                 Post(ToolGroups.GameSetup, "save-game", "save_game", "Save the loaded colony under a name, as an operation: it returns at once with an operationId to follow with get_operation. A save succeeds only once verified: the file was written and is complete, and the game logged no error while saving, because the game hides its own save errors. failed or unverified means do not rely on the file. Refuses to replace an existing save unless overwrite is true. Not available in commitment mode, as in game." + OperationRetries, "/v1/saves", SaveGameInput(), Mutation(false, true), Body("name", "overwrite", "requestId"), "waitSeconds"),
                 Post(ToolGroups.GameSetup, "load-game", "load_game", "Load a save by name, as an operation to follow with get_operation. When a colony is loaded, pass saveFirst (a save name) to save it first, or discardUnsaved: true; one is always required, because changes made while paused cannot be detected. A failed save stops the load. When the save's version or mods differ, the game asks the player, and the operation waits (awaitingConfirmation) until they answer in game. A running advance stops. Not available while a commitment-mode game is loaded: leave it first." + OperationRetries, "/v1/session/load", ReplaceInput(true), Mutation(false, true), Body("name", "saveFirst", "discardUnsaved", "overwrite", "requestId"), "waitSeconds"),
                 Post(ToolGroups.GameSetup, "leave-game", "leave_game", "Return to the main menu, as an operation to follow with get_operation. Pass saveFirst (a save name) to save first, or discardUnsaved: true; one is always required. A failed save stops it. Commitment-mode games always save to their own slot first, as in game, and take neither. A running advance stops." + OperationRetries, "/v1/session/leave", ReplaceInput(false), Mutation(false, true), Body("saveFirst", "discardUnsaved", "overwrite", "requestId"), "waitSeconds"),
+                Get(ToolGroups.Observe, "list-scenarios", "list_scenarios", "List the scenarios a new game can start from, as the scenario screen shows them: name, category, summary, and whether RimMCP can set it up (supported). Scenarios with other setup screens list them in manualScreens; start those in game. Works at the main menu.", "/v1/setup/scenarios", Input()),
+                Get(ToolGroups.Observe, "get-setup", "get_setup", "Get the new game being set up: the screen it is at (stage: scenario, storyteller, world, site, ideoligion, pawns, customIdeoligion, or unsupported), its revision, the choices on that screen, and the options it offers. Commands that change the setup take this revision as expectedRevision, and are refused if anyone, such as the player, changed the setup since (lastChangeExternal). handoff says when a screen must be finished in game. Setup is visible: the player sees each screen and can take over at any point.", "/v1/setup", Input()),
+                PostAnyGame(ToolGroups.Observe, "find-starting-sites", "find_starting_sites", "Search the generated world for starting sites, as an operation to follow with get_operation; its result lists up to limit settleable tiles, longest growing period first. Filters: biomes (BiomeDef names), hilliness (Flat, SmallHills, LargeHills, Mountainous), river, road, coastal, yearly average temperature (min/maxTemperature, in C), rainfall (min/maxRainfall, mm a year), and minGrowingDays (of the 60-day year). Needs the starting site screen. The search runs a few milliseconds per frame, so the game stays responsive, and stops if the world is generated again." + OperationRetries, "/v1/setup/sites/search", SiteSearchInput(), ReadOnly(), Body("biomes", "hilliness", "river", "road", "coastal", "minTemperature", "maxTemperature", "minRainfall", "maxRainfall", "minGrowingDays", "limit", "requestId"), "waitSeconds"),
+                Post(ToolGroups.GameSetup, "start-setup", "start_setup", "Start setting up a new game from a scenario (list_scenarios), as an operation to follow with get_operation. It opens the game's own setup screens at the storyteller screen, as New colony does. When a colony is loaded, it leaves it first: pass saveFirst (a save name) or discardUnsaved: true, as for leave_game. Then use get_setup, and the setup commands in order: set_setup_storyteller, generate_world, choose_starting_site, set_setup_ideoligion (with Ideology), set_starting_pawns, and start_game." + OperationRetries, "/v1/setup", StartSetupInput(), Mutation(false, true), Body("scenario", "saveFirst", "discardUnsaved", "overwrite", "requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "cancel-setup", "cancel_setup", "Abandon the new game being set up and return to the main menu, dropping its world and colonists, as an operation to follow with get_operation." + OperationRetries, "/v1/setup/cancel", Input(new string[0], Prop("requestId", RequestIdProperty()), Prop("waitSeconds", OperationWaitSeconds())), Mutation(false, true), Body("requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "setup-back", "setup_back", "Go back one setup screen, as its Back button does. Choices made on later screens may be lost, as in game.", "/v1/setup/back", RevisionInput(), Mutation(false, false), Body("expectedRevision")),
+                PostAnyGame(ToolGroups.GameSetup, "set-setup-storyteller", "set_setup_storyteller", "Choose the storyteller, a difficulty preset, and commitment mode on the storyteller screen, then go on to the world screen. get_setup lists the storytellers and difficulties. Custom difficulty is set in game.", "/v1/setup/storyteller", StorytellerSetupInput(), Mutation(false, false), Body("storyteller", "difficulty", "commitmentMode", "expectedRevision")),
+                PostAnyGame(ToolGroups.GameSetup, "generate-world", "generate_world", "Set the world screen's options and generate the world, as an operation to follow with get_operation; it ends at the starting site screen. Options left out keep the screen's values, which get_setup shows. Generation takes from seconds to a minute or two, and other requests wait until it is done." + OperationRetries, "/v1/setup/world", WorldSetupInput(), Mutation(false, false), Body("seed", "coverage", "rainfall", "temperature", "population", "landmarkDensity", "pollution", "expectedRevision", "requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "choose-starting-site", "choose_starting_site", "Choose the starting tile (find_starting_sites finds them), optionally the map size and starting season, and go on to the next screen, as an operation to follow with get_operation. The game's own checks apply. Settling near another faction's settlement makes the game ask first: the operation waits (awaitingConfirmation) for the player to answer, or, with unattended setup on, for answer_confirmation." + OperationRetries, "/v1/setup/site", SiteSetupInput(), Mutation(false, false), Body("tileId", "mapSize", "startingSeason", "expectedRevision", "requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "set-setup-ideoligion", "set_setup_ideoligion", "Choose the ideoligion (Ideology): classic, or a preset with an optional structure meme (otherwise the preset's own or a random one, as in game), then go on to the next screen. get_setup lists the presets and structures. Custom, fluid, and saved ideoligions are chosen in game.", "/v1/setup/ideoligion", IdeoligionSetupInput(), Mutation(false, false), Body("mode", "preset", "structure", "expectedRevision")),
+                PostAnyGame(ToolGroups.GameSetup, "set-starting-pawns", "set_starting_pawns", "Reroll and rename starting colonists on the colonist screen, as an operation to follow with get_operation. Each reroll presses Randomize for a slot until the colonist meets its criteria (minimum skills and passions, traits wanted or excluded, work it can do, age) or maxAttempts runs out; the result says what was matched and what is still missing, with the roster as it now is. Names apply at the end. Stops if anyone else changes the setup meanwhile." + OperationRetries, "/v1/setup/pawns", PawnsSetupInput(), Mutation(false, true), Body("rerolls", "names", "expectedRevision", "requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "start-game", "start_game", "Start the colony from the last setup screen, as an operation to follow with get_operation; its result has the new game's loadId. The player is asked in game to approve this exact setup first (awaitingConfirmation), and any change while asking withdraws the request, unless unattended setup is on in RimMCP settings. If no colonist can do a required job, the game asks too." + OperationRetries, "/v1/setup/start", RevisionInput(true), Mutation(false, false), Body("expectedRevision", "requestId"), "waitSeconds"),
+                PostAnyGame(ToolGroups.GameSetup, "answer-confirmation", "answer_confirmation", "Answer a question the game asked during an operation, such as settling near another faction or starting without someone for every required job, by its confirmationId from get_operation. Only with unattended setup on in RimMCP settings; otherwise the player answers in game. Refused if the setup changed since it was asked.", "/v1/operations/{operationId}/answer", AnswerInput(), Mutation(false, false), Body("confirmationId", "accept")),
                 RouteOnly("tools", "GET", "/v1/tools")
             };
         }
@@ -271,9 +284,175 @@ namespace RiMCP.Shared
 
         // An operation outlives the game it started in, so acting on it does not depend on which game
         // is loaded: no expectedLoadId.
-        private static ToolSpec PostAnyGame(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys)
+        // Setup commands, likewise, act on the setup at a revision rather than on a loaded game.
+        private static ToolSpec PostAnyGame(string group, string handlerId, string name, string description, string pathTemplate, Dictionary<string, object> inputSchema, Dictionary<string, object> annotations, string[] bodyKeys, params string[] queryKeys)
         {
-            return new ToolSpec(handlerId, group, name, description, "POST", pathTemplate, new string[0], bodyKeys, inputSchema, annotations, true);
+            return new ToolSpec(handlerId, group, name, description, "POST", pathTemplate, queryKeys, bodyKeys, inputSchema, annotations, true);
+        }
+
+        private static Dictionary<string, object> RequestIdProperty()
+        {
+            return J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries."));
+        }
+
+        private static Dictionary<string, object> ExpectedRevision()
+        {
+            return J(F("type", "integer"), F("minimum", 0), F("description", "The setup revision from get_setup. Refused if the setup has changed since."));
+        }
+
+        private static Dictionary<string, object> StrArray(string description)
+        {
+            return J(F("type", "array"), F("items", J(F("type", "string"))), F("maxItems", 50), F("description", description));
+        }
+
+        private static Dictionary<string, object> RevisionInput(bool operation = false)
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["expectedRevision"] = ExpectedRevision();
+            if (operation)
+            {
+                props["requestId"] = RequestIdProperty();
+                props["waitSeconds"] = OperationWaitSeconds();
+            }
+            return ObjectSchema(props, "expectedRevision");
+        }
+
+        private static Dictionary<string, object> StartSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["scenario"] = Str("Scenario name, as list_scenarios shows it, such as Crashlanded.");
+            props["saveFirst"] = Str("When a colony is loaded: save it under this name first. Give this or discardUnsaved.");
+            props["discardUnsaved"] = Bool("When a colony is loaded: drop any unsaved changes. Give this or saveFirst.");
+            props["overwrite"] = Bool("Let saveFirst replace an existing save with that name.");
+            props["requestId"] = RequestIdProperty();
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props, "scenario");
+        }
+
+        private static Dictionary<string, object> StorytellerSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["storyteller"] = Str("StorytellerDef name, such as Cassandra, Phoebe, or Randy.");
+            props["difficulty"] = Str("DifficultyDef preset name, such as Peaceful, Easy, Medium, Rough, Hard, or Extreme.");
+            props["commitmentMode"] = Bool("true for commitment mode (one save, kept as you play), false to save and reload any time.");
+            props["expectedRevision"] = ExpectedRevision();
+            return ObjectSchema(props, "storyteller", "difficulty", "commitmentMode", "expectedRevision");
+        }
+
+        private static Dictionary<string, object> WorldSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["seed"] = Str("World seed.");
+            props["coverage"] = J(F("type", "integer"), F("enum", A(30, 50, 100)), F("description", "Percent of the planet to generate."));
+            props["rainfall"] = Str("Overall rainfall, as get_setup lists the options, such as Normal.");
+            props["temperature"] = Str("Overall temperature, as get_setup lists the options, such as Normal.");
+            props["population"] = Str("Overall population, as get_setup lists the options, such as Normal.");
+            props["landmarkDensity"] = Str("Landmark density (Odyssey), as get_setup lists the options.");
+            props["pollution"] = J(F("type", "number"), F("minimum", 0), F("maximum", 100), F("description", "Percent of the world polluted (Biotech)."));
+            props["expectedRevision"] = ExpectedRevision();
+            props["requestId"] = RequestIdProperty();
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props, "expectedRevision");
+        }
+
+        private static Dictionary<string, object> SiteSearchInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["biomes"] = StrArray("BiomeDef names to accept, such as TemperateForest or AridShrubland.");
+            props["hilliness"] = StrArray("Hilliness to accept: Flat, SmallHills, LargeHills, or Mountainous.");
+            props["river"] = Bool("true for tiles with a river, false for tiles without.");
+            props["road"] = Bool("true for tiles with a road, false for tiles without.");
+            props["coastal"] = Bool("true for coastal tiles, false for inland ones.");
+            props["minTemperature"] = J(F("type", "number"), F("description", "Lowest yearly average temperature, in C."));
+            props["maxTemperature"] = J(F("type", "number"), F("description", "Highest yearly average temperature, in C."));
+            props["minRainfall"] = J(F("type", "number"), F("minimum", 0), F("description", "Least rainfall, in mm a year."));
+            props["maxRainfall"] = J(F("type", "number"), F("minimum", 0), F("description", "Most rainfall, in mm a year."));
+            props["minGrowingDays"] = Int("Shortest growing period, in days of the 60-day year (60 is year-round).", 0, 60);
+            props["limit"] = Int("Most sites to return. Defaults to 10.", 1, 50);
+            props["requestId"] = RequestIdProperty();
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props);
+        }
+
+        private static Dictionary<string, object> SiteSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["tileId"] = J(F("type", "integer"), F("minimum", 0), F("description", "Surface tile id, as find_starting_sites gives it."));
+            props["mapSize"] = J(F("type", "integer"), F("enum", A(200, 225, 250, 275, 300, 325)), F("description", "Map size in cells along each side. Defaults to the screen's choice."));
+            props["startingSeason"] = Str("Starting season: Spring, Summer, Fall, Winter, or Undefined for the game's choice.");
+            props["expectedRevision"] = ExpectedRevision();
+            props["requestId"] = RequestIdProperty();
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props, "tileId", "expectedRevision");
+        }
+
+        private static Dictionary<string, object> IdeoligionSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["mode"] = EnumString("classic plays without ideoligion mechanics; preset starts from a preset.", "classic", "preset");
+            props["preset"] = Str("With mode preset: the IdeoPresetDef name, as get_setup lists them.");
+            props["structure"] = Str("With mode preset: a structure MemeDef name, as get_setup lists them. Defaults to the preset's own, or a random one.");
+            props["expectedRevision"] = ExpectedRevision();
+            return ObjectSchema(props, "mode", "expectedRevision");
+        }
+
+        private static Dictionary<string, object> PawnsSetupInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["rerolls"] = J(
+                F("type", "array"),
+                F("maxItems", 20),
+                F("description", "Colonists to reroll until they meet the criteria, in order."),
+                F("items", J(
+                    F("type", "object"),
+                    F("properties", J(
+                        F("slot", Int("Colonist slot, 0 first, as get_setup's roster shows it.", 0, 50)),
+                        F("skills", J(
+                            F("type", "array"),
+                            F("maxItems", 12),
+                            F("description", "Minimum skills."),
+                            F("items", J(
+                                F("type", "object"),
+                                F("properties", J(
+                                    F("skill", Str("SkillDef name, such as Shooting, Melee, Construction, Mining, Cooking, Plants, Animals, Crafting, Artistic, Medicine, Social, or Intellectual.")),
+                                    F("min", Int("Lowest level.", 0, 20)),
+                                    F("passion", EnumString("Least passion. Defaults to none.", "None", "Minor", "Major")))),
+                                F("required", A("skill", "min")),
+                                F("additionalProperties", false))))),
+                        F("traits", StrArray("TraitDef names the colonist must have, such as Industriousness or Tough.")),
+                        F("excludeTraits", StrArray("TraitDef names the colonist must not have, such as Pyromaniac.")),
+                        F("canDo", StrArray("WorkTypeDef names the colonist must be able to do, such as Doctor, Hunting, or Firefighter.")),
+                        F("minAge", Int("Youngest biological age.", 0, 200)),
+                        F("maxAge", Int("Oldest biological age.", 0, 200)),
+                        F("maxAttempts", Int("Most rerolls for this slot. Defaults to 100.", 1, 500)))),
+                    F("required", A("slot")),
+                    F("additionalProperties", false))));
+            props["names"] = J(
+                F("type", "array"),
+                F("maxItems", 20),
+                F("description", "Names to give colonists, after any rerolls."),
+                F("items", J(
+                    F("type", "object"),
+                    F("properties", J(
+                        F("slot", Int("Colonist slot, 0 first.", 0, 50)),
+                        F("first", Str("First name.")),
+                        F("nick", Str("Nickname, shown in game. Defaults to the first name.")),
+                        F("last", Str("Last name.")))),
+                    F("required", A("slot", "first", "last")),
+                    F("additionalProperties", false))));
+            props["expectedRevision"] = ExpectedRevision();
+            props["requestId"] = RequestIdProperty();
+            props["waitSeconds"] = OperationWaitSeconds();
+            return ObjectSchema(props, "expectedRevision");
+        }
+
+        private static Dictionary<string, object> AnswerInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["operationId"] = Str("The operation waiting for an answer.");
+            props["confirmationId"] = Str("The confirmationId get_operation shows for the question.");
+            props["accept"] = Bool("true to go ahead, as the game's confirm button; false to go back.");
+            return ObjectSchema(props, "operationId", "confirmationId", "accept");
         }
 
         private static Dictionary<string, object> OperationWaitSeconds()

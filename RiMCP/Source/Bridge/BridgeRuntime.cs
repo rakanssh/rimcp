@@ -27,6 +27,11 @@ namespace RiMCP.Bridge
             get { return access; }
         }
 
+        public static bool UnattendedSetup
+        {
+            get { return settings != null && settings.UnattendedSetup; }
+        }
+
         public static bool IsRunning
         {
             get { return server != null && server.IsRunning; }

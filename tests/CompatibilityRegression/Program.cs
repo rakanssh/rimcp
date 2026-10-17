@@ -200,7 +200,7 @@ internal static class Program
         {
             IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
             Dictionary<string, int> counts = tools.Cast<object>().GroupBy(tool => Field<string>(tool, "Group") ?? "(none)").ToDictionary(group => group.Key, group => group.Count());
-            var expected = new Dictionary<string, int> { { "observe", 31 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 3 } };
+            var expected = new Dictionary<string, int> { { "observe", 34 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 13 } };
             int count;
             Check(counts.Count == expected.Count && expected.All(pair => counts.TryGetValue(pair.Key, out count) && count == pair.Value),
                 "group sizes: " + string.Join(", ", counts.Select(pair => pair.Key + "=" + pair.Value).ToArray()));
@@ -213,6 +213,9 @@ internal static class Program
         Test("the save log watch counts errors on the saving thread and sees its marker", CheckSaveLogWatch);
         Test("save headers give version, mods, and commitment mode, and mods match as the game checks", CheckSaveHeader);
         Test("while the game changes only operation status answers, and cancelling follows the target's group", CheckBusyRouterAndCancel);
+        Test("starting sites are filtered on the tile's own facts, longest growing period first", CheckSiteFilters);
+        Test("setup commands need an open setup and its current revision", CheckSetupOutsideSetup);
+        Test("only unattended setup lets agents answer the game, and only the question asked", CheckAnswerConfirmation);
         Test("disabled groups are refused, and the access endpoint stays reachable", CheckAccessEnforcement);
         Test("turning off Time ends and pauses a running advance", CheckTimeRevocation);
         Test("cell rectangles are bounded, clipped to the map, and de-duplicated", CheckCellRects);
@@ -853,6 +856,96 @@ internal static class Program
         }
         finally
         {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckSiteFilters()
+    {
+        Type criteriaType = mod.GetType("RiMCP.Command.SiteCriteria", true);
+        Type factsType = mod.GetType("RiMCP.Command.SiteFacts", true);
+        Type search = mod.GetType("RiMCP.Command.SiteSearch", true);
+        Func<object, string, object, object> set = (target, name, value) => { target.GetType().GetField(name).SetValue(target, value); return target; };
+        Func<object> criteria = () => Activator.CreateInstance(criteriaType, true);
+        Func<object> tile = () =>
+        {
+            object facts = Activator.CreateInstance(factsType, true);
+            set(facts, "Biome", "TemperateForest");
+            set(facts, "Hilliness", "SmallHills");
+            set(facts, "Temperature", 14f);
+            set(facts, "Rainfall", 1200f);
+            set(facts, "River", true);
+            return facts;
+        };
+        Func<object, object, bool> passes = (c, f) => (bool)search.GetMethod("PassesCheap", Static).Invoke(null, new[] { c, f });
+        Func<object, float, int, double> score = (c, temperature, days) => (double)search.GetMethod("Score", Static).Invoke(null, new object[] { c, temperature, days });
+
+        Check(passes(criteria(), tile()), "no filters accept any land tile");
+        Check(!passes(criteria(), set(tile(), "WaterCovered", true)), "water is never a starting site");
+        Check(passes(set(criteria(), "Biomes", new HashSet<string> { "TemperateForest", "BorealForest" }), tile()), "a listed biome passes");
+        Check(!passes(set(criteria(), "Biomes", new HashSet<string> { "Desert" }), tile()), "an unlisted biome fails");
+        Check(!passes(set(criteria(), "Hilliness", new HashSet<string> { "Flat" }), tile()), "hilliness filters");
+        Check(passes(set(set(criteria(), "MinTemperature", (float?)14f), "MaxTemperature", (float?)14f), tile()), "temperature bounds include their ends");
+        Check(!passes(set(criteria(), "MinTemperature", (float?)15f), tile()) && !passes(set(criteria(), "MaxRainfall", (float?)1000f), tile()), "temperature and rainfall bounds filter");
+        Check(passes(set(criteria(), "River", (bool?)true), tile()) && !passes(set(criteria(), "River", (bool?)false), tile()) && !passes(set(criteria(), "Road", (bool?)true), tile()), "river and road can be wanted or refused");
+
+        object any = criteria();
+        Check(score(any, 30f, 60) > score(any, 20f, 55), "a longer growing period comes first");
+        Check(score(any, 20f, 40) > score(any, 5f, 40), "with no temperature asked for, nearer 20 C comes first");
+        object mild = set(set(criteria(), "MinTemperature", (float?)10f), "MaxTemperature", (float?)20f);
+        Check(score(mild, 15f, 40) > score(mild, 19f, 40), "otherwise nearer the middle of the range asked for");
+    }
+
+    private static Dictionary<string, object> SetupCall(string method, string path, string body)
+    {
+        object response = Invoke("RiMCP.Command.SetupCommandService", method, Request(path, "POST", body), Route());
+        return Json.Deserialize<Dictionary<string, object>>((string)response.GetType().GetField("Body").GetValue(response));
+    }
+
+    private static void CheckSetupOutsideSetup()
+    {
+        Dictionary<string, object> state = Data(Call("SetupCommandService", "GetSetup", "/v1/setup", ns: "RiMCP.Command."));
+        Check(!(bool)state["active"] && (string)state["mode"] == "visible", "at the main menu nothing is set up, and setup is visible unless the player chose otherwise");
+        int revision = (int)state["revision"];
+        ExpectCommandError(400, () => SetupCall("SetupBack", "/v1/setup/back", "{}"));
+        ExpectCommandError(409, () => SetupCall("SetupBack", "/v1/setup/back", "{\"expectedRevision\":" + (revision + 5) + "}"));
+        ExpectCommandError(409, () => SetupCall("SetupBack", "/v1/setup/back", "{\"expectedRevision\":" + revision + "}"));
+        ExpectCommandError(409, () => SetupCall("SetStoryteller", "/v1/setup/storyteller", "{\"storyteller\":\"Cassandra\",\"difficulty\":\"Rough\",\"commitmentMode\":false,\"expectedRevision\":" + revision + "}"));
+        ExpectCommandError(409, () => SetupCall("SetIdeoligion", "/v1/setup/ideoligion", "{\"mode\":\"classic\",\"expectedRevision\":" + revision + "}"));
+        Check((int)Data(Call("SetupCommandService", "GetSetup", "/v1/setup", ns: "RiMCP.Command."))["revision"] == revision, "refused commands change nothing");
+    }
+
+    private static void CheckAnswerConfirmation()
+    {
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        Type runtime = mod.GetType("RiMCP.Bridge.BridgeRuntime", true);
+        object settings = Activator.CreateInstance(mod.GetType("RiMCP.Settings.RiMCPSettings", true));
+        const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        try
+        {
+            List<string> log = new List<string>();
+            object operation = StartOperation("choose_starting_site", "gameSetup", null, null, _ => TwoSteps(log));
+            string id = OperationId(operation);
+            Func<string, bool, object> answer = (confirmation, accept) => Invoke("RiMCP.Command.SetupCommandService", "AnswerConfirmation",
+                Request("/v1/operations/" + id + "/answer", "POST", "{\"confirmationId\":\"" + confirmation + "\",\"accept\":" + (accept ? "true" : "false") + "}"), Route("operationId", id));
+            bool? answered = null;
+            operation.GetType().GetField("ConfirmationId", Any).SetValue(operation, "confirm-1");
+            operation.GetType().GetField("Answer", Any).SetValue(operation, (Func<bool, string>)(accept => { answered = accept; return null; }));
+
+            ExpectCommandError(404, () => Invoke("RiMCP.Command.SetupCommandService", "AnswerConfirmation", Request("/v1/operations/op-none/answer", "POST", "{}"), Route("operationId", "op-none")));
+            ExpectCommandError(409, () => answer("confirm-1", true));
+            Check(answered == null, "in visible setup the player answers, so an agent's answer does nothing");
+
+            settings.GetType().GetField("UnattendedSetup").SetValue(settings, true);
+            runtime.GetMethod("Configure", Static).Invoke(null, new[] { settings });
+            ExpectCommandError(409, () => answer("confirm-2", true));
+            Check(answered == null, "an answer to another question does nothing");
+            answer("confirm-1", false);
+            Check(answered == false, "in unattended setup the answer reaches the question asked");
+        }
+        finally
+        {
+            runtime.GetMethod("Configure", Static).Invoke(null, new object[] { null });
             Runner().GetMethod("Reset", Static).Invoke(null, null);
         }
     }

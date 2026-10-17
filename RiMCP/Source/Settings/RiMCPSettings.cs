@@ -16,6 +16,9 @@ namespace RiMCP.Settings
         public List<string> CustomGroups = new List<string>();
         public int Port = 39571;
         public string Token;
+        // Agents answer the game's questions during new-game setup and start the colony without the
+        // player's approval. Off by default: the player approves and answers on screen.
+        public bool UnattendedSetup;
         // Only read, to migrate settings saved before access presets.
         private bool legacyAllowChanges = true;
 
@@ -30,6 +33,7 @@ namespace RiMCP.Settings
             }
             Scribe_Values.Look(ref Port, "port", 39571);
             Scribe_Values.Look(ref Token, "token");
+            Scribe_Values.Look(ref UnattendedSetup, "unattendedSetup", false);
         }
 
         internal string[] EnabledGroups

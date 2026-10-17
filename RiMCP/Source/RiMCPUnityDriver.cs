@@ -27,6 +27,7 @@ namespace RiMCP
         {
             AdvanceRunner.Update();
             OperationRunner.Update();
+            SetupController.Update();
             FoodHistory.Update();
             BridgeRuntime.ProcessMainThreadQueue();
             // Read after handling requests: set_game_settings may have just turned this off, and an

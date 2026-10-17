@@ -8,7 +8,9 @@ All notable changes to this project are documented in this file.
 
 - Sessions: `save_game`, `load_game` and `leave_game` run as operations that outlive the game they replace, followed with `get_operation` and stopped with `cancel_operation`. A save counts only once verified, because the game hides its own save errors: the file is complete, and nothing was logged as an error while it saved. Replacing a loaded colony always needs a save first or an explicit discard, and commitment mode keeps the game's own save rules.
 - `list_saves` lists saves with their game version, whether their mods match the running ones, and commitment mode.
-- A Game setup access group for saving, loading and leaving games, on only under Full control.
+- New games: `start_setup` opens the game's own setup screens for a scenario from `list_scenarios`, and `set_setup_storyteller`, `generate_world`, `choose_starting_site`, `set_setup_ideoligion` and `set_starting_pawns` fill them in as a player would, alongside `get_setup`, `setup_back` and `cancel_setup`. `find_starting_sites` searches the world by biome, hilliness, river, road, coast, temperature, rainfall and growing period, a few milliseconds a frame. `set_starting_pawns` rerolls colonists until they meet skill, passion, trait, work and age criteria, and names them. Setup stays on screen: every change takes the revision the agent last read, a change by the player stops the agent's next step, and `start_game` asks the player to approve the setup. Screens RimMCP does not drive, such as custom ideoligions, are left to the player.
+- An Unattended game setup setting, off by default, lets agents answer the game's questions with `answer_confirmation` and start the colony without the player's approval.
+- A Game setup access group for saving, loading, leaving and setting up games, on only under Full control.
 
 ### Changed
 

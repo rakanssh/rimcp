@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The fifty-three checks cover:
+The fifty-six checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -109,6 +109,12 @@ The fifty-three checks cover:
   mode.
 - Only operation status answering while a game is replaced, and cancelling an
   operation needing its own group.
+- Starting sites filtered on a tile's own facts (biome, hilliness, temperature and
+  rainfall bounds including their ends, river and road, never water), longest growing
+  period first, then the temperature nearest the range asked for.
+- Setup commands refused without an open setup, without `expectedRevision`, or with
+  a stale one, changing nothing; and `answer_confirmation` refused in visible setup
+  and for any question but the one asked. Driving the setup screens is a live-game test.
 
 The ideology check calls the real private `Ideos()` enumerable shared by both
 ideology endpoints. Full endpoint invocation would initialize `ModsConfig` and
