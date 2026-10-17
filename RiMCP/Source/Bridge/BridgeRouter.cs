@@ -79,6 +79,7 @@ namespace RiMCP.Bridge
             { "generate-world", SetupCommandService.GenerateWorld },
             { "choose-starting-site", SetupCommandService.ChooseStartingSite },
             { "set-setup-ideoligion", SetupCommandService.SetIdeoligion },
+            { "edit-setup-ideoligion", SetupCommandService.EditIdeoligion },
             { "set-starting-pawns", SetupCommandService.SetStartingPawns },
             { "start-game", SetupCommandService.StartGame },
             { "answer-confirmation", SetupCommandService.AnswerConfirmation },

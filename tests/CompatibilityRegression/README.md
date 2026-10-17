@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The fifty-six checks cover:
+The fifty-seven checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -114,7 +114,11 @@ The fifty-six checks cover:
   period first, then the temperature nearest the range asked for.
 - Setup commands refused without an open setup, without `expectedRevision`, or with
   a stale one, changing nothing; and `answer_confirmation` refused in visible setup
-  and for any question but the one asked. Driving the setup screens is a live-game test.
+  and for any question but the one asked, and answered only once. Driving the setup screens
+  is a live-game test.
+- Ideoligion names, adjectives, member names and precept names limited to the dialogs'
+  lengths and characters, and precept defs sorted into the custom ideoligion screen's
+  sections by class.
 
 The ideology check calls the real private `Ideos()` enumerable shared by both
 ideology endpoints. Full endpoint invocation would initialize `ModsConfig` and

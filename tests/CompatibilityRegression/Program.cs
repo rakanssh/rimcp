@@ -200,7 +200,7 @@ internal static class Program
         {
             IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
             Dictionary<string, int> counts = tools.Cast<object>().GroupBy(tool => Field<string>(tool, "Group") ?? "(none)").ToDictionary(group => group.Key, group => group.Count());
-            var expected = new Dictionary<string, int> { { "observe", 34 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 13 } };
+            var expected = new Dictionary<string, int> { { "observe", 34 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 14 } };
             int count;
             Check(counts.Count == expected.Count && expected.All(pair => counts.TryGetValue(pair.Key, out count) && count == pair.Value),
                 "group sizes: " + string.Join(", ", counts.Select(pair => pair.Key + "=" + pair.Value).ToArray()));
@@ -216,6 +216,7 @@ internal static class Program
         Test("starting sites are filtered on the tile's own facts, longest growing period first", CheckSiteFilters);
         Test("setup commands need an open setup and its current revision", CheckSetupOutsideSetup);
         Test("only unattended setup lets agents answer the game, and only the question asked", CheckAnswerConfirmation);
+        Test("ideoligion names follow the dialogs' rules, and precepts sort into the screen's sections", CheckIdeoligionRules);
         Test("disabled groups are refused, and the access endpoint stays reachable", CheckAccessEnforcement);
         Test("turning off Time ends and pauses a running advance", CheckTimeRevocation);
         Test("cell rectangles are bounded, clipped to the map, and de-duplicated", CheckCellRects);
@@ -913,6 +914,21 @@ internal static class Program
         ExpectCommandError(409, () => SetupCall("SetStoryteller", "/v1/setup/storyteller", "{\"storyteller\":\"Cassandra\",\"difficulty\":\"Rough\",\"commitmentMode\":false,\"expectedRevision\":" + revision + "}"));
         ExpectCommandError(409, () => SetupCall("SetIdeoligion", "/v1/setup/ideoligion", "{\"mode\":\"classic\",\"expectedRevision\":" + revision + "}"));
         Check((int)Data(Call("SetupCommandService", "GetSetup", "/v1/setup", ns: "RiMCP.Command."))["revision"] == revision, "refused commands change nothing");
+    }
+
+    private static void CheckIdeoligionRules()
+    {
+        Type editor = mod.GetType("RiMCP.Command.IdeoEditor", true);
+        Func<string, int, bool> valid = (text, max) => (bool)editor.GetMethod("ValidSymbol", Static).Invoke(null, new object[] { text, max });
+        Check(valid("Rimmcp Testgrove", 40) && valid("Tree-folk's Way", 40) && valid("Árbol 2", 40), "letters (of any script), digits, spaces, apostrophes and hyphens are allowed");
+        Check(!valid("Bad/Name", 40) && !valid("Semi;colon", 40) && !valid(null, 40), "other characters are refused, as the dialogs' text fields refuse them");
+        Check(valid(new string('a', 40), 40) && !valid(new string('a', 41), 40) && !valid(new string('a', 33), 32), "names are limited to the dialogs' lengths");
+        Func<Type, string> section = type => (string)editor.GetMethod("SectionOf", Static).Invoke(null, new object[] { new PreceptDef { defName = "Regression" + type.Name, preceptClass = type } });
+        Check(section(typeof(Precept)) == "precepts" && section(typeof(Precept_Ritual)) == "rituals" && section(typeof(Precept_RoleMulti)) == "roles"
+            && section(typeof(Precept_Building)) == "buildings" && section(typeof(Precept_RitualSeat)) == "buildings" && section(typeof(Precept_Relic)) == "relics"
+            && section(typeof(Precept_Weapon)) == "weapons" && section(typeof(Precept_Animal)) == "animals" && section(typeof(Precept_Apparel)) == "apparel",
+            "each precept class sorts into the section whose Add button offers it");
+        Check(section(typeof(Precept_ThingStyle)) == null, "precepts the screen does not list under a section are left out");
     }
 
     private static void CheckAnswerConfirmation()

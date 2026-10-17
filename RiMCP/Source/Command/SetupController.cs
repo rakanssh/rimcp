@@ -262,6 +262,11 @@ namespace RiMCP.Command
                     parts.Add(Name(Get(page, "selectedIdeo")));
                     parts.Add(Name(Get(page, "selectedStructure")));
                 }
+                else if (page is Page_ConfigureIdeo)
+                {
+                    parts.Add(IdeoEditor.Fingerprint(((Page_ConfigureIdeo)page).ideo));
+                    parts.Add(Find.WindowStack.IsOpen(typeof(Dialog_ChooseMemes)).ToString());
+                }
                 else if (page is Page_ConfigureStartingPawns && init != null)
                 {
                     parts.Add(init.startingPawnCount.ToString());
