@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Sessions: `save_game`, `load_game` and `leave_game` run as operations that outlive the game they replace, followed with `get_operation` and stopped with `cancel_operation`. A save counts only once verified, because the game hides its own save errors: the file is complete, and nothing was logged as an error while it saved. Replacing a loaded colony always needs a save first or an explicit discard, and commitment mode keeps the game's own save rules.
+- `list_saves` lists saves with their game version, whether their mods match the running ones, and commitment mode.
+- New games: `start_setup` opens the game's own setup screens for a scenario from `list_scenarios`, and `set_setup_storyteller`, `generate_world`, `choose_starting_site`, `set_setup_ideoligion` and `set_starting_pawns` fill them in as a player would, alongside `get_setup`, `setup_back` and `cancel_setup`. `find_starting_sites` searches the world by biome, hilliness, river, road, coast, temperature, rainfall and growing period, a few milliseconds a frame. `set_starting_pawns` rerolls colonists until they meet skill, passion, trait, work and age criteria, and names them. Setup stays on screen: every change takes the revision the agent last read, a change by the player stops the agent's next step, and `start_game` asks the player to approve the setup. Screens RimMCP does not drive, such as custom ideoligions, are left to the player.
+- More of the setup screens: custom difficulty, setting each control of the screen's custom panel within its own range and steps; site search by distance to other factions' settlements (counting allies, neutrals or hostiles), leaving out tiles where a faction would lose goodwill, with each site's nearest settlement; and on the colonist screen, rearranging colonists, choosing their age and xenotype (Biotech), and rerolling for a xenotype.
+- Custom ideoligions for new games: `set_setup_ideoligion` creates a custom fixed or fluid ideoligion from a structure and memes, through the game's meme dialogs, or loads a saved one. `edit_setup_ideoligion` then changes its memes, culture, styles, name, and precepts in every section (by issue, roles, rituals, buildings, relics, weapons, venerated animals, preferred xenotypes and apparel): adding what the screen's Add buttons offer, and replacing, regenerating, renaming or removing what each precept's box allows. Every refusal gives the game's reason, such as memes that exclude each other or a precept a meme requires, and `done` leaves the screen only when its own checks pass.
+- An Unattended game setup setting, off by default, lets agents answer the game's questions with `answer_confirmation` and start the colony without the player's approval.
+- A Game setup access group for saving, loading, leaving and setting up games, on only under Full control.
+
+### Changed
+
+- The settings are now in tabs (Connection, Access, Activity, Safety) under a master switch, Agents on, and open on Connection until an agent has connected. The Access tab browses every tool by group, with search, and turns single tools on or off on top of the access level; tools added in later versions follow their group.
+- Agents see only the tools that are on: the helper lists those and tells the client when they change.
+- A RimMCP button on the bottom bar shows whether agents are on and working, and pauses them or changes the access level in a click.
+- The Activity tab counts calls per tool.
+- Tool descriptions and parameters are about a fifth shorter, so agents load less: repeated wording is shared or trimmed, and tools no longer list options they do not read.
+- While RimWorld loads, saves or changes games, requests other than operation status get a 503 instead of reading a half-built game. Saving first before leaving, loading or starting a new game pauses the game and holds it unchanged until it is replaced, so nothing done after the save is lost.
+
 ## [1.0.0] - 2026-10-17
 
 ### Added

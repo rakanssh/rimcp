@@ -131,7 +131,12 @@ namespace RiMCP.Bridge
 
         private void ProcessContext(HttpListenerContext context)
         {
-            LastRequestUtc = DateTime.UtcNow;
+            // The proxy's access poll keeps a client counted, but is not activity.
+            bool poll = context.Request.HttpMethod == "GET" && context.Request.Url.AbsolutePath.TrimEnd('/') == "/v1/access";
+            if (!poll)
+            {
+                LastRequestUtc = DateTime.UtcNow;
+            }
             string client = context.Request.RemoteEndPoint == null ? "unknown" : context.Request.RemoteEndPoint.Address.ToString();
             lock (recentClients)
             {
@@ -177,7 +182,10 @@ namespace RiMCP.Bridge
             string timing = response.MainThreadMs.HasValue
                 ? " (" + response.MainThreadMs.Value.ToString("0.0", CultureInfo.InvariantCulture) + " ms)"
                 : "";
-            log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode + timing);
+            if (!poll || response.StatusCode != 200)
+            {
+                log.Add(context.Request.HttpMethod + " " + context.Request.Url.PathAndQuery + " -> " + response.StatusCode + timing);
+            }
         }
 
         private static string ReadBody(HttpListenerRequest request)

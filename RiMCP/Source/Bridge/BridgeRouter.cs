@@ -63,8 +63,37 @@ namespace RiMCP.Bridge
             { "set-game-speed", TimeCommandService.SetGameSpeed },
             { "advance-time", TimeCommandService.StartAdvance },
             { "get-advance", TimeCommandService.GetAdvance },
-            { "tools", ToolReadService.GetTools }
+            { "get-operation", SessionCommandService.GetOperation },
+            { "cancel-operation", SessionCommandService.CancelOperation },
+            { "list-saves", SessionCommandService.ListSaves },
+            { "save-game", SessionCommandService.SaveGame },
+            { "load-game", SessionCommandService.LoadGame },
+            { "leave-game", SessionCommandService.LeaveGame },
+            { "list-scenarios", SetupCommandService.ListScenarios },
+            { "get-setup", SetupCommandService.GetSetup },
+            { "find-starting-sites", SetupCommandService.FindStartingSites },
+            { "start-setup", SetupCommandService.StartSetup },
+            { "cancel-setup", SetupCommandService.CancelSetup },
+            { "setup-back", SetupCommandService.SetupBack },
+            { "set-setup-storyteller", SetupCommandService.SetStoryteller },
+            { "generate-world", SetupCommandService.GenerateWorld },
+            { "choose-starting-site", SetupCommandService.ChooseStartingSite },
+            { "set-setup-ideoligion", SetupCommandService.SetIdeoligion },
+            { "edit-setup-ideoligion", SetupCommandService.EditIdeoligion },
+            { "set-starting-pawns", SetupCommandService.SetStartingPawns },
+            { "start-game", SetupCommandService.StartGame },
+            { "answer-confirmation", SetupCommandService.AnswerConfirmation },
+            { "tools", ToolReadService.GetTools },
+            { "access", (request, route) => ToolReadService.GetAccess(BridgeRuntime.Access) }
         };
+
+        // While RimWorld loads, saves, or changes games, the game may be half built, so only these
+        // answer: they read the operation registry, not the game.
+        private static readonly HashSet<string> AnswerWhileBusy = new HashSet<string> { "get-operation", "cancel-operation", "tools" };
+
+        // While an operation holds the game unchanged (between a save and the leave or load after
+        // it), changes are refused, except stopping or answering that operation.
+        private static readonly HashSet<string> ChangeWhileHeld = new HashSet<string> { "cancel-operation", "answer-confirmation" };
 
         private static readonly BridgeRoute[] Routes = CreateRoutes();
 
@@ -94,9 +123,20 @@ namespace RiMCP.Bridge
                         {
                             return BridgeResponse.Error(403, "RimMCP is disabled in its settings.");
                         }
-                        if (!access.Allows(route.Spec.Group))
+                        if (!access.AllowsTool(route.Spec))
                         {
-                            return BridgeResponse.Error(403, (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
+                            return BridgeResponse.Error(403, access.Allows(route.Spec.Group)
+                                ? route.Spec.Name + " is turned off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ")."
+                                : (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
+                        }
+                        if (route.Spec.Name != null)
+                        {
+                            BridgeRuntime.CountCall(route.Spec.Name);
+                        }
+                        if (!AnswerWhileBusy.Contains(route.Spec.HandlerId) && GameIsChanging())
+                        {
+                            Operation changing = OperationRunner.Active;
+                            return BridgeResponse.Error(503, "RimWorld is loading, saving, or changing games" + (changing == null ? "" : " (operation " + changing.Id + ", " + changing.Tool + ")") + ", so the game cannot be read or changed right now. Check progress with get_operation, then try again.");
                         }
                         if (!route.MethodMatches("GET"))
                         {
@@ -104,9 +144,23 @@ namespace RiMCP.Bridge
                             {
                                 return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
                             }
-                            string expected = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest).ExpectedLoadId;
+                            LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
+                            // A retry of a request already recorded gets its operation back: while that
+                            // operation holds the game, and after it loaded another game. The registry
+                            // refuses a requestId reused with other arguments.
+                            RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
+                            if (retried != null && retried.Tool != route.Spec.Name)
+                            {
+                                retried = null;
+                            }
+                            Operation holding = OperationRunner.ProtectingGame ? OperationRunner.Active : null;
+                            if (holding != null && !ChangeWhileHeld.Contains(route.Spec.HandlerId) && (retried == null || retried.OperationId != holding.Id))
+                            {
+                                return BridgeResponse.Error(409, "Operation " + holding.Id + " (" + holding.Tool + ") saved the colony and is about to replace the game, so the game is held unchanged until then. Check it with get_operation.");
+                            }
+                            string expected = guard.ExpectedLoadId;
                             string loaded = GameContext.LoadId;
-                            if (expected != null && expected != loaded)
+                            if (expected != null && expected != loaded && retried == null)
                             {
                                 return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
                             }
@@ -127,11 +181,19 @@ namespace RiMCP.Bridge
             }
         }
 
+        private static bool GameIsChanging()
+        {
+            return OperationRunner.ReplacingGame || Verse.LongEventHandler.AnyEventNowOrWaiting;
+        }
+
         [DataContract]
         private sealed class LoadGuardBody
         {
             [DataMember(Name = "expectedLoadId")]
             public string ExpectedLoadId { get; set; }
+
+            [DataMember(Name = "requestId")]
+            public string RequestId { get; set; }
         }
 
         private static BridgeRoute[] CreateRoutes()

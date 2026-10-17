@@ -27,6 +27,8 @@ def main():
         "RiMCP/About/About.xml": "About/About.xml",
         "RiMCP/About/Preview.png": "About/Preview.png",
         "RiMCP/Assemblies/RiMCP.dll": "Assemblies/RiMCP.dll",
+        "RiMCP/Defs/MainButtonDefs/RiMCP_MainButtons.xml": "Defs/MainButtonDefs/RiMCP_MainButtons.xml",
+        "RiMCP/Textures/UI/RiMCP/QuickControl.png": "Textures/UI/RiMCP/QuickControl.png",
         "RiMCP/Tools/McpProxy/rimcp-proxy": "Tools/McpProxy/rimcp-proxy",
         "RiMCP/Tools/McpProxy/rimcp-proxy.cmd": "Tools/McpProxy/rimcp-proxy.cmd",
         "LICENSE": "LICENSE",

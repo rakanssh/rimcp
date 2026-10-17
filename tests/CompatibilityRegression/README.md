@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The forty-six checks cover:
+The sixty checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -58,6 +58,9 @@ The forty-six checks cover:
 - Access groups on every tool, preset groups, migration from Allow changes, the
   router refusing disabled groups while the access endpoint stays reachable, and
   turning off Time ending and pausing a running advance.
+- Single tools turned on or off as exceptions to their group: dropped when they agree
+  with it, a group flipping when all its tools do, presets recognised again, and the
+  access endpoint and the router following them.
 - Cell rectangles bounded, clipped to the map and de-duplicated; rejected cells
   all counted but listed up to a cap; and request ids: a retry returns the first
   result whatever its outcome (alreadySatisfied and rejected too) without the command
@@ -97,6 +100,32 @@ The forty-six checks cover:
 - Permanent game conditions without duration lookups.
 - Medical care parsing that rejects numeric and comma-separated enum values.
 - Real research progress and completion values when a research manager exists.
+- Session operations: one at a time, one step per frame, cancelled or revoked only at a
+  safe step and after any native step, with the last 32 finished operations kept.
+  Retries return the original operation, or an expired answer once its details are
+  evicted, for the last 1,000 requests.
+- Replacing a loaded colony only with a save first or an explicit discard, and
+  commitment mode keeping the game's rules.
+- Save verification: a file written by this save, complete, and plain XML with its
+  header; the log watch counting errors on the saving thread and seeing its marker;
+  and save headers giving version, mods (matched as the game checks) and commitment
+  mode.
+- Only operation status answering while a game is replaced, and cancelling an
+  operation needing its own group.
+- Starting sites filtered on a tile's own facts (biome, hilliness, temperature and
+  rainfall bounds including their ends, river and road, never water), longest growing
+  period first, then the temperature nearest the range asked for.
+- Setup commands refused without an open setup, without `expectedRevision`, or with
+  a stale one, changing nothing; and `answer_confirmation` refused in visible setup
+  and for any question but the one asked, and answered only once. Driving the setup screens
+  is a live-game test.
+- Settlement distances bounding the nearest counted settlement, with a maximum needing one;
+  and custom difficulty settings rounding to their steps and reading and writing as the
+  panel shows them (the reciprocal disease interval, fixed wealth time in twelfths, inverted
+  checkboxes), checked on a copy.
+- Ideoligion names, adjectives, member names and precept names limited to the dialogs'
+  lengths and characters, and precept defs sorted into the custom ideoligion screen's
+  sections by class.
 
 The ideology check calls the real private `Ideos()` enumerable shared by both
 ideology endpoints. Full endpoint invocation would initialize `ModsConfig` and
