@@ -261,7 +261,7 @@ namespace RiMCP.Command
             string fileProblem = check.IsFaulted ? "The save file check failed: " + check.Exception.GetBaseException().Message : check.Result;
             if (attempt.Errors > 0)
             {
-                throw new OperationEnded(Operation.Failed, "The game logged " + attempt.Errors + (attempt.Errors == 1 ? " error" : " errors") + " while saving '" + name + "', so the save may be missing data: " + attempt.FirstError);
+                throw new OperationEnded(Operation.Failed, "The game logged " + attempt.Errors + (attempt.Errors == 1 ? " error" : " errors") + " while saving '" + name + "', so the save cannot be relied on: " + attempt.FirstError);
             }
             if (fileProblem != null)
             {
@@ -293,23 +293,20 @@ namespace RiMCP.Command
             RequireSameGame(loadId);
             string before = Current.Game == null ? null : GameContext.LoadId;
             AdvanceRunner.Revoke("load_game (" + operation.Id + ") is replacing the game.");
-            int windows = Find.WindowStack.Count;
+            List<Window> open = Find.WindowStack.Windows.ToList();
             GameDataSaveLoader.CheckVersionAndLoadGame(name);
             if (!LongEventHandler.AnyEventNowOrWaiting)
             {
-                // The game asked the player first, about the save's version or mods.
-                Window dialog = Find.WindowStack.Count > windows ? Find.WindowStack.Windows[Find.WindowStack.Count - 1] : null;
-                if (dialog == null)
+                // The game asked the player first, about the save's version or mods. Every window it
+                // opened for that counts, since a game version may open more than one.
+                List<Window> asking = Find.WindowStack.Windows.Where(window => !open.Contains(window)).ToList();
+                if (asking.Count == 0)
                 {
                     throw new OperationEnded(Operation.Failed, "The game did not start loading '" + name + "'.");
                 }
                 operation.State = Operation.AwaitingConfirmation;
-                operation.Confirmation = Dto.Obj(
-                    Dto.Field("kind", dialog is Dialog_ModMismatch ? "modMismatch" : "versionMismatch"),
-                    Dto.Field("message", DialogText(dialog)),
-                    Dto.Field("save", name),
-                    Dto.Field("answeredBy", "player"));
-                while (Find.WindowStack.IsOpen(dialog) && !LongEventHandler.AnyEventNowOrWaiting)
+                operation.Confirmation = LoadQuestion(name, asking);
+                while (asking.Any(Find.WindowStack.IsOpen) && !LongEventHandler.AnyEventNowOrWaiting)
                 {
                     yield return "awaitingConfirmation";
                 }
@@ -391,16 +388,23 @@ namespace RiMCP.Command
             }
         }
 
-        private static string DialogText(Window dialog)
+        // What the game is asking about, worked out from the save's header with the same checks the
+        // game makes, rather than from its dialog classes, which differ between game versions.
+        private static object LoadQuestion(string name, List<Window> asking)
         {
-            Dialog_MessageBox box = dialog as Dialog_MessageBox;
-            if (box != null)
-            {
-                return box.text.ToString().StripTags();
-            }
-            return dialog is Dialog_ModMismatch
-                ? "The save was made with a different mod list."
-                : "The game is asking before it loads the save.";
+            SaveHeader header = SaveHeader.Read(GenFilePaths.FilePathForSavedGame(name));
+            List<string> runningIds = LoadedModManager.RunningMods.Select(mod => mod.PackageId).ToList();
+            List<string> runningFolders = LoadedModManager.RunningMods.Select(mod => mod.FolderName).ToList();
+            bool modsDiffer = header.Problem == null && !header.ModsMatch(runningIds, runningFolders);
+            string text = asking.OfType<Dialog_MessageBox>().Select(box => box.text.ToString().StripTags()).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+            return Dto.Obj(
+                Dto.Field("kind", modsDiffer ? "modMismatch" : "versionMismatch"),
+                Dto.Field("message", text ?? (modsDiffer
+                    ? "The save was made with a different mod list (" + header.ModIds.Count + " mods; " + runningIds.Count + " are running)."
+                    : "The save was made with another game version (" + (header.GameVersion ?? "unknown") + "; this is " + VersionControl.CurrentVersionStringWithRev + ").")),
+                Dto.Field("save", name),
+                Dto.Field("answeredBy", "player"),
+                Dto.Field("dialogs", asking.Select(window => window.GetType().Name).ToArray()));
         }
 
         private static bool ColonyLoaded()

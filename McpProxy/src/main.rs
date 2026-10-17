@@ -529,11 +529,24 @@ mod tests {
                     let mut reader = io::BufReader::new(stream.try_clone().unwrap());
                     let mut request_line = String::new();
                     reader.read_line(&mut request_line).unwrap();
-                    log.lock().unwrap().push(request_line.trim().to_string());
+                    // Logs each request with its declared body length and body.
+                    let mut length: Option<usize> = None;
                     let mut header = String::new();
                     while reader.read_line(&mut header).unwrap() > 2 {
+                        if let Some(value) =
+                            header.to_ascii_lowercase().strip_prefix("content-length:")
+                        {
+                            length = value.trim().parse().ok();
+                        }
                         header.clear();
                     }
+                    let mut body = vec![0; length.unwrap_or(0)];
+                    io::Read::read_exact(&mut reader, &mut body).unwrap();
+                    log.lock().unwrap().push(format!(
+                        "{} length={length:?} body={}",
+                        request_line.trim(),
+                        String::from_utf8_lossy(&body)
+                    ));
                     if request_line.contains("/v1/slow") {
                         thread::sleep(Duration::from_millis(400));
                     }
@@ -565,7 +578,15 @@ mod tests {
         let proxy = Arc::new(Proxy {
             manifest: Manifest {
                 version: "test".into(),
-                tools: vec![tool("slow"), tool("fast"), tool("speed")],
+                tools: vec![
+                    tool("slow"),
+                    tool("fast"),
+                    tool("speed"),
+                    Tool {
+                        method: manifest::Method::Post,
+                        ..tool("cancel")
+                    },
+                ],
             },
             base_url,
             authorization: None,
@@ -617,6 +638,20 @@ mod tests {
 
     fn tool_call(id: u64, name: &str) -> Value {
         json!({"jsonrpc": "2.0", "id": id, "method": "tools/call", "params": {"name": name, "arguments": {}}})
+    }
+
+    #[test]
+    fn writes_without_fields_declare_a_body_length() {
+        // RimWorld 1.7's HTTP stack refuses a POST or PUT without a body length (HTTP 411).
+        let (_, received) = serve_requests(&[tool_call(1, "cancel")]);
+        let line = received
+            .iter()
+            .find(|line| line.contains("/v1/cancel"))
+            .expect("the call reached the bridge");
+        assert!(
+            line.contains("length=Some("),
+            "a POST without fields must still declare its body length: {line}"
+        );
     }
 
     #[test]
