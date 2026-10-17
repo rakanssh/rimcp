@@ -54,7 +54,7 @@ namespace RiMCP.Command
             bool overwrite = body.Overwrite == true;
             return SessionCommandService.Begin(request, "start_setup", requestId, () =>
             {
-                Scenario scenario = FindScenario(body.Scenario);
+                Scenario scenario = FindScenario(body.Scenario, body.Category);
                 SessionCommandService.RequireSettled();
                 if (SetupController.OpenPage != null)
                 {
@@ -83,7 +83,7 @@ namespace RiMCP.Command
                 string save = saveFirst;
                 bool replace = overwrite;
                 return operation => Start(operation, scenario, colony, save, replace, loadId);
-            }, body.Scenario, discard, body.SaveFirst, overwrite);
+            }, body.Scenario, body.Category, discard, body.SaveFirst, overwrite);
         }
 
         private static IEnumerable<string> Start(Operation operation, Scenario scenario, bool colony, string saveFirst, bool overwrite, string loadId)
@@ -871,20 +871,24 @@ namespace RiMCP.Command
             return typed == null ? null : typed.defName;
         }
 
-        private static Scenario FindScenario(string name)
+        // By name, and by category when a player's own scenario shares a built-in one's name.
+        private static Scenario FindScenario(string name, string category)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new CommandException(400, "Field 'scenario' must name a scenario; list_scenarios lists them.");
             }
-            List<Scenario> matches = ScenarioLister.AllScenarios().Where(scenario => scenario.showInUI && string.Equals(scenario.name, name.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            ScenarioCategory? wanted = string.IsNullOrWhiteSpace(category) ? (ScenarioCategory?)null : RequiredEnum<ScenarioCategory>(category, "category");
+            List<Scenario> matches = ScenarioLister.AllScenarios().Where(scenario => scenario.showInUI
+                && string.Equals(scenario.name, name.Trim(), StringComparison.OrdinalIgnoreCase)
+                && (!wanted.HasValue || scenario.Category == wanted.Value)).ToList();
             if (matches.Count == 0)
             {
-                throw new CommandException(404, "No scenario named '" + name.Trim() + "'; list_scenarios lists them.");
+                throw new CommandException(404, "No scenario named '" + name.Trim() + "'" + (wanted.HasValue ? " in " + wanted.Value : "") + "; list_scenarios lists them.");
             }
             if (matches.Count > 1)
             {
-                throw new CommandException(409, "More than one scenario is named '" + name.Trim() + "' (" + string.Join(", ", matches.Select(scenario => scenario.Category.ToString()).ToArray()) + "); rename one in game to choose it here.");
+                throw new CommandException(409, "More than one scenario is named '" + name.Trim() + "' (" + string.Join(", ", matches.Select(scenario => scenario.Category.ToString()).Distinct().ToArray()) + "); pass category to choose one" + (wanted.HasValue ? ", or rename one in game" : "") + ".");
             }
             string[] manual = UnsupportedScreens(matches[0]);
             if (manual.Length > 0)
@@ -989,6 +993,7 @@ namespace RiMCP.Command
         private sealed class StartSetupBody
         {
             [DataMember(Name = "scenario")] public string Scenario { get; set; }
+            [DataMember(Name = "category")] public string Category { get; set; }
             [DataMember(Name = "discardUnsaved")] public bool? DiscardUnsaved { get; set; }
             [DataMember(Name = "saveFirst")] public string SaveFirst { get; set; }
             [DataMember(Name = "overwrite")] public bool? Overwrite { get; set; }
