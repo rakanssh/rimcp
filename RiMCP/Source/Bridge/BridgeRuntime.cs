@@ -165,7 +165,12 @@ namespace RiMCP.Bridge
         {
             access = access.Disabled();
             AdvanceRunner.Revoke("RimMCP was disabled in its settings.");
-            OperationRunner.Revoke(ToolGroups.GameSetup, "RimMCP was disabled in its settings.");
+            // Every operation stops, whatever its group, including a search.
+            Operation running = OperationRunner.Active;
+            if (running != null)
+            {
+                OperationRunner.Revoke(running.Group, "RimMCP was disabled in its settings.");
+            }
         }
 
         // Main thread only. Turning off Time ends and pauses an advance the agent owns, and turning off

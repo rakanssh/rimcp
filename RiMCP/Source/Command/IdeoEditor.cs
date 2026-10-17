@@ -355,6 +355,12 @@ namespace RiMCP.Command
             {
                 return;
             }
+            // The native check adds to a scratch list that its own caller clears first.
+            System.Collections.IList scratch = typeof(IdeoUIUtility).GetField("tempRequiredMemes", Members)?.GetValue(null) as System.Collections.IList;
+            if (scratch != null)
+            {
+                scratch.Clear();
+            }
             AcceptanceReport addable = (AcceptanceReport)CallStatic(typeof(IdeoUIUtility), "CanAddPrecept", def, pattern, ideo);
             string reason = null;
             if (!addable.Accepted)
@@ -698,11 +704,35 @@ namespace RiMCP.Command
             Precept_Apparel apparel = precept as Precept_Apparel;
             Precept_Weapon weapon = precept as Precept_Weapon;
             Precept_Xenotype xenotype = precept as Precept_Xenotype;
+            Precept_Ritual ritual = precept as Precept_Ritual;
             return precept.Id + ":" + precept.def.defName + ":" + precept.LabelCap
-                + (thing != null && thing.ThingDef != null ? ":" + thing.ThingDef.defName : "")
+                + (thing != null && thing.ThingDef != null ? ":" + thing.ThingDef.defName + "/" + StylePrint(precept, thing.ThingDef) : "")
                 + (apparel != null && apparel.apparelDef != null ? ":" + apparel.apparelDef.defName : "")
                 + (weapon != null ? ":" + (weapon.noble == null ? "-" : weapon.noble.defName) + "/" + (weapon.despised == null ? "-" : weapon.despised.defName) : "")
-                + (xenotype != null && xenotype.xenotype != null ? ":" + xenotype.xenotype.defName : "");
+                + (xenotype != null && xenotype.xenotype != null ? ":" + xenotype.xenotype.defName : "")
+                // What the precept dialog edits: a ritual's anytime start, reward, and date, and the
+                // apparel a role asks for.
+                + (ritual != null ? ":" + ritual.isAnytime + "/" + (ritual.attachableOutcomeEffect == null ? "-" : ritual.attachableOutcomeEffect.defName) + "/"
+                    + string.Join(",", (ritual.obligationTriggers ?? new List<RitualObligationTrigger>()).OfType<RitualObligationTrigger_Date>().Select(trigger => trigger.triggerDaysSinceStartOfYear.ToString()).ToArray()) : "")
+                + ":" + ApparelPrint(precept.ApparelRequirements);
+        }
+
+        private static string StylePrint(Precept precept, ThingDef thing)
+        {
+            StyleCategoryPair style = precept.ideo == null || precept.ideo.style == null ? null : precept.ideo.style.StyleForThingDef(thing, precept);
+            return style == null ? "-" : (style.category == null ? "-" : style.category.defName) + "/" + (style.styleDef == null ? "-" : style.styleDef.defName);
+        }
+
+        private static string ApparelPrint(List<PreceptApparelRequirement> requirements)
+        {
+            if (requirements == null)
+            {
+                return "-";
+            }
+            return string.Join(";", requirements.Select(each => each == null || each.requirement == null ? "-"
+                : string.Join(",", (each.requirement.requiredDefs ?? new List<ThingDef>()).Select(def => def.defName).ToArray()) + "|"
+                  + string.Join(",", (each.requirement.requiredTags ?? new List<string>()).ToArray()) + "|"
+                  + string.Join(",", (each.requirement.bodyPartGroupsMatchAny ?? new List<BodyPartGroupDef>()).Select(def => def.defName).ToArray())).ToArray());
         }
 
         // ---- The game's private members ----

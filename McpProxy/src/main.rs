@@ -283,6 +283,11 @@ impl Proxy {
         if let Ok(mut listed) = self.listed.lock() {
             *listed = Some(access.map(|(version, _)| version));
         }
+        // The client now has this list, so any later difference is news again, even a version
+        // announced before (as after listing everything while RimMCP could not be reached).
+        if let Ok(mut notified) = self.notified.lock() {
+            *notified = None;
+        }
         json!({ "tools": tools })
     }
 
@@ -824,6 +829,24 @@ mod tests {
         assert!(
             proxy.should_notify("b:1"),
             "a restarted RimWorld is a change"
+        );
+    }
+
+    #[test]
+    fn a_fallback_list_is_corrected_even_at_an_announced_version() {
+        let access = Arc::new(Mutex::new(Some(
+            r#"{"instance":"a","revision":1,"tools":["fast"]}"#.to_string(),
+        )));
+        let (base_url, _) = fake_bridge_with_access(access.clone());
+        let proxy = test_proxy(base_url);
+        listed_names(&proxy);
+        assert!(proxy.should_notify("a:2"));
+        // The client lists again while RimMCP cannot say, so it gets every tool.
+        *access.lock().unwrap() = None;
+        assert_eq!(listed_names(&proxy).len(), 4);
+        assert!(
+            proxy.should_notify("a:2"),
+            "the fallback list must be corrected when RimMCP answers again"
         );
     }
 

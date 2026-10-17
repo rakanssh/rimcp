@@ -91,6 +91,10 @@ namespace RiMCP.Bridge
         // answer: they read the operation registry, not the game.
         private static readonly HashSet<string> AnswerWhileBusy = new HashSet<string> { "get-operation", "cancel-operation", "tools" };
 
+        // While an operation holds the game unchanged (between a save and the leave or load after
+        // it), changes are refused, except stopping or answering that operation.
+        private static readonly HashSet<string> ChangeWhileHeld = new HashSet<string> { "cancel-operation", "answer-confirmation" };
+
         private static readonly BridgeRoute[] Routes = CreateRoutes();
 
         static BridgeRouter()
@@ -140,9 +144,18 @@ namespace RiMCP.Bridge
                             {
                                 return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
                             }
-                            string expected = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest).ExpectedLoadId;
+                            if (OperationRunner.ProtectingGame && !ChangeWhileHeld.Contains(route.Spec.HandlerId))
+                            {
+                                Operation holding = OperationRunner.Active;
+                                return BridgeResponse.Error(409, "Operation " + holding.Id + " (" + holding.Tool + ") saved the colony and is about to replace the game, so the game is held unchanged until then. Check it with get_operation.");
+                            }
+                            LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
+                            string expected = guard.ExpectedLoadId;
                             string loaded = GameContext.LoadId;
-                            if (expected != null && expected != loaded)
+                            // A retry of a request already recorded gets its operation back, even after
+                            // that operation loaded another game.
+                            RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
+                            if (expected != null && expected != loaded && (retried == null || retried.Tool != route.Spec.Name))
                             {
                                 return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
                             }
@@ -173,6 +186,9 @@ namespace RiMCP.Bridge
         {
             [DataMember(Name = "expectedLoadId")]
             public string ExpectedLoadId { get; set; }
+
+            [DataMember(Name = "requestId")]
+            public string RequestId { get; set; }
         }
 
         private static BridgeRoute[] CreateRoutes()

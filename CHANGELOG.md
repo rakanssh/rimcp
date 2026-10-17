@@ -16,11 +16,11 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- The settings are now in tabs (Access, Connection, Activity, Safety) under a master switch, Agents on. The Access tab browses every tool by group, with search, and turns single tools on or off on top of the access level; tools added in later versions follow their group.
+- The settings are now in tabs (Connection, Access, Activity, Safety) under a master switch, Agents on, and open on Connection until an agent has connected. The Access tab browses every tool by group, with search, and turns single tools on or off on top of the access level; tools added in later versions follow their group.
 - Agents see only the tools that are on: the helper lists those and tells the client when they change.
 - A RimMCP button on the bottom bar shows whether agents are on and working, and pauses them or changes the access level in a click.
 - The Activity tab counts calls per tool.
-- While RimWorld loads, saves or changes games, requests other than operation status get a 503 instead of reading a half-built game.
+- While RimWorld loads, saves or changes games, requests other than operation status get a 503 instead of reading a half-built game. Saving first before leaving, loading or starting a new game pauses the game and holds it unchanged until it is replaced, so nothing done after the save is lost.
 
 ## [1.0.0] - 2026-10-17
 

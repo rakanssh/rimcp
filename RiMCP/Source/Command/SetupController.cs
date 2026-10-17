@@ -241,6 +241,13 @@ namespace RiMCP.Command
                     parts.Add(Name(Get(page, "storyteller")));
                     parts.Add(Name(Get(page, "difficulty")));
                     parts.Add(init == null ? "-" : init.permadeathChosen + "/" + init.permadeath);
+                    // The custom panel's values, which the player edits on this screen.
+                    Difficulty values = Get(page, "difficultyValues") as Difficulty;
+                    if (values != null)
+                    {
+                        parts.Add(string.Join(",", DifficultySettings.All.Select(setting => setting.Toggle ? setting.ReadToggle(values).ToString() : setting.Read(values).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
+                        parts.Add(ModsConfig.AnomalyActive && values.AnomalyPlaystyleDef != null ? values.AnomalyPlaystyleDef.defName : "-");
+                    }
                 }
                 else if (page is Page_CreateWorldParams)
                 {

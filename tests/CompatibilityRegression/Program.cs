@@ -221,6 +221,9 @@ internal static class Program
         Test("ideoligion names follow the dialogs' rules, and precepts sort into the screen's sections", CheckIdeoligionRules);
         Test("disabled groups are refused, and the access endpoint stays reachable", CheckAccessEnforcement);
         Test("single tools turn on or off as exceptions to their group, and settle back into presets", CheckToolAccess);
+        Test("a stop asked for during an operation's last native step is reported, not lost", CheckStopAtLastNativeStep);
+        Test("the master switch stops every operation, and stopping one follows its own tool", CheckOperationStopsFollowAccess);
+        Test("while the game is held for a replacement, changes wait, and retries pass the load guard", CheckHeldGameAndRetries);
         Test("turning off Time ends and pauses a running advance", CheckTimeRevocation);
         Test("cell rectangles are bounded, clipped to the map, and de-duplicated", CheckCellRects);
         Test("rejected cells are all counted but listed only up to a cap", () =>
@@ -806,6 +809,118 @@ internal static class Program
 #pragma warning disable CS0162
         yield break;
 #pragma warning restore CS0162
+    }
+
+    // A native step that is the operation's last: nothing runs after it.
+    private static IEnumerable<string> NativeLast(object operation, Func<bool> released)
+    {
+        SetOperationField(operation, "InNativeStep", true);
+        while (!released())
+        {
+            yield return "native";
+        }
+        SetOperationField(operation, "InNativeStep", false);
+    }
+
+    private static IEnumerable<string> HoldUntil(object operation, Func<bool> released)
+    {
+        operation.GetType().GetField("ProtectsGame", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(operation, true);
+        while (!released())
+        {
+            yield return "holding";
+        }
+    }
+
+    private static void CheckStopAtLastNativeStep()
+    {
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            bool released = false;
+            object leaving = StartOperation("leave_game", "gameSetup", null, null, operation => NativeLast(operation, () => released));
+            RunnerUpdate();
+            Runner().GetMethod("Cancel", Static).Invoke(null, new object[] { leaving, "Cancelled with cancel_operation." });
+            Check(OperationState(leaving) == "running", "a native step finishes before a cancellation");
+            released = true;
+            RunnerUpdate();
+            Check(OperationState(leaving) == "cancelled" && Field<string>(leaving, "Message").Contains("already finished"), "a cancellation waiting on the last native step is reported, with what stands: " + OperationState(leaving) + ", " + Field<string>(leaving, "Message"));
+
+            bool loaded = false;
+            object loading = StartOperation("load_game", "gameSetup", null, null, operation => NativeLast(operation, () => loaded));
+            RunnerUpdate();
+            Runner().GetMethod("Revoke", Static).Invoke(null, new object[] { "gameSetup", "Game setup access was turned off." });
+            loaded = true;
+            RunnerUpdate();
+            Check(OperationState(loading) == "revoked" && Field<string>(loading, "Message").Contains("already finished"), "a revocation waiting on the last native step is reported too: " + OperationState(loading));
+        }
+        finally
+        {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckOperationStopsFollowAccess()
+    {
+        Type runtime = mod.GetType("RiMCP.Bridge.BridgeRuntime", true);
+        MethodInfo handle = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static);
+        Func<object, int> status = response => (int)response.GetType().GetField("StatusCode").GetValue(response);
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            SetAccess("full", AllGroups());
+            List<string> log = new List<string>();
+            object search = StartOperation("find_starting_sites", "observe", null, null, _ => TwoSteps(log));
+            runtime.GetMethod("Disable", Static).Invoke(null, null);
+            Check(OperationState(search) == "revoked" && log.Count == 0, "turning agents off stops an Observe operation too, before it runs");
+            SetAccess("full", AllGroups());
+
+            MethodInfo apply = runtime.GetMethod("ApplyAccess", Static, null, new[] { typeof(string), typeof(IEnumerable<string>), typeof(IEnumerable<string>), typeof(IEnumerable<string>) }, null);
+            apply.Invoke(null, new object[] { "custom", AllGroups().Where(group => group != "gameSetup").ToArray(), new[] { "save_game" }, new string[0] });
+            object saving = StartOperation("save_game", "gameSetup", null, null, _ => TwoSteps(log));
+            object stopped = handle.Invoke(null, new[] { Request("/v1/operations/" + OperationId(saving) + "/cancel", "POST", "{}") });
+            Check(status(stopped) == 200 && OperationState(saving) == "cancelled", "a tool turned on by itself can be stopped, though its group is off");
+            object loading = StartOperation("load_game", "gameSetup", null, null, _ => TwoSteps(log));
+            object refused = handle.Invoke(null, new[] { Request("/v1/operations/" + OperationId(loading) + "/cancel", "POST", "{}") });
+            Check(status(refused) == 403, "stopping a tool that is off is refused");
+        }
+        finally
+        {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+            SetAccess("full", AllGroups());
+        }
+    }
+
+    private static void CheckHeldGameAndRetries()
+    {
+        MethodInfo handle = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static);
+        Func<object, int> status = response => (int)response.GetType().GetField("StatusCode").GetValue(response);
+        Func<object, string> body = response => (string)response.GetType().GetField("Body").GetValue(response);
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            SetAccess("full", AllGroups());
+            bool released = false;
+            object holding = StartOperation("load_game", "gameSetup", "held-1", "fp", operation => HoldUntil(operation, () => released));
+            RunnerUpdate();
+            object change = handle.Invoke(null, new[] { Request("/v1/time/speed", "PUT", "{\"speed\":\"Normal\"}") });
+            Check(status(change) == 409 && body(change).Contains("held unchanged"), "changes wait while the game is held for a replacement: " + body(change));
+            Check(status(handle.Invoke(null, new[] { Request("/v1/research", "GET", null) })) == 200, "reads still answer");
+            object stop = handle.Invoke(null, new[] { Request("/v1/operations/" + OperationId(holding) + "/cancel", "POST", "{}") });
+            Check(status(stop) == 200, "the held operation can still be stopped");
+            released = true;
+            RunnerUpdate();
+
+            // The operation is recorded for its requestId; a retry naming the earlier load gets past
+            // the load guard to the operation registry.
+            object retry = handle.Invoke(null, new[] { Request("/v1/session/load", "POST", "{\"name\":\"x\",\"expectedLoadId\":\"an-earlier-load\",\"requestId\":\"held-1\"}") });
+            Check(!body(retry).Contains("expected load"), "a retry is not refused by the load guard: " + body(retry));
+            object fresh = handle.Invoke(null, new[] { Request("/v1/session/load", "POST", "{\"name\":\"x\",\"expectedLoadId\":\"an-earlier-load\",\"requestId\":\"new-1\"}") });
+            Check(status(fresh) == 409 && body(fresh).Contains("expected load"), "a new request naming an earlier load still is");
+        }
+        finally
+        {
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+        }
     }
 
     private static IEnumerable<string> NativeThenMore(object operation, List<string> log)

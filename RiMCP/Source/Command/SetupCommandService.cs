@@ -20,7 +20,6 @@ namespace RiMCP.Command
     {
         private const int MaxRerollAttempts = 500;
         private static readonly int[] Coverages = { 30, 50, 100 };
-        private static int confirmations;
 
         public static BridgeResponse ListScenarios(BridgeRequest request, RouteMatch route)
         {
@@ -656,9 +655,12 @@ namespace RiMCP.Command
             SetupController.Set(page, "presetSelection", load);
             if (!SetupController.CanNext(page))
             {
+                SetupController.Changed();
                 throw new OperationEnded(Operation.Failed, "The ideoligion screen did not accept Load saved.");
             }
             SetupController.DoNext(page);
+            // Its own change, recorded before any question is asked, so the question is not stale.
+            SetupController.Changed();
             Dialog_IdeoList_Load list = Find.WindowStack.WindowOfType<Dialog_IdeoList_Load>();
             if (list == null)
             {
@@ -1344,14 +1346,24 @@ namespace RiMCP.Command
                     Dto.Field("message", "The player is asked to approve starting the colony as set up."),
                     Dto.Field("revision", own),
                     Dto.Field("answeredBy", "player"));
-                while (Find.WindowStack.IsOpen(approval))
+                try
                 {
-                    if (SetupStateChanged(own))
+                    while (Find.WindowStack.IsOpen(approval))
+                    {
+                        if (SetupStateChanged(own))
+                        {
+                            throw new OperationEnded(Operation.Interrupted, "The setup changed while the player was asked, so the approval was withdrawn.");
+                        }
+                        yield return "awaitingApproval";
+                    }
+                }
+                finally
+                {
+                    // Withdrawn when the operation stops or the setup changes.
+                    if (Find.WindowStack.IsOpen(approval))
                     {
                         approval.Close(false);
-                        throw new OperationEnded(Operation.Interrupted, "The setup changed while the player was asked, so the approval was withdrawn.");
                     }
-                    yield return "awaitingApproval";
                 }
                 operation.State = Operation.Running;
                 operation.Confirmation = null;
@@ -1432,50 +1444,11 @@ namespace RiMCP.Command
             return SessionCommandService.Envelope(true, SessionCommandService.Serialize(operation));
         }
 
-        // Waits while the game asks something. In unattended runs an agent may answer a message box
-        // through answer_confirmation, by the confirmation's id; it presses the button a click would.
+        // Waits while the game asks something during setup. The question belongs to the operation and
+        // to the setup's current revision (Confirmations); in unattended runs an agent may answer it.
         private static IEnumerable<string> AwaitQuestion(Operation operation, List<Window> asking, string kind, Func<bool> proceeded)
         {
-            string id = "confirm-" + (++confirmations);
-            int asked = SetupController.Revision;
-            Dialog_MessageBox box = asking.OfType<Dialog_MessageBox>().FirstOrDefault();
-            Dialog_ModMismatch mods = asking.OfType<Dialog_ModMismatch>().FirstOrDefault();
-            operation.State = Operation.AwaitingConfirmation;
-            operation.ConfirmationId = id;
-            operation.Confirmation = Dto.Obj(
-                Dto.Field("confirmationId", id),
-                Dto.Field("kind", kind),
-                Dto.Field("message", box != null ? box.text.ToString().StripTags() : mods != null ? "The file was made with a different mod list. Accepting loads it anyway; declining goes back." : "The game is asking before it goes on."),
-                Dto.Field("answeredBy", BridgeRuntime.UnattendedSetup ? "agent" : "player"),
-                Dto.Field("dialogs", asking.Select(window => window.GetType().Name).ToArray()));
-            if (box != null || mods != null)
-            {
-                operation.Answer = accept =>
-                {
-                    SetupController.Observe();
-                    if (SetupController.Revision != asked)
-                    {
-                        return "The setup changed after this was asked, so the answer no longer applies.";
-                    }
-                    // As the button does: its action, then the dialog closes. The mod list dialog's
-                    // accept is Load anyway, and its decline Go back.
-                    Action action = box != null ? (accept ? box.buttonAAction : box.buttonBAction) : accept ? (Action)SetupController.Get(mods, "loadAction") : null;
-                    if (action != null)
-                    {
-                        action();
-                    }
-                    (box ?? (Window)mods).Close();
-                    return null;
-                };
-            }
-            while (asking.Any(Find.WindowStack.IsOpen) && !proceeded())
-            {
-                yield return "awaitingConfirmation";
-            }
-            operation.State = Operation.Running;
-            operation.Confirmation = null;
-            operation.ConfirmationId = null;
-            operation.Answer = null;
+            return Confirmations.Await(operation, asking, kind, null, true, proceeded, Confirmations.SetupUnchanged(SetupController.Revision));
         }
 
         // The setup as get_setup reports it: the screen, revision, choices so far, and the options for

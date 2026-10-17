@@ -31,14 +31,14 @@ namespace RiMCP.Command
             return WithWait(request, operation, () => Envelope(false, Serialize(operation)));
         }
 
-        // Permission follows the target: the router admits this as an Observe tool, and stopping a Game
-        // setup operation also needs Game setup.
+        // Permission follows the target: the router admits this as an Observe tool, and stopping any
+        // other operation also needs the tool that started it to be on.
         public static BridgeResponse CancelOperation(BridgeRequest request, RouteMatch route)
         {
             Operation operation = FindOperation(route["operationId"]);
-            if (operation.Group != ToolGroups.Observe && !BridgeRuntime.Access.Allows(operation.Group))
+            if (operation.Group != ToolGroups.Observe && !BridgeRuntime.Access.AllowsTool(operation.Tool))
             {
-                throw new CommandException(403, "Stopping " + operation.Tool + " needs the " + ToolGroups.Label(operation.Group) + " group, which is off in RimMCP settings.");
+                throw new CommandException(403, "Stopping " + operation.Tool + " needs " + operation.Tool + " (" + ToolGroups.Label(operation.Group) + ") to be on in RimMCP settings.");
             }
             bool changed = OperationRunner.Cancel(operation, "Cancelled with cancel_operation.");
             Dictionary<string, object> data = Serialize(operation);
@@ -235,15 +235,17 @@ namespace RiMCP.Command
         private static IEnumerable<string> SaveOnly(Operation operation, string name, bool overwrite, string loadId)
         {
             object saved = null;
-            foreach (string step in Save(operation, name, overwrite, loadId, result => saved = result))
+            foreach (string step in Save(operation, name, overwrite, loadId, false, result => saved = result))
             {
                 yield return step;
             }
             operation.Result = saved;
         }
 
-        // Saves and verifies the save. Any failure ends the operation, so nothing after it runs.
-        private static IEnumerable<string> Save(Operation operation, string name, bool overwrite, string loadId, Action<object> done)
+        // Saves and verifies the save. Any failure ends the operation, so nothing after it runs. Before
+        // a leave or load (replacing), the game is held first and the file is checked in the same
+        // frame, so the save is the game as it is replaced: nothing can change in between.
+        private static IEnumerable<string> Save(Operation operation, string name, bool overwrite, string loadId, bool replacing, Action<object> done)
         {
             RequireSameGame(loadId);
             if (GameDataSaveLoader.SavingIsTemporarilyDisabled)
@@ -255,15 +257,34 @@ namespace RiMCP.Command
             {
                 throw new OperationEnded(Operation.Failed, "A save named '" + name + "' appeared before saving started; pass overwrite: true to replace it.");
             }
+            if (replacing)
+            {
+                HoldGame(operation);
+            }
             int tick = Find.TickManager.TicksGame;
             SaveAttempt attempt = SaveVerifier.Save(name);
-            yield return "checkingSave";
-            Task<string> check = Task.Run(() => SaveVerifier.CheckFile(attempt.Path, attempt.PreviousWriteUtc));
-            while (!check.IsCompleted)
+            string fileProblem;
+            if (replacing)
+            {
+                try
+                {
+                    fileProblem = SaveVerifier.CheckFile(attempt.Path, attempt.PreviousWriteUtc);
+                }
+                catch (Exception ex)
+                {
+                    fileProblem = "The save file check failed: " + ex.Message;
+                }
+            }
+            else
             {
                 yield return "checkingSave";
+                Task<string> check = Task.Run(() => SaveVerifier.CheckFile(attempt.Path, attempt.PreviousWriteUtc));
+                while (!check.IsCompleted)
+                {
+                    yield return "checkingSave";
+                }
+                fileProblem = check.IsFaulted ? "The save file check failed: " + check.Exception.GetBaseException().Message : check.Result;
             }
-            string fileProblem = check.IsFaulted ? "The save file check failed: " + check.Exception.GetBaseException().Message : check.Result;
             if (attempt.Errors > 0)
             {
                 throw new OperationEnded(Operation.Failed, "The game logged " + attempt.Errors + (attempt.Errors == 1 ? " error" : " errors") + " while saving '" + name + "', so the save cannot be relied on: " + attempt.FirstError);
@@ -285,12 +306,39 @@ namespace RiMCP.Command
                 Dto.Field("verified", true)));
         }
 
+        // Before a save that a leave or load follows: an advance stops, the game pauses, and agents'
+        // changes are refused until the game is replaced, so nothing changes after the save. If it is
+        // not replaced after all, the game's speed comes back.
+        private static void HoldGame(Operation operation)
+        {
+            AdvanceRunner.Revoke(operation.Tool + " (" + operation.Id + ") is saving before it replaces the game.");
+            TimeSpeed before = Find.TickManager.CurTimeSpeed;
+            string loadId = GameContext.LoadId;
+            KeepPaused();
+            operation.ProtectsGame = true;
+            operation.Cleanup = () =>
+            {
+                if (before != TimeSpeed.Paused && ColonyLoaded() && GameContext.LoadId == loadId && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused)
+                {
+                    Find.TickManager.CurTimeSpeed = before;
+                }
+            };
+        }
+
+        private static void KeepPaused()
+        {
+            if (ColonyLoaded() && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
+            {
+                Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+            }
+        }
+
         private static IEnumerable<string> Load(Operation operation, string name, string saveFirst, bool overwrite, string loadId)
         {
             object saved = null;
             if (saveFirst != null)
             {
-                foreach (string step in Save(operation, saveFirst, overwrite, loadId, result => saved = result))
+                foreach (string step in Save(operation, saveFirst, overwrite, loadId, true, result => saved = result))
                 {
                     yield return step;
                 }
@@ -309,14 +357,17 @@ namespace RiMCP.Command
                 {
                     throw new OperationEnded(Operation.Failed, "The game did not start loading '" + name + "'.");
                 }
-                operation.State = Operation.AwaitingConfirmation;
-                operation.Confirmation = LoadQuestion(name, asking);
-                while (asking.Any(Find.WindowStack.IsOpen) && !LongEventHandler.AnyEventNowOrWaiting)
+                // The question belongs to this file as it was when asked; while the player answers,
+                // a colony saved first stays held as it was saved.
+                string file = GenFilePaths.FilePathForSavedGame(name);
+                DateTime written = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
+                string message;
+                string kind = LoadQuestion(name, asking, out message);
+                Func<string> stale = () => !File.Exists(file) || File.GetLastWriteTimeUtc(file) != written ? "The save '" + name + "' changed while the game was asking, so the question was withdrawn." : null;
+                foreach (string step in Confirmations.Await(operation, asking, kind, message, false, () => LongEventHandler.AnyEventNowOrWaiting, stale, saveFirst != null ? (Action)KeepPaused : null, Dto.Field("save", name)))
                 {
-                    yield return "awaitingConfirmation";
+                    yield return step;
                 }
-                operation.Confirmation = null;
-                operation.State = Operation.Running;
                 if (!LongEventHandler.AnyEventNowOrWaiting)
                 {
                     throw new OperationEnded(Operation.Declined, "The player chose not to load '" + name + "'.");
@@ -338,7 +389,7 @@ namespace RiMCP.Command
             object saved = null;
             if (saveFirst != null)
             {
-                foreach (string step in Save(operation, saveFirst, overwrite, loadId, result => saved = result))
+                foreach (string step in Save(operation, saveFirst, overwrite, loadId, true, result => saved = result))
                 {
                     yield return step;
                 }
@@ -395,21 +446,17 @@ namespace RiMCP.Command
 
         // What the game is asking about, worked out from the save's header with the same checks the
         // game makes, rather than from its dialog classes, which differ between game versions.
-        private static object LoadQuestion(string name, List<Window> asking)
+        private static string LoadQuestion(string name, List<Window> asking, out string message)
         {
             SaveHeader header = SaveHeader.Read(GenFilePaths.FilePathForSavedGame(name));
             List<string> runningIds = LoadedModManager.RunningMods.Select(mod => mod.PackageId).ToList();
             List<string> runningFolders = LoadedModManager.RunningMods.Select(mod => mod.FolderName).ToList();
             bool modsDiffer = header.Problem == null && !header.ModsMatch(runningIds, runningFolders);
-            string text = asking.OfType<Dialog_MessageBox>().Select(box => box.text.ToString().StripTags()).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
-            return Dto.Obj(
-                Dto.Field("kind", modsDiffer ? "modMismatch" : "versionMismatch"),
-                Dto.Field("message", text ?? (modsDiffer
-                    ? "The save was made with a different mod list (" + header.ModIds.Count + " mods; " + runningIds.Count + " are running)."
-                    : "The save was made with another game version (" + (header.GameVersion ?? "unknown") + "; this is " + VersionControl.CurrentVersionStringWithRev + ").")),
-                Dto.Field("save", name),
-                Dto.Field("answeredBy", "player"),
-                Dto.Field("dialogs", asking.Select(window => window.GetType().Name).ToArray()));
+            string text = asking.OfType<Dialog_MessageBox>().Select(box => box.text.ToString().StripTags()).FirstOrDefault(each => !string.IsNullOrWhiteSpace(each));
+            message = text ?? (modsDiffer
+                ? "The save was made with a different mod list (" + header.ModIds.Count + " mods; " + runningIds.Count + " are running)."
+                : "The save was made with another game version (" + (header.GameVersion ?? "unknown") + "; this is " + VersionControl.CurrentVersionStringWithRev + ").");
+            return modsDiffer ? "modMismatch" : "versionMismatch";
         }
 
         internal static bool ColonyLoaded()
