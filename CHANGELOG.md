@@ -20,6 +20,7 @@ All notable changes to this project are documented in this file.
 - Agents see only the tools that are on: the helper lists those and tells the client when they change.
 - A RimMCP button on the bottom bar shows whether agents are on and working, and pauses them or changes the access level in a click.
 - The Activity tab counts calls per tool.
+- Tool descriptions and parameters are about a fifth shorter, so agents load less: repeated wording is shared or trimmed, and tools no longer list options they do not read.
 - While RimWorld loads, saves or changes games, requests other than operation status get a 503 instead of reading a half-built game. Saving first before leaving, loading or starting a new game pauses the game and holds it unchanged until it is replaced, so nothing done after the save is lost.
 
 ## [1.0.0] - 2026-10-17
