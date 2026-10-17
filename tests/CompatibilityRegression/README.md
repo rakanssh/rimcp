@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The fifty-seven checks cover:
+The fifty-nine checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -116,6 +116,10 @@ The fifty-seven checks cover:
   a stale one, changing nothing; and `answer_confirmation` refused in visible setup
   and for any question but the one asked, and answered only once. Driving the setup screens
   is a live-game test.
+- Settlement distances bounding the nearest counted settlement, with a maximum needing one;
+  and custom difficulty settings rounding to their steps and reading and writing as the
+  panel shows them (the reciprocal disease interval, fixed wealth time in twelfths, inverted
+  checkboxes), checked on a copy.
 - Ideoligion names, adjectives, member names and precept names limited to the dialogs'
   lengths and characters, and precept defs sorted into the custom ideoligion screen's
   sections by class.

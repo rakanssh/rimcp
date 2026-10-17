@@ -271,6 +271,14 @@ namespace RiMCP.Command
                 {
                     parts.Add(init.startingPawnCount.ToString());
                     parts.AddRange(init.startingAndOptionalPawns.Select(pawn => pawn == null ? "-" : pawn.ThingID + ":" + pawn.Name));
+                    if (ModsConfig.BiotechActive)
+                    {
+                        for (int slot = 0; slot < init.startingAndOptionalPawns.Count; slot++)
+                        {
+                            PawnGenerationRequest request = StartingPawnUtility.GetGenerationRequest(slot);
+                            parts.Add(request.AllowedDevelopmentalStages + "/" + (request.ForcedXenotype == null ? "-" : request.ForcedXenotype.defName) + "/" + (request.AllowedXenotypes == null ? "-" : request.AllowedXenotypes.Count.ToString()));
+                        }
+                    }
                 }
             }
             catch (CommandException)

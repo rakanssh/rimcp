@@ -14,6 +14,7 @@ namespace RiMCP.Command
         public List<TraitDef> Traits = new List<TraitDef>();
         public List<TraitDef> ExcludeTraits = new List<TraitDef>();
         public List<WorkTypeDef> CanDo = new List<WorkTypeDef>();
+        public List<XenotypeDef> Xenotypes = new List<XenotypeDef>();
         public int? MinAge;
         public int? MaxAge;
 
@@ -26,7 +27,7 @@ namespace RiMCP.Command
 
         public bool Empty
         {
-            get { return Skills.Count == 0 && Traits.Count == 0 && ExcludeTraits.Count == 0 && CanDo.Count == 0 && !MinAge.HasValue && !MaxAge.HasValue; }
+            get { return Skills.Count == 0 && Traits.Count == 0 && ExcludeTraits.Count == 0 && CanDo.Count == 0 && Xenotypes.Count == 0 && !MinAge.HasValue && !MaxAge.HasValue; }
         }
 
         public List<string> Unmet(Pawn pawn)
@@ -62,6 +63,16 @@ namespace RiMCP.Command
                 if (pawn.WorkTypeIsDisabled(work))
                 {
                     unmet.Add("can do " + work.defName);
+                }
+            }
+            if (Xenotypes.Count > 0)
+            {
+                // A custom xenotype is none of the defs, whatever it is based on.
+                XenotypeDef xenotype = pawn.genes == null || pawn.genes.UniqueXenotype ? null : pawn.genes.Xenotype;
+                if (xenotype == null || !Xenotypes.Contains(xenotype))
+                {
+                    string has = pawn.genes == null ? "none" : pawn.genes.UniqueXenotype ? pawn.genes.xenotypeName : pawn.genes.Xenotype.defName;
+                    unmet.Add("xenotype " + string.Join(" or ", Xenotypes.Select(def => def.defName).ToArray()) + " (is " + has + ")");
                 }
             }
             int age = pawn.ageTracker == null ? 0 : pawn.ageTracker.AgeBiologicalYears;

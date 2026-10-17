@@ -25,7 +25,19 @@ namespace RiMCP.Command
         public float? MinRainfall;
         public float? MaxRainfall;
         public int? MinGrowingDays;
+        // In world tiles, to the nearest settlement of another faction whose relation to the player is
+        // one of SettlementRelations (any, when null).
+        public float? MinSettlementDistance;
+        public float? MaxSettlementDistance;
+        public HashSet<FactionRelationKind> SettlementRelations;
+        // No settlement that would lose goodwill over the colony, as the game's settle warning checks.
+        public bool AvoidEncroaching;
         public int Limit = 10;
+
+        public bool NeedsSettlements
+        {
+            get { return MinSettlementDistance.HasValue || MaxSettlementDistance.HasValue; }
+        }
     }
 
     // The cheap facts about a tile, read straight from its fields.
@@ -63,6 +75,16 @@ namespace RiMCP.Command
                 && (!criteria.Road.HasValue || facts.Road == criteria.Road.Value);
         }
 
+        // The distance bounds for the nearest counted settlement, or null when there is none.
+        public static bool PassesDistance(SiteCriteria criteria, float? nearest)
+        {
+            if (criteria.MaxSettlementDistance.HasValue && (!nearest.HasValue || nearest.Value > criteria.MaxSettlementDistance.Value))
+            {
+                return false;
+            }
+            return !criteria.MinSettlementDistance.HasValue || !nearest.HasValue || nearest.Value >= criteria.MinSettlementDistance.Value;
+        }
+
         // Longer growing periods first, then temperatures nearer the middle of the range asked for
         // (20 °C when none was).
         public static double Score(SiteCriteria criteria, float temperature, int growingDays)
@@ -90,6 +112,11 @@ namespace RiMCP.Command
             List<KeyValuePair<double, object>> best = new List<KeyValuePair<double, object>>();
             int matched = 0;
             int invalid = 0;
+            List<Settlement> settlements = Find.WorldObjects.Settlements
+                .Where(settlement => settlement.Faction != null && !settlement.Faction.IsPlayer && settlement.Tile.Layer == Find.WorldGrid.Surface
+                    && (criteria.SettlementRelations == null || criteria.SettlementRelations.Contains(settlement.Faction.RelationKindWith(Faction.OfPlayer))))
+                .ToList();
+            List<Pair<Settlement, int>> encroached = new List<Pair<Settlement, int>>();
             Stopwatch frame = Stopwatch.StartNew();
             for (int i = 0; i < count; i++)
             {
@@ -120,6 +147,27 @@ namespace RiMCP.Command
                 {
                     continue;
                 }
+                Settlement nearest = null;
+                float? distance = null;
+                foreach (Settlement settlement in settlements)
+                {
+                    float apart = Find.WorldGrid.ApproxDistanceInTiles(planet, settlement.Tile);
+                    if (!distance.HasValue || apart < distance.Value)
+                    {
+                        distance = apart;
+                        nearest = settlement;
+                    }
+                }
+                if (!PassesDistance(criteria, distance))
+                {
+                    continue;
+                }
+                encroached.Clear();
+                SettlementProximityGoodwillUtility.AppendProximityGoodwillOffsets(planet, encroached, false, true);
+                if (criteria.AvoidEncroaching && encroached.Count > 0)
+                {
+                    continue;
+                }
                 matched++;
                 if (!TileFinder.IsValidTileForNewSettlement(planet, null))
                 {
@@ -129,7 +177,7 @@ namespace RiMCP.Command
                 double score = Score(criteria, facts.Temperature, days);
                 if (best.Count < criteria.Limit || score > best[best.Count - 1].Key)
                 {
-                    best.Add(new KeyValuePair<double, object>(score, Describe(i, tile, facts, coastal, days)));
+                    best.Add(new KeyValuePair<double, object>(score, Describe(i, tile, facts, coastal, days, nearest, distance, encroached)));
                     best.Sort((a, b) => b.Key.CompareTo(a.Key));
                     if (best.Count > criteria.Limit)
                     {
@@ -155,7 +203,7 @@ namespace RiMCP.Command
             };
         }
 
-        public static object Describe(int id, SurfaceTile tile, SiteFacts facts, bool coastal, int growingDays)
+        public static object Describe(int id, SurfaceTile tile, SiteFacts facts, bool coastal, int growingDays, Settlement nearest, float? distance, List<Pair<Settlement, int>> encroached)
         {
             return Dto.Obj(
                 Dto.Field("tileId", id),
@@ -167,7 +215,16 @@ namespace RiMCP.Command
                 Dto.Field("river", facts.River),
                 Dto.Field("road", facts.Road),
                 Dto.Field("coastal", coastal),
-                Dto.Field("landmark", tile.Landmark == null ? null : tile.Landmark.name));
+                Dto.Field("landmark", tile.Landmark == null ? null : tile.Landmark.name),
+                Dto.Field("nearestSettlement", nearest == null ? null : Dto.Obj(
+                    Dto.Field("name", nearest.LabelCap.ToString()),
+                    Dto.Field("faction", nearest.Faction.Name),
+                    Dto.Field("relation", nearest.Faction.RelationKindWith(Faction.OfPlayer).ToString()),
+                    Dto.Field("distanceTiles", Math.Round(distance.Value, 1)))),
+                Dto.Field("encroaches", encroached.Count == 0 ? null : encroached.Select(pair => (object)Dto.Obj(
+                    Dto.Field("settlement", pair.First.LabelCap.ToString()),
+                    Dto.Field("faction", pair.First.Faction.Name),
+                    Dto.Field("goodwillPerQuadrum", pair.Second))).ToArray()));
         }
 
         private static object Progress(string worldId, int scanned, int total, int matched, int invalid, List<KeyValuePair<double, object>> best, bool done)

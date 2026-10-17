@@ -214,6 +214,8 @@ internal static class Program
         Test("save headers give version, mods, and commitment mode, and mods match as the game checks", CheckSaveHeader);
         Test("while the game changes only operation status answers, and cancelling follows the target's group", CheckBusyRouterAndCancel);
         Test("starting sites are filtered on the tile's own facts, longest growing period first", CheckSiteFilters);
+        Test("settlement distances bound the nearest counted settlement, and a maximum needs one", CheckSettlementDistance);
+        Test("custom difficulty settings read and write as the panel's controls show them", CheckDifficultySettings);
         Test("setup commands need an open setup and its current revision", CheckSetupOutsideSetup);
         Test("only unattended setup lets agents answer the game, and only the question asked", CheckAnswerConfirmation);
         Test("ideoligion names follow the dialogs' rules, and precepts sort into the screen's sections", CheckIdeoligionRules);
@@ -895,6 +897,52 @@ internal static class Program
         Check(score(any, 20f, 40) > score(any, 5f, 40), "with no temperature asked for, nearer 20 C comes first");
         object mild = set(set(criteria(), "MinTemperature", (float?)10f), "MaxTemperature", (float?)20f);
         Check(score(mild, 15f, 40) > score(mild, 19f, 40), "otherwise nearer the middle of the range asked for");
+    }
+
+    private static void CheckSettlementDistance()
+    {
+        Type criteriaType = mod.GetType("RiMCP.Command.SiteCriteria", true);
+        MethodInfo passes = mod.GetType("RiMCP.Command.SiteSearch", true).GetMethod("PassesDistance", Static);
+        Func<float?, float?, float?, bool> check = (min, max, nearest) =>
+        {
+            object criteria = Activator.CreateInstance(criteriaType, true);
+            criteriaType.GetField("MinSettlementDistance").SetValue(criteria, min);
+            criteriaType.GetField("MaxSettlementDistance").SetValue(criteria, max);
+            return (bool)passes.Invoke(null, new object[] { criteria, nearest });
+        };
+        Check(check(null, null, null) && check(null, null, 3f), "no bounds accept any tile");
+        Check(check(null, 10f, 10f) && !check(null, 10f, 10.5f), "the maximum includes its end");
+        Check(!check(null, 10f, null), "a maximum needs a counted settlement within it");
+        Check(check(5f, null, 5f) && !check(5f, null, 4.9f), "the minimum includes its end");
+        Check(check(5f, null, null), "with no counted settlement, nothing is too near");
+    }
+
+    private static void CheckDifficultySettings()
+    {
+        Type settings = mod.GetType("RiMCP.Command.DifficultySettings", true);
+        IList all = (IList)settings.GetProperty("All", Static).GetValue(null, null);
+        Func<string, object> named = name => settings.GetMethod("Named", Static).Invoke(null, new object[] { name });
+        Check(all.Count > 40 && named("threatScale") != null && named("THREATSCALE") != null && named("noSuchSetting") == null, "the panel's settings are listed and found by name");
+        Func<object, string, Delegate> member = (setting, field) => (Delegate)setting.GetType().GetField(field).GetValue(setting);
+        Action<string, Difficulty, float> write = (name, values, value) => member(named(name), "Write").DynamicInvoke(values, value);
+        Func<string, Difficulty, float> read = (name, values) => (float)member(named(name), "Read").DynamicInvoke(values);
+        Action<string, Difficulty, bool> toggle = (name, values, shown) => member(named(name), "WriteToggle").DynamicInvoke(values, shown);
+
+        Difficulty difficulty = new Difficulty();
+        write("threatScale", difficulty, 1.234f);
+        Check(Math.Abs(difficulty.threatScale - 1.23f) < 0.0001f, "sliders round to their steps");
+        write("colonistMoodOffset", difficulty, 5.6f);
+        Check(difficulty.colonistMoodOffset == 6f, "whole-number sliders round to whole numbers");
+        write("diseaseIntervalFactor", difficulty, 2f);
+        Check(Math.Abs(difficulty.diseaseIntervalFactor - 0.5f) < 0.0001f && Math.Abs(read("diseaseIntervalFactor", difficulty) - 2f) < 0.0001f, "the disease slider shows the reciprocal of the stored interval, as the panel does");
+        write("fixedWealthTimeFactor", difficulty, 6f);
+        Check(Math.Abs(difficulty.fixedWealthTimeFactor - 2f) < 0.0001f && read("fixedWealthTimeFactor", difficulty) == 6f, "fixed wealth time is shown in twelfths");
+        difficulty.peacefulTemples = false;
+        toggle("peacefulTemples", difficulty, false);
+        Check(difficulty.peacefulTemples, "an inverted checkbox stores the opposite of what it shows");
+        Difficulty copy = (Difficulty)settings.GetMethod("Copy", Static).Invoke(null, new object[] { difficulty });
+        write("threatScale", copy, 3f);
+        Check(Math.Abs(difficulty.threatScale - 1.23f) < 0.0001f && copy.threatScale == 3f, "a request is checked on a copy, so a refusal leaves the screen's values alone");
     }
 
     private static Dictionary<string, object> SetupCall(string method, string path, string body)

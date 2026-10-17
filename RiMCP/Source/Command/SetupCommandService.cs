@@ -183,17 +183,30 @@ namespace RiMCP.Command
                 throw new CommandException(400, "Field 'storyteller' must be one of: " + string.Join(", ", DefDatabase<StorytellerDef>.AllDefs.Where(def => def.listVisible).Select(def => def.defName).ToArray()) + ".");
             }
             DifficultyDef difficulty = DefDatabase<DifficultyDef>.AllDefs.FirstOrDefault(def => string.Equals(def.defName, (body.Difficulty ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
-            if (difficulty == null || difficulty.isCustom)
+            if (difficulty == null)
             {
-                throw new CommandException(400, "Field 'difficulty' must be a preset: " + string.Join(", ", DefDatabase<DifficultyDef>.AllDefs.Where(def => !def.isCustom).Select(def => def.defName).ToArray()) + ". Custom difficulty is set in game.");
+                throw new CommandException(400, "Field 'difficulty' must be one of: " + string.Join(", ", DefDatabase<DifficultyDef>.AllDefs.Select(def => def.defName).ToArray()) + ".");
             }
             if (!body.CommitmentMode.HasValue)
             {
                 throw new CommandException(400, "Field 'commitmentMode' is required, as the screen asks: true for commitment mode, false to reload any time.");
             }
+            Difficulty values;
+            if (difficulty.isCustom)
+            {
+                values = CustomDifficulty(page, body.Custom);
+            }
+            else if (body.Custom != null)
+            {
+                throw new CommandException(400, "Field 'custom' is for the custom difficulty (" + CustomDifficultyDef().defName + ").");
+            }
+            else
+            {
+                values = new Difficulty(difficulty);
+            }
             SetupController.Set(page, "storyteller", storyteller);
             SetupController.Set(page, "difficulty", difficulty);
-            SetupController.Set(page, "difficultyValues", new Difficulty(difficulty));
+            SetupController.Set(page, "difficultyValues", values);
             Find.GameInitData.permadeathChosen = true;
             Find.GameInitData.permadeath = body.CommitmentMode.Value;
             if (!SetupController.CanNext(page))
@@ -204,6 +217,79 @@ namespace RiMCP.Command
             SetupController.DoNext(page);
             SetupController.Changed();
             return SessionCommandService.Envelope(true, State());
+        }
+
+        // The custom difficulty panel: its values start from a preset (Rough when first chosen, as the
+        // screen does, or the one given in base, as its Reset menu does), then each setting is set as
+        // its control would set it. Checked in full before the screen changes.
+        private static Difficulty CustomDifficulty(Page_SelectStoryteller page, CustomBody custom)
+        {
+            DifficultyDef current = SetupController.Get(page, "difficulty") as DifficultyDef;
+            Difficulty values;
+            if (custom != null && !string.IsNullOrWhiteSpace(custom.Base))
+            {
+                DifficultyDef preset = DefDatabase<DifficultyDef>.AllDefs.FirstOrDefault(def => !def.isCustom && string.Equals(def.defName, custom.Base.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (preset == null)
+                {
+                    throw new CommandException(400, "Field 'custom.base' must be a preset: " + string.Join(", ", DefDatabase<DifficultyDef>.AllDefs.Where(def => !def.isCustom).Select(def => def.defName).ToArray()) + ".");
+                }
+                values = new Difficulty(preset);
+            }
+            else if (current != null && current.isCustom)
+            {
+                values = DifficultySettings.Copy((Difficulty)SetupController.Get(page, "difficultyValues"));
+            }
+            else
+            {
+                values = new Difficulty(DifficultyDefOf.Rough);
+            }
+            List<SettingEntry> entries = (custom == null || custom.Settings == null ? new SettingEntry[0] : custom.Settings).ToList();
+            if (entries.Any(entry => entry == null) || entries.Select(entry => (entry.Setting ?? "").Trim().ToLowerInvariant()).Distinct().Count() != entries.Count)
+            {
+                throw new CommandException(400, "Field 'custom.settings' names each setting once.");
+            }
+            foreach (SettingEntry entry in entries)
+            {
+                if (DifficultySettings.Named(entry.Setting) == null)
+                {
+                    throw new CommandException(400, "Field 'custom.settings' has an unknown setting: " + entry.Setting + "; get_setup lists them.");
+                }
+            }
+            foreach (DifficultySetting setting in DifficultySettings.All)
+            {
+                SettingEntry entry = entries.FirstOrDefault(candidate => string.Equals(candidate.Setting.Trim(), setting.Name, StringComparison.OrdinalIgnoreCase));
+                if (entry == null)
+                {
+                    continue;
+                }
+                string unavailable = setting.Unavailable(values);
+                if (unavailable != null)
+                {
+                    throw new CommandException(409, "The custom difficulty panel does not offer " + setting.Name + " now: " + unavailable + ".");
+                }
+                if (setting.Toggle)
+                {
+                    if (!entry.Enabled.HasValue || entry.Value.HasValue)
+                    {
+                        throw new CommandException(400, setting.Name + " is a checkbox; give enabled: true or false.");
+                    }
+                    setting.WriteToggle(values, entry.Enabled.Value);
+                }
+                else
+                {
+                    if (!entry.Value.HasValue || entry.Enabled.HasValue || float.IsNaN(entry.Value.Value) || entry.Value.Value < setting.Min || entry.Value.Value > setting.Max)
+                    {
+                        throw new CommandException(400, setting.Name + " is a slider; give value from " + setting.Min + " to " + setting.Max + " in steps of " + setting.Step + ".");
+                    }
+                    setting.Write(values, entry.Value.Value);
+                }
+            }
+            return values;
+        }
+
+        private static DifficultyDef CustomDifficultyDef()
+        {
+            return DefDatabase<DifficultyDef>.AllDefs.FirstOrDefault(def => def.isCustom);
         }
 
         public static BridgeResponse GenerateWorld(BridgeRequest request, RouteMatch route)
@@ -324,11 +410,19 @@ namespace RiMCP.Command
                     MinRainfall = body.MinRainfall,
                     MaxRainfall = body.MaxRainfall,
                     MinGrowingDays = body.MinGrowingDays,
+                    MinSettlementDistance = body.MinSettlementDistance,
+                    MaxSettlementDistance = body.MaxSettlementDistance,
+                    SettlementRelations = body.SettlementRelations == null ? null : new HashSet<FactionRelationKind>(body.SettlementRelations.Select(name => RequiredEnum<FactionRelationKind>(name, "settlementRelations"))),
+                    AvoidEncroaching = body.AvoidEncroaching == true,
                     Limit = Math.Max(1, Math.Min(50, body.Limit ?? 10))
                 };
+                if (criteria.MinSettlementDistance < 0 || criteria.MaxSettlementDistance < 0 || criteria.MinSettlementDistance > criteria.MaxSettlementDistance)
+                {
+                    throw new CommandException(400, "Settlement distances are world tiles from 0, with minSettlementDistance no more than maxSettlementDistance.");
+                }
                 string worldId = SiteSearch.WorldId();
                 return operation => SiteSearch.Run(operation, criteria, worldId);
-            }, Join(body.Biomes), Join(body.Hilliness), body.River, body.Road, body.Coastal, body.MinTemperature, body.MaxTemperature, body.MinRainfall, body.MaxRainfall, body.MinGrowingDays, body.Limit, SiteSearch.WorldId());
+            }, Join(body.Biomes), Join(body.Hilliness), body.River, body.Road, body.Coastal, body.MinTemperature, body.MaxTemperature, body.MinRainfall, body.MaxRainfall, body.MinGrowingDays, body.MinSettlementDistance, body.MaxSettlementDistance, Join(body.SettlementRelations), body.AvoidEncroaching, body.Limit, SiteSearch.WorldId());
         }
 
         public static BridgeResponse ChooseStartingSite(BridgeRequest request, RouteMatch route)
@@ -1007,13 +1101,19 @@ namespace RiMCP.Command
                         throw new CommandException(400, "Each name needs a slot from 0 to " + (count - 1) + ", first, and last.");
                     }
                 }
-                if (rerolls.Count == 0 && (body.Names == null || body.Names.Length == 0))
+                int[] order = body.Order;
+                if (order != null && (order.Length != count || order.Distinct().Count() != count || order.Any(slot => slot < 0 || slot >= count)))
                 {
-                    throw new CommandException(400, "Give rerolls, names, or both.");
+                    throw new CommandException(400, "Field 'order' lists every slot from 0 to " + (count - 1) + " once, in the new order; the first " + Find.GameInitData.startingPawnCount + " start.");
+                }
+                List<Preference> preferences = (body.Preferences ?? new PreferenceEntry[0]).Select(entry => ParsePreference(entry, count)).ToList();
+                if (rerolls.Count == 0 && preferences.Count == 0 && order == null && (body.Names == null || body.Names.Length == 0))
+                {
+                    throw new CommandException(400, "Give order, preferences, rerolls, or names.");
                 }
                 int own = SetupController.Revision;
                 NameEntry[] names = body.Names ?? new NameEntry[0];
-                return operation => Rerolls(operation, rerolls, names, own);
+                return operation => Rerolls(operation, order, preferences, rerolls, names, own);
             }, Fingerprint(body));
         }
 
@@ -1029,8 +1129,138 @@ namespace RiMCP.Command
 
         // One native reroll per frame: a single reroll can generate several pawns, until the colony's
         // required work types are covered. Each step first checks nobody else changed the setup.
-        private static IEnumerable<string> Rerolls(Operation operation, List<Reroll> rerolls, NameEntry[] names, int own)
+        private sealed class Preference
         {
+            public int Slot;
+            public DevelopmentalStage? Stage;
+            public XenotypeDef Xenotype;
+            public bool AnyNonArchite;
+        }
+
+        // The colonist card's age and xenotype buttons (Biotech), which set the slot's generation
+        // request; both reroll the colonist, except choosing any non-archite xenotype.
+        private static Preference ParsePreference(PreferenceEntry entry, int count)
+        {
+            if (entry == null || !entry.Slot.HasValue || entry.Slot.Value < 0 || entry.Slot.Value >= count)
+            {
+                throw new CommandException(400, "Each preference needs a slot from 0 to " + (count - 1) + ".");
+            }
+            if (!ModsConfig.BiotechActive)
+            {
+                throw new CommandException(409, "The colonist screen offers age and xenotype choices only with Biotech.");
+            }
+            Preference preference = new Preference { Slot = entry.Slot.Value };
+            if (!string.IsNullOrWhiteSpace(entry.Stage))
+            {
+                DevelopmentalStage stage;
+                string stageName = entry.Stage.Trim();
+                if (!new[] { "Adult", "Child", "Baby" }.Contains(stageName, StringComparer.OrdinalIgnoreCase) || !Enum.TryParse(stageName, true, out stage))
+                {
+                    throw new CommandException(400, "Field 'stage' must be Adult, Child, or Baby.");
+                }
+                if (stage != DevelopmentalStage.Adult && !ScenarioUtility.AllowsChildSelection(Find.Scenario))
+                {
+                    throw new CommandException(409, "MessageDevelopmentalStageSelectionDisabledByScenario".Translate().ToString());
+                }
+                preference.Stage = stage;
+            }
+            if (!string.IsNullOrWhiteSpace(entry.Xenotype))
+            {
+                if (string.Equals(entry.Xenotype.Trim(), "anyNonArchite", StringComparison.OrdinalIgnoreCase))
+                {
+                    preference.AnyNonArchite = true;
+                }
+                else
+                {
+                    preference.Xenotype = DefNamed<XenotypeDef>(entry.Xenotype, "xenotype");
+                }
+            }
+            if (!preference.Stage.HasValue && preference.Xenotype == null && !preference.AnyNonArchite)
+            {
+                throw new CommandException(400, "Each preference sets stage, xenotype, or both.");
+            }
+            return preference;
+        }
+
+        // As the screen's drag to reorder does, one colonist at a time.
+        private static void Reorder(int[] order)
+        {
+            List<Pawn> pawns = Find.GameInitData.startingAndOptionalPawns;
+            List<Pawn> wanted = order.Select(slot => pawns[slot]).ToList();
+            for (int to = 0; to < wanted.Count; to++)
+            {
+                int from = pawns.IndexOf(wanted[to]);
+                if (from == to)
+                {
+                    continue;
+                }
+                Pawn pawn = pawns[from];
+                pawns.Insert(to, pawn);
+                pawns.RemoveAt(from < to ? from : from + 1);
+                StartingPawnUtility.ReorderRequests(from, to);
+            }
+        }
+
+        // Returns whether the colonist was rerolled.
+        private static bool Prefer(Preference preference)
+        {
+            PawnGenerationRequest request = StartingPawnUtility.GetGenerationRequest(preference.Slot);
+            bool reroll = false;
+            bool changed = false;
+            if (preference.Stage.HasValue && !request.AllowedDevelopmentalStages.Has(preference.Stage.Value))
+            {
+                request.AllowedDevelopmentalStages = preference.Stage.Value;
+                request.AllowDowned = preference.Stage.Value == DevelopmentalStage.Baby;
+                reroll = true;
+                changed = true;
+            }
+            if (preference.AnyNonArchite && (request.ForcedXenotype != null || request.ForcedCustomXenotype != null))
+            {
+                request.ForcedXenotype = null;
+                request.ForcedCustomXenotype = null;
+                request.AllowedXenotypes = DefDatabase<XenotypeDef>.AllDefs.Where(xenotype => !xenotype.Archite && xenotype != XenotypeDefOf.Baseliner).ToList();
+                request.ForceBaselinerChance = 0.5f;
+                changed = true;
+            }
+            else if (preference.Xenotype != null && request.ForcedXenotype != preference.Xenotype)
+            {
+                request.ForcedXenotype = preference.Xenotype;
+                request.ForcedCustomXenotype = null;
+                request.AllowedXenotypes = null;
+                request.ForceBaselinerChance = 0f;
+                reroll = true;
+                changed = true;
+            }
+            if (changed)
+            {
+                StartingPawnUtility.SetGenerationRequest(preference.Slot, request);
+            }
+            if (reroll)
+            {
+                StartingPawnUtility.RandomizePawn(preference.Slot);
+            }
+            return reroll;
+        }
+
+        // Order first; preferences, rerolls, and names then refer to slots in the new order.
+        private static IEnumerable<string> Rerolls(Operation operation, int[] order, List<Preference> preferences, List<Reroll> rerolls, NameEntry[] names, int own)
+        {
+            if (order != null)
+            {
+                SetupController.Continue(operation, own);
+                Reorder(order);
+                own = SetupController.Changed();
+                operation.Result = RerollResult(rerolls);
+                yield return "reordering";
+            }
+            foreach (Preference preference in preferences)
+            {
+                SetupController.Continue(operation, own);
+                Prefer(preference);
+                own = SetupController.Changed();
+                operation.Result = RerollResult(rerolls);
+                yield return "settingPreferences";
+            }
             foreach (Reroll reroll in rerolls)
             {
                 while (true)
@@ -1295,7 +1525,9 @@ namespace RiMCP.Command
                         Dto.Field("difficulty", Def(SetupController.Get(page, "difficulty"))),
                         Dto.Field("commitmentMode", Find.GameInitData.permadeathChosen ? (object)Find.GameInitData.permadeath : null),
                         Dto.Field("storytellers", DefDatabase<StorytellerDef>.AllDefs.Where(def => def.listVisible).OrderBy(def => def.listOrder).Select(def => def.defName).ToArray()),
-                        Dto.Field("difficulties", DefDatabase<DifficultyDef>.AllDefs.Where(def => !def.isCustom).Select(def => def.defName).ToArray()));
+                        Dto.Field("difficulties", DefDatabase<DifficultyDef>.AllDefs.Where(def => !def.isCustom).Select(def => def.defName).ToArray()),
+                        Dto.Field("customDifficulty", CustomDifficultyDef() == null ? null : CustomDifficultyDef().defName),
+                        Dto.Field("customSettings", CustomSettingsShown(page)));
                 case SetupController.World:
                     return Dto.Obj(
                         Dto.Field("seed", SetupController.Get(page, "seedString")),
@@ -1345,10 +1577,20 @@ namespace RiMCP.Command
                 case SetupController.Pawns:
                     return Dto.Obj(
                         Dto.Field("startingCount", Find.GameInitData.startingPawnCount),
-                        Dto.Field("roster", Roster()));
+                        Dto.Field("roster", Roster()),
+                        Dto.Field("childSelection", ModsConfig.BiotechActive ? (object)ScenarioUtility.AllowsChildSelection(Find.Scenario) : null),
+                        Dto.Field("xenotypes", ModsConfig.BiotechActive ? DefDatabase<XenotypeDef>.AllDefs.OrderBy(xenotype => -xenotype.displayPriority).Select(xenotype => xenotype.defName).ToArray() : null));
                 default:
                     return null;
             }
+        }
+
+        // The custom panel's settings with the values it would start from or shows now.
+        private static object[] CustomSettingsShown(Page page)
+        {
+            DifficultyDef current = SetupController.Get(page, "difficulty") as DifficultyDef;
+            Difficulty values = current != null && current.isCustom ? (Difficulty)SetupController.Get(page, "difficultyValues") : new Difficulty(DifficultyDefOf.Rough);
+            return DifficultySettings.All.Select(setting => setting.ToDto(values)).ToArray();
         }
 
         private static object[] Roster()
@@ -1365,7 +1607,18 @@ namespace RiMCP.Command
                     Dto.Field("skill", skill.def.defName),
                     Dto.Field("level", skill.TotallyDisabled ? null : (object)skill.Level),
                     Dto.Field("passion", skill.passion == Passion.None ? null : skill.passion.ToString()))).ToArray()),
-                Dto.Field("cannotDo", DefDatabase<WorkTypeDef>.AllDefs.Where(pawn.WorkTypeIsDisabled).Select(work => work.defName).ToArray()))).ToArray();
+                Dto.Field("cannotDo", DefDatabase<WorkTypeDef>.AllDefs.Where(pawn.WorkTypeIsDisabled).Select(work => work.defName).ToArray()),
+                Dto.Field("stage", ModsConfig.BiotechActive ? pawn.DevelopmentalStage.ToString() : null),
+                Dto.Field("xenotype", !ModsConfig.BiotechActive || pawn.genes == null ? null : pawn.genes.UniqueXenotype ? pawn.genes.xenotypeName : pawn.genes.Xenotype.defName),
+                Dto.Field("preference", ModsConfig.BiotechActive ? PreferenceShown(slot) : null))).ToArray();
+        }
+
+        private static object PreferenceShown(int slot)
+        {
+            PawnGenerationRequest request = StartingPawnUtility.GetGenerationRequest(slot);
+            return Dto.Obj(
+                Dto.Field("stage", request.AllowedDevelopmentalStages.ToString()),
+                Dto.Field("xenotype", request.ForcedXenotype != null ? request.ForcedXenotype.defName : request.ForcedCustomXenotype != null ? request.ForcedCustomXenotype.name : request.AllowedXenotypes != null ? "anyNonArchite" : null));
         }
 
         private static string Summary()
@@ -1451,6 +1704,14 @@ namespace RiMCP.Command
         private static PawnCriteria Criteria(RerollEntry entry)
         {
             PawnCriteria criteria = new PawnCriteria { MinAge = entry.MinAge, MaxAge = entry.MaxAge };
+            if (entry.Xenotypes != null)
+            {
+                if (!ModsConfig.BiotechActive)
+                {
+                    throw new CommandException(409, "Xenotypes need Biotech.");
+                }
+                criteria.Xenotypes = DefList<XenotypeDef>(entry.Xenotypes, "xenotypes");
+            }
             foreach (SkillEntry skill in entry.Skills ?? new SkillEntry[0])
             {
                 SkillDef def = skill == null ? null : DefDatabase<SkillDef>.GetNamedSilentFail((skill.Skill ?? "").Trim());
@@ -1469,7 +1730,7 @@ namespace RiMCP.Command
             }
             if (criteria.Empty)
             {
-                throw new CommandException(400, "A reroll needs at least one criterion: skills, traits, excludeTraits, canDo, minAge, or maxAge.");
+                throw new CommandException(400, "A reroll needs at least one criterion: skills, traits, excludeTraits, canDo, xenotypes, minAge, or maxAge.");
             }
             return criteria;
         }
@@ -1516,9 +1777,11 @@ namespace RiMCP.Command
 
         private static string Fingerprint(PawnsBody body)
         {
-            string rerolls = string.Join(";", (body.Rerolls ?? new RerollEntry[0]).Select(entry => entry == null ? "-" : entry.Slot + ":" + Join(entry.Traits) + ":" + Join(entry.ExcludeTraits) + ":" + Join(entry.CanDo) + ":" + entry.MinAge + "-" + entry.MaxAge + ":" + entry.MaxAttempts + ":" + string.Join(",", (entry.Skills ?? new SkillEntry[0]).Select(skill => skill == null ? "-" : skill.Skill + skill.Min + skill.Passion).ToArray())).ToArray());
+            string rerolls = string.Join(";", (body.Rerolls ?? new RerollEntry[0]).Select(entry => entry == null ? "-" : entry.Slot + ":" + Join(entry.Traits) + ":" + Join(entry.ExcludeTraits) + ":" + Join(entry.CanDo) + ":" + Join(entry.Xenotypes) + ":" + entry.MinAge + "-" + entry.MaxAge + ":" + entry.MaxAttempts + ":" + string.Join(",", (entry.Skills ?? new SkillEntry[0]).Select(skill => skill == null ? "-" : skill.Skill + skill.Min + skill.Passion).ToArray())).ToArray());
             string names = string.Join(";", (body.Names ?? new NameEntry[0]).Select(entry => entry == null ? "-" : entry.Slot + ":" + entry.First + "/" + entry.Nick + "/" + entry.Last).ToArray());
-            return rerolls + "|" + names + "|" + body.ExpectedRevision;
+            string order = body.Order == null ? "-" : string.Join(",", body.Order.Select(slot => slot.ToString()).ToArray());
+            string preferences = string.Join(";", (body.Preferences ?? new PreferenceEntry[0]).Select(entry => entry == null ? "-" : entry.Slot + ":" + entry.Stage + ":" + entry.Xenotype).ToArray());
+            return rerolls + "|" + names + "|" + order + "|" + preferences + "|" + body.ExpectedRevision;
         }
 
         [DataContract]
@@ -1545,7 +1808,23 @@ namespace RiMCP.Command
             [DataMember(Name = "storyteller")] public string Storyteller { get; set; }
             [DataMember(Name = "difficulty")] public string Difficulty { get; set; }
             [DataMember(Name = "commitmentMode")] public bool? CommitmentMode { get; set; }
+            [DataMember(Name = "custom")] public CustomBody Custom { get; set; }
             [DataMember(Name = "expectedRevision")] public int? ExpectedRevision { get; set; }
+        }
+
+        [DataContract]
+        private sealed class CustomBody
+        {
+            [DataMember(Name = "base")] public string Base { get; set; }
+            [DataMember(Name = "settings")] public SettingEntry[] Settings { get; set; }
+        }
+
+        [DataContract]
+        private sealed class SettingEntry
+        {
+            [DataMember(Name = "setting")] public string Setting { get; set; }
+            [DataMember(Name = "value")] public float? Value { get; set; }
+            [DataMember(Name = "enabled")] public bool? Enabled { get; set; }
         }
 
         [DataContract]
@@ -1575,6 +1854,10 @@ namespace RiMCP.Command
             [DataMember(Name = "minRainfall")] public float? MinRainfall { get; set; }
             [DataMember(Name = "maxRainfall")] public float? MaxRainfall { get; set; }
             [DataMember(Name = "minGrowingDays")] public int? MinGrowingDays { get; set; }
+            [DataMember(Name = "minSettlementDistance")] public float? MinSettlementDistance { get; set; }
+            [DataMember(Name = "maxSettlementDistance")] public float? MaxSettlementDistance { get; set; }
+            [DataMember(Name = "settlementRelations")] public string[] SettlementRelations { get; set; }
+            [DataMember(Name = "avoidEncroaching")] public bool? AvoidEncroaching { get; set; }
             [DataMember(Name = "limit")] public int? Limit { get; set; }
             [DataMember(Name = "requestId")] public string RequestId { get; set; }
         }
@@ -1641,6 +1924,8 @@ namespace RiMCP.Command
         [DataContract]
         private sealed class PawnsBody
         {
+            [DataMember(Name = "order")] public int[] Order { get; set; }
+            [DataMember(Name = "preferences")] public PreferenceEntry[] Preferences { get; set; }
             [DataMember(Name = "rerolls")] public RerollEntry[] Rerolls { get; set; }
             [DataMember(Name = "names")] public NameEntry[] Names { get; set; }
             [DataMember(Name = "expectedRevision")] public int? ExpectedRevision { get; set; }
@@ -1655,9 +1940,18 @@ namespace RiMCP.Command
             [DataMember(Name = "traits")] public string[] Traits { get; set; }
             [DataMember(Name = "excludeTraits")] public string[] ExcludeTraits { get; set; }
             [DataMember(Name = "canDo")] public string[] CanDo { get; set; }
+            [DataMember(Name = "xenotypes")] public string[] Xenotypes { get; set; }
             [DataMember(Name = "minAge")] public int? MinAge { get; set; }
             [DataMember(Name = "maxAge")] public int? MaxAge { get; set; }
             [DataMember(Name = "maxAttempts")] public int? MaxAttempts { get; set; }
+        }
+
+        [DataContract]
+        private sealed class PreferenceEntry
+        {
+            [DataMember(Name = "slot")] public int? Slot { get; set; }
+            [DataMember(Name = "stage")] public string Stage { get; set; }
+            [DataMember(Name = "xenotype")] public string Xenotype { get; set; }
         }
 
         [DataContract]
