@@ -942,6 +942,9 @@ internal static class Program
             Check(answered == null, "an answer to another question does nothing");
             answer("confirm-1", false);
             Check(answered == false, "in unattended setup the answer reaches the question asked");
+            Check(OperationState(operation) == "running", "an answered operation goes on");
+            ExpectCommandError(409, () => answer("confirm-1", true));
+            Check(answered == false, "a question is answered once, so a repeat cannot press the button again");
         }
         finally
         {

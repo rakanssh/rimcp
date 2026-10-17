@@ -680,6 +680,12 @@ namespace RiMCP.Command
             {
                 throw new CommandException(409, refusal);
             }
+            // The question is answered once: a repeat before the operation's next step finds nothing
+            // to answer, and the reply shows the operation going on.
+            operation.Answer = null;
+            operation.ConfirmationId = null;
+            operation.Confirmation = null;
+            operation.State = Operation.Running;
             return SessionCommandService.Envelope(true, SessionCommandService.Serialize(operation));
         }
 
