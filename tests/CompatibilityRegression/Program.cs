@@ -220,6 +220,7 @@ internal static class Program
         Test("only unattended setup lets agents answer the game, and only the question asked", CheckAnswerConfirmation);
         Test("ideoligion names follow the dialogs' rules, and precepts sort into the screen's sections", CheckIdeoligionRules);
         Test("disabled groups are refused, and the access endpoint stays reachable", CheckAccessEnforcement);
+        Test("single tools turn on or off as exceptions to their group, and settle back into presets", CheckToolAccess);
         Test("turning off Time ends and pauses a running advance", CheckTimeRevocation);
         Test("cell rectangles are bounded, clipped to the map, and de-duplicated", CheckCellRects);
         Test("rejected cells are all counted but listed only up to a cap", () =>
@@ -667,7 +668,7 @@ internal static class Program
 
     private static void SetAccess(string preset, string[] groups)
     {
-        mod.GetType("RiMCP.Bridge.BridgeRuntime", true).GetMethod("ApplyAccess", Static).Invoke(null, new object[] { preset, groups });
+        mod.GetType("RiMCP.Bridge.BridgeRuntime", true).GetMethod("ApplyAccess", Static, null, new[] { typeof(string), typeof(IEnumerable<string>) }, null).Invoke(null, new object[] { preset, groups });
     }
 
     private static int AccessRevision()
@@ -1256,6 +1257,59 @@ internal static class Program
             }
             SetAccess("full", AllGroups());
             Check(status(send("GET", "/v1/research")) == 200 && AccessRevision() == revision + 2, "enabling again must restore access with a new revision");
+        }
+        finally
+        {
+            SetAccess("full", AllGroups());
+        }
+    }
+
+    private static void CheckToolAccess()
+    {
+        const BindingFlags Members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        Type settingsType = mod.GetType("RiMCP.Settings.RiMCPSettings", true);
+        object settings = Activator.CreateInstance(settingsType);
+        settingsType.GetMethod("EnsureAccess", Members).Invoke(settings, null);
+        IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
+        Func<string, object> spec = name => tools.Cast<object>().First(tool => Field<string>(tool, "Name") == name);
+        Action<string> preset = name => settingsType.GetMethod("SetPreset", Members).Invoke(settings, new object[] { name });
+        Action<string, bool> group = (name, on) => settingsType.GetMethod("SetGroup", Members).Invoke(settings, new object[] { name, on });
+        Action<string, bool> tool = (name, on) => settingsType.GetMethod("SetTool", Members).Invoke(settings, new object[] { spec(name), on });
+        Func<string, bool> isOn = name => (bool)settingsType.GetMethod("IsToolOn", Members).Invoke(settings, new object[] { spec(name) });
+        Func<string> current = () => (string)settingsType.GetField("AccessPreset").GetValue(settings);
+        Func<string, IList> list = field => (IList)settingsType.GetField(field).GetValue(settings);
+
+        preset("control");
+        tool("designate", false);
+        Check(current() == "custom" && !isOn("designate") && isOn("place_blueprint") && list("ToolsOff").Contains("designate"), "turning one tool off leaves the rest of its group on, under Custom");
+        tool("designate", true);
+        Check(current() == "control" && list("ToolsOff").Count == 0, "turning it back on returns to the preset, with no exceptions left");
+        tool("save_game", true);
+        Check(current() == "custom" && isOn("save_game") && !isOn("load_game"), "a tool can be on while its group is off");
+        group("gameSetup", true);
+        Check(isOn("load_game") && list("ToolsOn").Count == 0, "turning its group on drops the group's exceptions");
+        group("gameSettings", true);
+        Check(current() == "full", "choices that amount to a preset are that preset");
+        foreach (string name in new[] { "designate", "designate_animal", "place_blueprint" })
+        {
+            tool(name, false);
+        }
+        IEnumerable<string> groups = ((IEnumerable)settingsType.GetProperty("EnabledGroups", Members).GetValue(settings, null)).Cast<string>();
+        Check(!groups.Contains("orders") && list("ToolsOff").Count == 0, "a group whose every tool is off is the group off, not a list of exceptions");
+        preset("readOnly");
+        Check(list("ToolsOn").Count == 0 && list("ToolsOff").Count == 0 && !isOn("designate"), "choosing a preset clears every exception");
+
+        MethodInfo apply = mod.GetType("RiMCP.Bridge.BridgeRuntime", true).GetMethod("ApplyAccess", Static, null, new[] { typeof(string), typeof(IEnumerable<string>), typeof(IEnumerable<string>), typeof(IEnumerable<string>) }, null);
+        try
+        {
+            apply.Invoke(null, new object[] { "custom", AllGroups(), new string[0], new[] { "designate" } });
+            object access = mod.GetType("RiMCP.Bridge.BridgeRuntime", true).GetProperty("Access", Static).GetValue(null);
+            object response = Invoke("RiMCP.Read.ToolReadService", "GetAccess", access);
+            var data = Json.Deserialize<Dictionary<string, object>>((string)response.GetType().GetField("Body").GetValue(response));
+            var on = ((ArrayList)data["tools"]).Cast<string>().ToList();
+            Check(!on.Contains("designate") && on.Contains("place_blueprint") && data.ContainsKey("revision") && data.ContainsKey("instance"), "the access endpoint lists only the tools that are on, with its version");
+            object refused = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/designations", "PUT", "{\"kind\":\"forbid\"}"));
+            Check((int)refused.GetType().GetField("StatusCode").GetValue(refused) == 403 && ((string)refused.GetType().GetField("Body").GetValue(refused)).Contains("designate is turned off"), "the router refuses a tool turned off on its own, by name");
         }
         finally
         {

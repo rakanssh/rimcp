@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
 use std::io::{self, BufRead, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -16,6 +17,8 @@ use ureq::http::{HeaderValue, Uri};
 const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
 const MAX_RESPONSE_BYTES: u64 = 16 * 1024 * 1024;
 const WORKERS: usize = 8;
+// How often the proxy asks RimMCP whether the tools that are on changed, by default.
+const ACCESS_POLL_SECONDS: u64 = 5;
 
 type ProxyError = Box<dyn Error>;
 
@@ -26,6 +29,14 @@ struct Proxy {
     agent: ureq::Agent,
     // Ids of tool calls in progress, and whether the client cancelled each one.
     in_flight: Mutex<HashMap<String, bool>>,
+    // A short-timeout agent for the access endpoint, so listing tools never waits long.
+    access_agent: ureq::Agent,
+    access_poll: Option<Duration>,
+    // The access version the client last listed tools at: None before its first list, Some(None)
+    // when RimMCP could not be reached then.
+    listed: Mutex<Option<Option<String>>>,
+    // The access version the client was last told about, so each change is announced once.
+    notified: Mutex<Option<String>>,
 }
 
 enum Dispatch {
@@ -61,6 +72,32 @@ fn serve<W: Write + Send + 'static>(
     let output = Arc::new(Mutex::new(io::BufWriter::new(output)));
     let (calls, queue) = mpsc::channel::<(Value, Value)>();
     let queue = Arc::new(Mutex::new(queue));
+    let stopping = Arc::new(AtomicBool::new(false));
+    let poller = proxy.access_poll.map(|interval| {
+        let (proxy, output, stopping) = (proxy.clone(), output.clone(), stopping.clone());
+        thread::spawn(move || {
+            let mut waited = Duration::ZERO;
+            while !stopping.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_millis(100));
+                waited += Duration::from_millis(100);
+                if waited < interval {
+                    continue;
+                }
+                waited = Duration::ZERO;
+                if let Some((version, _)) = proxy.fetch_access() {
+                    if proxy.should_notify(&version)
+                        && write_line(
+                            &output,
+                            &json!({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}),
+                        )
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+        })
+    });
     let workers: Vec<_> = (0..WORKERS)
         .map(|_| {
             let (proxy, output, queue) = (proxy.clone(), output.clone(), queue.clone());
@@ -81,11 +118,16 @@ fn serve<W: Write + Send + 'static>(
             })
         })
         .collect();
-    read_requests(&proxy, &mut input, &output, &calls)?;
+    let read = read_requests(&proxy, &mut input, &output, &calls);
+    stopping.store(true, Ordering::Relaxed);
+    read?;
     // Input closed: let calls already in progress answer before exiting.
     drop(calls);
     for worker in workers {
         let _ = worker.join();
+    }
+    if let Some(poller) = poller {
+        let _ = poller.join();
     }
     Ok(())
 }
@@ -164,6 +206,10 @@ impl Proxy {
             header.set_sensitive(true);
             Some(header)
         };
+        let poll_seconds = env::var("RIMCP_ACCESS_POLL_SECONDS")
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .unwrap_or(ACCESS_POLL_SECONDS);
         Ok(Self {
             manifest: Manifest::load()?,
             base_url,
@@ -174,7 +220,92 @@ impl Proxy {
                 .build()
                 .into(),
             in_flight: Mutex::new(HashMap::new()),
+            access_agent: access_agent(),
+            access_poll: (poll_seconds > 0).then(|| Duration::from_secs(poll_seconds)),
+            listed: Mutex::new(None),
+            notified: Mutex::new(None),
         })
+    }
+
+    /// The tools that are on in RimMCP now, and the access version they belong to (its instance
+    /// and revision). None when RimMCP cannot be reached or does not say.
+    fn fetch_access(&self) -> Option<(String, HashSet<String>)> {
+        let mut request = ureq::http::Request::builder()
+            .method("GET")
+            .uri(format!("{}/v1/access", self.base_url.trim_end_matches('/')));
+        if let Some(token) = &self.authorization {
+            request = request.header("Authorization", token);
+        }
+        let mut response = self.access_agent.run(request.body(()).ok()?).ok()?;
+        if !response.status().is_success() {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        response
+            .body_mut()
+            .as_reader()
+            .take(MAX_RESPONSE_BYTES)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        let access: Value = serde_json::from_slice(&bytes).ok()?;
+        let tools = access.get("tools")?.as_array()?;
+        let version = format!(
+            "{}:{}",
+            access
+                .get("instance")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            access.get("revision").and_then(Value::as_i64)?
+        );
+        Some((
+            version,
+            tools
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+        ))
+    }
+
+    /// The tools the agent may use: those that are on, or all of them when RimMCP cannot be
+    /// reached (calls then report that it is not running).
+    fn list_tools(&self) -> Value {
+        let access = self.fetch_access();
+        let tools: Vec<&Tool> = match &access {
+            Some((_, on)) => self
+                .manifest
+                .tools
+                .iter()
+                .filter(|tool| on.contains(&tool.name))
+                .collect(),
+            None => self.manifest.tools.iter().collect(),
+        };
+        if let Ok(mut listed) = self.listed.lock() {
+            *listed = Some(access.map(|(version, _)| version));
+        }
+        json!({ "tools": tools })
+    }
+
+    /// Whether to tell the client its tool list changed: only after it has listed tools, only for
+    /// a version other than the one it listed at, and only once per version.
+    fn should_notify(&self, version: &str) -> bool {
+        let Ok(listed) = self.listed.lock() else {
+            return false;
+        };
+        let Some(listed) = listed.as_ref() else {
+            return false;
+        };
+        if listed.as_deref() == Some(version) {
+            return false;
+        }
+        let Ok(mut notified) = self.notified.lock() else {
+            return false;
+        };
+        if notified.as_deref() == Some(version) {
+            return false;
+        }
+        *notified = Some(version.to_string());
+        true
     }
 
     #[cfg(test)]
@@ -260,12 +391,12 @@ impl Proxy {
             "initialize" => Dispatch::Reply(result(
                 id,
                 json!({
-                    "protocolVersion": "2025-11-25", "capabilities": {"tools": {}},
+                    "protocolVersion": "2025-11-25", "capabilities": {"tools": {"listChanged": true}},
                     "serverInfo": {"name": "rimcp", "version": self.manifest.version}
                 }),
             )),
             "notifications/initialized" => Dispatch::Silent,
-            "tools/list" => Dispatch::Reply(result(id, json!({"tools": self.manifest.tools}))),
+            "tools/list" => Dispatch::Reply(result(id, self.list_tools())),
             "tools/call" => Dispatch::Call(
                 id.clone(),
                 fields.get("params").cloned().unwrap_or(Value::Null),
@@ -354,6 +485,14 @@ impl Proxy {
             ),
         }
     }
+}
+
+fn access_agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(3)))
+        .http_status_as_error(false)
+        .build()
+        .into()
 }
 
 fn escape(value: &str) -> String {
@@ -469,6 +608,10 @@ mod tests {
             authorization: None,
             agent: ureq::Agent::config_builder().build().into(),
             in_flight: Mutex::new(HashMap::new()),
+            access_agent: access_agent(),
+            access_poll: None,
+            listed: Mutex::new(None),
+            notified: Mutex::new(None),
         }
     }
 
@@ -518,6 +661,11 @@ mod tests {
     /// A stand-in bridge: `/v1/slow` answers after 400 ms, everything else at once. It records
     /// each request line it receives.
     fn fake_bridge() -> (String, Received) {
+        fake_bridge_with_access(Arc::new(Mutex::new(None)))
+    }
+
+    /// A bridge whose /v1/access answers with the given body, or 404 when there is none.
+    fn fake_bridge_with_access(access: Arc<Mutex<Option<String>>>) -> (String, Received) {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let received = Received::default();
@@ -525,6 +673,7 @@ mod tests {
         thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 let log = log.clone();
+                let access = access.clone();
                 thread::spawn(move || {
                     let mut reader = io::BufReader::new(stream.try_clone().unwrap());
                     let mut request_line = String::new();
@@ -550,10 +699,20 @@ mod tests {
                     if request_line.contains("/v1/slow") {
                         thread::sleep(Duration::from_millis(400));
                     }
-                    let body = r#"{"tick":1}"#;
+                    let (status, body) = if request_line.contains("/v1/access") {
+                        match access.lock().unwrap().clone() {
+                            Some(body) => ("200 OK", body),
+                            None => (
+                                "404 Not Found",
+                                r#"{"error":"Unknown endpoint."}"#.to_string(),
+                            ),
+                        }
+                    } else {
+                        ("200 OK", r#"{"tick":1}"#.to_string())
+                    };
                     write!(
                         &stream,
-                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                         body.len()
                     )
                     .unwrap();
@@ -564,6 +723,11 @@ mod tests {
     }
 
     fn bridge_proxy() -> (Arc<Proxy>, Received) {
+        let (base_url, received) = fake_bridge();
+        (test_proxy(base_url), received)
+    }
+
+    fn test_proxy(base_url: String) -> Arc<Proxy> {
         let tool = |name: &str| Tool {
             name: name.into(),
             description: String::new(),
@@ -574,8 +738,7 @@ mod tests {
             query_keys: Vec::new(),
             body_keys: Vec::new(),
         };
-        let (base_url, received) = fake_bridge();
-        let proxy = Arc::new(Proxy {
+        Arc::new(Proxy {
             manifest: Manifest {
                 version: "test".into(),
                 tools: vec![
@@ -595,8 +758,73 @@ mod tests {
                 .build()
                 .into(),
             in_flight: Mutex::new(HashMap::new()),
-        });
-        (proxy, received)
+            access_agent: access_agent(),
+            access_poll: None,
+            listed: Mutex::new(None),
+            notified: Mutex::new(None),
+        })
+    }
+
+    fn listed_names(proxy: &Proxy) -> Vec<String> {
+        let response = proxy
+            .handle(br#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
+            .unwrap();
+        response["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn agents_see_only_the_tools_that_are_on() {
+        let access = Arc::new(Mutex::new(Some(
+            r#"{"instance":"a","revision":3,"enabled":true,"tools":["fast","cancel"]}"#.to_string(),
+        )));
+        let (base_url, _) = fake_bridge_with_access(access.clone());
+        let proxy = test_proxy(base_url);
+        assert_eq!(listed_names(&proxy), ["fast", "cancel"]);
+        *access.lock().unwrap() =
+            Some(r#"{"instance":"a","revision":4,"enabled":true,"tools":["slow"]}"#.to_string());
+        assert_eq!(listed_names(&proxy), ["slow"]);
+    }
+
+    #[test]
+    fn every_tool_is_listed_when_rimmcp_cannot_say() {
+        let (base_url, _) = fake_bridge_with_access(Arc::new(Mutex::new(None)));
+        assert_eq!(listed_names(&test_proxy(base_url)).len(), 4);
+        let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = closed.local_addr().unwrap();
+        drop(closed);
+        assert_eq!(
+            listed_names(&test_proxy(format!("http://{address}"))).len(),
+            4
+        );
+    }
+
+    #[test]
+    fn a_change_is_announced_once_and_only_after_the_client_listed() {
+        let access = Arc::new(Mutex::new(Some(
+            r#"{"instance":"a","revision":1,"tools":["fast"]}"#.to_string(),
+        )));
+        let (base_url, _) = fake_bridge_with_access(access);
+        let proxy = test_proxy(base_url);
+        assert!(
+            !proxy.should_notify("a:2"),
+            "nothing is announced before the first list"
+        );
+        listed_names(&proxy);
+        assert!(
+            !proxy.should_notify("a:1"),
+            "the version the client listed at is current"
+        );
+        assert!(proxy.should_notify("a:2"));
+        assert!(!proxy.should_notify("a:2"), "a change is announced once");
+        assert!(
+            proxy.should_notify("b:1"),
+            "a restarted RimWorld is a change"
+        );
     }
 
     #[derive(Clone, Default)]

@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The fifty-nine checks cover:
+The sixty checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -58,6 +58,9 @@ The fifty-nine checks cover:
 - Access groups on every tool, preset groups, migration from Allow changes, the
   router refusing disabled groups while the access endpoint stays reachable, and
   turning off Time ending and pausing a running advance.
+- Single tools turned on or off as exceptions to their group: dropped when they agree
+  with it, a group flipping when all its tools do, presets recognised again, and the
+  access endpoint and the router following them.
 - Cell rectangles bounded, clipped to the map and de-duplicated; rejected cells
   all counted but listed up to a cap; and request ids: a retry returns the first
   result whatever its outcome (alreadySatisfied and rejected too) without the command

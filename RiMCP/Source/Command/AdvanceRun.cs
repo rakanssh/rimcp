@@ -262,6 +262,12 @@ namespace RiMCP.Command
         // Replaceable so tests can simulate an observation failure.
         internal static Func<AdvanceObservation> Observer = Observe;
 
+        // Whether an advance is running now.
+        public static bool Running
+        {
+            get { return latest != null && latest.Status == AdvanceRun.Running; }
+        }
+
         public static AdvanceRun LatestInLoadedGame
         {
             get { return latest != null && ReferenceEquals(latest.Game, Current.Game) ? latest : null; }

@@ -83,7 +83,8 @@ namespace RiMCP.Bridge
             { "set-starting-pawns", SetupCommandService.SetStartingPawns },
             { "start-game", SetupCommandService.StartGame },
             { "answer-confirmation", SetupCommandService.AnswerConfirmation },
-            { "tools", ToolReadService.GetTools }
+            { "tools", ToolReadService.GetTools },
+            { "access", (request, route) => ToolReadService.GetAccess(BridgeRuntime.Access) }
         };
 
         // While RimWorld loads, saves, or changes games, the game may be half built, so only these
@@ -118,9 +119,15 @@ namespace RiMCP.Bridge
                         {
                             return BridgeResponse.Error(403, "RimMCP is disabled in its settings.");
                         }
-                        if (!access.Allows(route.Spec.Group))
+                        if (!access.AllowsTool(route.Spec))
                         {
-                            return BridgeResponse.Error(403, (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
+                            return BridgeResponse.Error(403, access.Allows(route.Spec.Group)
+                                ? route.Spec.Name + " is turned off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ")."
+                                : (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
+                        }
+                        if (route.Spec.Name != null)
+                        {
+                            BridgeRuntime.CountCall(route.Spec.Name);
                         }
                         if (!AnswerWhileBusy.Contains(route.Spec.HandlerId) && GameIsChanging())
                         {

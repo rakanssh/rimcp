@@ -51,9 +51,11 @@ The MCP proxy mirrors the structuredContent JSON in text content for clients tha
 ## Using The Mod
 
 1. Open the RimMCP mod settings page.
-2. Click **Copy MCP config** to copy the MCP configuration including the URL and token.
+2. On the **Connection** tab, click **Copy MCP config** to copy the MCP configuration including the URL and token.
 3. Configure your preferred Agentic client with MCP support. (Most agents can configure themselves given the MCP config info)
-4. Choose what agents may do under **Access** in RimMCP settings. New installs start with **Full control**. Pick **Control** (everything but game settings and game setup), **Administration** (reads, colony settings and time control), or **Read only**, or switch individual groups: Observe, Diagnostics, Time, Administration, Orders, Pawn control, Game settings and Game setup (saving, loading, leaving and setting up games). With **Unattended game setup** on, agents also answer the game's questions during setup and start the colony without asking you; it is off by default. A disabled tool is refused with a message naming the group that enables it. Settings from earlier versions carry over: Allow changes on becomes Full control, and off becomes Read only.
+4. Choose what agents may do on the **Access** tab. New installs start with **Full control**. Pick **Control** (everything but game settings and game setup), **Administration** (reads, colony settings and time control), or **Read only**. To go further, turn whole groups on or off (Observe, Diagnostics, Time, Administration, Orders, Pawn control, Game settings and Game setup), or open a group and switch single tools; search finds a tool by name or description. Agents see only the tools that are on, and their tool list updates when you change it. Settings from earlier versions carry over: Allow changes on becomes Full control, and off becomes Read only.
+
+**Agents on** at the top of the settings is the master switch: off stops the bridge, and your access choices are kept for when you turn it back on. In game, the RimMCP button on the bottom bar shows whether agents are on and working; click it to pause them, change the access level, or open the settings. The **Activity** tab counts each tool's calls and lists recent requests. On the **Safety** tab, **Unattended game setup** lets agents answer the game's questions during setup and start the colony without asking you; it is off by default.
 
 If you want MCP to work while RimWorld is alt-tabbed or minimized, enable RimWorld's **Run in background** setting. Otherwise requests will timeout when the game is not in focus.
 

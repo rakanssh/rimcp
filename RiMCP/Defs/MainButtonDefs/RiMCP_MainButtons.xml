@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <MainButtonDef>
+    <defName>RiMCP_QuickControl</defName>
+    <label>RimMCP</label>
+    <description>Agent access: pause agents, change the access level, or open RimMCP settings.</description>
+    <workerClass>RiMCP.UI.MainButtonWorker_RiMCP</workerClass>
+    <order>495</order>
+    <validWithoutMap>true</validWithoutMap>
+    <minimized>true</minimized>
+    <iconPath>UI/RiMCP/QuickControl</iconPath>
+  </MainButtonDef>
+</Defs>

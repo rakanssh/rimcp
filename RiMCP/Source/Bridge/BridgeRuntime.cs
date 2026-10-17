@@ -84,6 +84,12 @@ namespace RiMCP.Bridge
 
         public static BridgeResponse Dispatch(BridgeRequest request)
         {
+            // Polled by the proxy to keep the agent's tool list current. It reads only the immutable
+            // access state, so it answers off the main thread, even with RimWorld in the background.
+            if (request.Method == "GET" && request.Uri.AbsolutePath.TrimEnd('/') == "/v1/access")
+            {
+                return RiMCP.Read.ToolReadService.GetAccess(access);
+            }
             BridgeResponse response = RunOnMainThread(() => BridgeRouter.Handle(request));
             DeferredReply deferred = response.Deferred;
             if (deferred == null)
@@ -130,7 +136,7 @@ namespace RiMCP.Bridge
                 return;
             }
 
-            ApplyAccess(settings.AccessPreset, settings.EnabledGroups);
+            ApplyAccess(settings.AccessPreset, settings.EnabledGroups, settings.EnabledToolsOn, settings.EnabledToolsOff);
             if (server != null && server.IsRunning && server.Port == settings.Port)
             {
                 server.UpdateToken(settings.Token);
@@ -167,21 +173,62 @@ namespace RiMCP.Bridge
         // commands finish within a frame.
         internal static void ApplyAccess(string preset, IEnumerable<string> groups)
         {
+            ApplyAccess(preset, groups, new string[0], new string[0]);
+        }
+
+        // Turning off advance_time ends and pauses an advance the agent owns, and turning off the tool
+        // that started an operation stops it.
+        internal static void ApplyAccess(string preset, IEnumerable<string> groups, IEnumerable<string> toolsOn, IEnumerable<string> toolsOff)
+        {
             string[] enabled = groups.ToArray();
+            string[] on = toolsOn.ToArray();
+            string[] off = toolsOff.ToArray();
             AccessState current = access;
-            if (!current.SameAs(preset, enabled))
+            if (!current.SameAs(preset, enabled, on, off))
             {
-                access = new AccessState(preset, enabled, current.Revision + 1);
+                access = new AccessState(preset, enabled, on, off, current.Revision + 1);
             }
-            if (!access.Allows(ToolGroups.Time))
+            if (!access.AllowsTool("advance_time"))
             {
-                AdvanceRunner.Revoke("Time access was turned off in RimMCP settings.");
+                AdvanceRunner.Revoke(access.Allows(ToolGroups.Time) ? "advance_time was turned off in RimMCP settings." : "Time access was turned off in RimMCP settings.");
             }
             // A queued operation never starts; a running one stops at its next step.
-            if (!access.Allows(ToolGroups.GameSetup))
+            Operation running = OperationRunner.Active;
+            if (running != null && !access.AllowsTool(running.Tool))
             {
-                OperationRunner.Revoke(ToolGroups.GameSetup, "Game setup access was turned off in RimMCP settings.");
+                OperationRunner.Revoke(running.Group, access.Allows(running.Group) ? running.Tool + " was turned off in RimMCP settings." : ToolGroups.Label(running.Group) + " access was turned off in RimMCP settings.");
             }
+        }
+
+        // Calls per tool since RimWorld started, for the settings' Activity tab.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> toolCalls = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+
+        private static DateTime? lastToolCallUtc;
+
+        public static void CountCall(string tool)
+        {
+            toolCalls.AddOrUpdate(tool, 1, (name, count) => count + 1);
+            lastToolCallUtc = DateTime.UtcNow;
+        }
+
+        // An agent counts as working while it called a tool in the last few seconds, or while an
+        // advance or an operation it started is running.
+        public static bool AgentWorking
+        {
+            get
+            {
+                return (lastToolCallUtc.HasValue && (DateTime.UtcNow - lastToolCallUtc.Value).TotalSeconds < 5) || AdvanceRunner.Running || OperationRunner.Active != null;
+            }
+        }
+
+        public static IEnumerable<KeyValuePair<string, int>> ToolCalls
+        {
+            get { return toolCalls.ToArray(); }
+        }
+
+        public static DateTime? LastRequestUtc
+        {
+            get { return server == null ? null : server.LastRequestUtc; }
         }
 
         public static void Stop()

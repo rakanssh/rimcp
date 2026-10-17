@@ -24,11 +24,24 @@ namespace RiMCP.Read
                 .Select(spec =>
                 {
                     Dictionary<string, object> dto = spec.ToDto();
-                    dto["enabled"] = access.Allows(spec.Group);
+                    dto["enabled"] = access.AllowsTool(spec);
                     return dto;
                 })
                 .ToArray();
             return BridgeResponse.Json(200, Json.Serialize(manifest));
+        }
+
+        // What agents may use, small enough to poll: the tools that are on, and a version that
+        // changes with every access change (instance, then revision).
+        public static BridgeResponse GetAccess(AccessState access)
+        {
+            object dto = Dto.Obj(
+                Dto.Field("instance", GameContext.SessionId),
+                Dto.Field("revision", access.Revision),
+                Dto.Field("enabled", access.Enabled),
+                Dto.Field("preset", access.Preset),
+                Dto.Field("tools", ToolManifest.McpTools.Where(access.AllowsTool).Select(spec => spec.Name).ToArray()));
+            return BridgeResponse.Json(200, Json.Serialize(dto));
         }
     }
 }
