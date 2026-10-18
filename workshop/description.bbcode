@@ -8,27 +8,26 @@ RimMCP connects your colony to any AI agent that speaks MCP. Your agent will be 
 
 [h2]What can it do?[/h2]
 [list]
-[*][b]See what you see.[/b] Pawns, stockpiles, bills, research, threats, the map itself, even your mod list and error log.
+[*][b]See what you see.[/b] Pawns, stockpiles, bills, research, threats, the map itself, even your mod list and error log. Keep up with alerts, letters and what happened while you weren't looking.
 [*][b]Tell you what's wrong.[/b] Why nobody is cooking, why the field isn't sown, what's about to rot.
-[*][b]Run the colony.[/b] Zones, stockpiles, blueprints, mining, bills, work priorities, policies, research.
-[*][b]Command your pawns.[/b] Draft, move, attack, rescue, tend, equip.
-[*][b]Mind the clock.[/b] Let time run, and pause the moment something goes wrong.
-[/list]
-
-[h2]Fair play[/h2]
-[list]
-[*][b]Plays by the rules.[/b] Everything goes through the game's own right-click menus, designators and placement rules. The Agent can't cheat.
-[*][b]No peeking.[/b] Fog of war applies. It can't see information not available to you.
-[*][b]Access control.[/b] You can choose how much access the agent has to the game, see table below.
+[*][b]Run the colony.[/b] Zones, stockpiles, blueprints, mining, bills, work priorities, policies, research. Assign beds and thrones to their owners.
+[*][b]Command your pawns.[/b] Draft, move, attack, rescue, tend, equip. Capture, arrest, strip, or prioritize a job through their right-click menus.
+[*][b]Time Control.[/b] Let time run, and pause the moment something important happens.
+[*][b]Make decisions.[/b] Answer letters, accept quests, pick rewards, and handle the questions that follow. The dialogs stay on screen, so you can answer first.
+[*][b]Push the buttons.[/b] Power switches, doors held open, medical beds, hold fire, mortar targets and psycasts. Supported buttons and right-click orders from your mods work too.
+[*][b]Start from scratch.[/b] Pick a scenario, storyteller and difficulty, generate a world, find a starting site, build an ideoligion, and roll colonists to your criteria. All through the game's setup screens while you watch. You approve the start unless you enable unattended setup.
+[*][b]Save your place.[/b] Save, load, or head back to the main menu. Check a save's game version and mods before loading it.
 [/list]
 
 [table]
 [tr][th]Access[/th][th]Agents can[/th][/tr]
-[tr][td][b]Full control[/b] (default)[/td][td]Do everything, including storyteller and difficulty.[/td][/tr]
-[tr][td][b]Control[/b][/td][td]Do everything except change game settings.[/td][/tr]
+[tr][td][b]Full control[/b] (default)[/td][td]Do everything, including storyteller, difficulty, saves and new games.[/td][/tr]
+[tr][td][b]Control[/b][/td][td]Run the colony, including letters and quests, but not change game settings, save, load or set up games.[/td][/tr]
 [tr][td][b]Administration[/b][/td][td]Read, manage colony settings and run time, but not give direct orders.[/td][/tr]
 [tr][td][b]Read only[/b][/td][td]Look, but no actions.[/td][/tr]
 [/table]
+
+Fine-tune access by switching individual tools on or off. The RimMCP button on the bottom bar lets you pause agents or change their access in a click, and the Activity tab shows what they've been doing.
 
 [h2]Things to try[/h2]
 [list]
@@ -37,12 +36,15 @@ RimMCP connects your colony to any AI agent that speaks MCP. Your agent will be 
 [*]"Figure out the most efficient fabric available, order clothes for the colony and set up apparel policies."
 [*]"Which mod is throwing that red error and why?"
 [*]"Destroy the Mechhive, make no mistakes."
+[*]"Find a mountain base with a long growing season, roll me a doctor and a decent cook."
+[*]"Catch me up on what happened and check whether any of these quest rewards are worth the trouble."
+[*]"Turn off the idle benches and stop holding the freezer door open."
 [/list]
 
 [h2]Requirements[/h2]
 [list]
 [*][b]RimWorld 1.6 or 1.7[/b].
-[*]An AI client with support for local (stdio) MCP servers. Tested with Codex & OpenCode.
+[*]An AI client with support for local (stdio) MCP servers. Tested with Codex, Claude Code & OpenCode.
 [/list]
 
 [h2]Setup[/h2]
@@ -58,7 +60,7 @@ RimMCP connects your colony to any AI agent that speaks MCP. Your agent will be 
 
 [b]Performance?[/b] Near 0 impact when idling. When your agent calls tools, most requests are handled in milliseconds.
 
-[b]Multiplayer?[/b] Your agent can look, but anything that changes the game or the clock is refused during a Multiplayer session.
+[b]Multiplayer Mod?[/b] Your agent can look, but anything that changes the game or the clock is refused during a Multiplayer session.
 
 [b]Privacy?[/b] If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?
 
