@@ -162,7 +162,11 @@ namespace RiMCP.Command
                 else if ((thing = building.Place(cell, map)) != null)
                 {
                     outcome = "applied";
-                    placed.Add(building);
+                    // In god mode the build tool builds at once, and nothing blocks a finished building.
+                    if (BuildPlacement.StateOf(thing) != "built")
+                    {
+                        placed.Add(building);
+                    }
                 }
                 else
                 {

@@ -27,6 +27,8 @@ namespace RiMCP
         {
             AdvanceRunner.Update();
             OperationRunner.Update();
+            Interactions.Update();
+            HistoryWatch.Update();
             SetupController.Update();
             FoodHistory.Update();
             BridgeRuntime.ProcessMainThreadQueue();

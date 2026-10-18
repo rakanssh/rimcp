@@ -32,6 +32,11 @@ namespace RiMCP.Bridge
             get { return settings != null && settings.UnattendedSetup; }
         }
 
+        public static bool ModActionsAllowed
+        {
+            get { return settings == null || settings.AllowModActions; }
+        }
+
         public static bool IsRunning
         {
             get { return server != null && server.IsRunning; }
@@ -165,6 +170,7 @@ namespace RiMCP.Bridge
         {
             access = access.Disabled();
             AdvanceRunner.Revoke("RimMCP was disabled in its settings.");
+            Interactions.Revoke(interaction => true, "RimMCP was disabled in its settings.");
             // Every operation stops, whatever its group, including a search.
             Operation running = OperationRunner.Active;
             if (running != null)
@@ -203,6 +209,8 @@ namespace RiMCP.Bridge
             {
                 OperationRunner.Revoke(running.Group, access.Allows(running.Group) ? running.Tool + " was turned off in RimMCP settings." : ToolGroups.Label(running.Group) + " access was turned off in RimMCP settings.");
             }
+            AccessState now = access;
+            Interactions.Revoke(interaction => !now.AllowsTool(interaction.Tool), "The tool that opened the dialog was turned off in RimMCP settings.");
         }
 
         // Calls per tool since RimWorld started, for the settings' Activity tab.

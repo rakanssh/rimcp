@@ -70,6 +70,13 @@ namespace RiMCP.Command
                 throw new CommandException(400, "Field 'requestId' must be 1 to " + MaxRequestIdLength + " characters.");
             }
             RequireTickManager();
+            // A dialog an agent's call opened holds the game paused until it is answered; a retry of
+            // an earlier run still returns it.
+            Interaction waiting = Interactions.OpenNow.FirstOrDefault();
+            if (waiting != null && AdvanceRunner.Recall(body.RequestId) == null)
+            {
+                throw new CommandException(409, "A dialog opened by " + waiting.Tool + " (" + waiting.Id + ") is waiting for an answer; answer or cancel it with answer_dialog first.");
+            }
 
             bool created;
             AdvanceRun run = AdvanceRunner.Start(hours, speed, stopOn, body.RequestId, out created);

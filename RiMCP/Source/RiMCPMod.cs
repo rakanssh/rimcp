@@ -470,6 +470,11 @@ namespace RiMCP
             listing.Label("Off: you approve the start of a new colony and answer the game's questions on screen.");
             GUI.color = Color.white;
             listing.Gap();
+            listing.CheckboxLabeled("Mods' menu options and buttons", ref Settings.AllowModActions, "Lets agents use the right-click options and buttons that mods add. RimMCP cannot check them before they run: they run as your click would, and a target is checked against the mod's own rules before it is given.");
+            GUI.color = Color.gray;
+            listing.Label("Off: agents use only the game's own options and buttons, each checked before it runs.");
+            GUI.color = Color.white;
+            listing.Gap();
             listing.CheckboxLabeled("RimMCP button in game", ref Settings.ShowQuickControl, "The button on the bottom bar that shows whether agents are on and working, and pauses them or changes the access level in a click.");
             GUI.color = Color.gray;
             listing.Label("Shows whether agents are on and working; click it to pause them or change the access level.");

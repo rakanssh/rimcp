@@ -88,10 +88,11 @@ namespace RiMCP.Shared
         public const string Administration = "administration";
         public const string Orders = "orders";
         public const string PawnControl = "pawnControl";
+        public const string Decisions = "decisions";
         public const string GameSettings = "gameSettings";
         public const string GameSetup = "gameSetup";
 
-        public static readonly string[] All = { Observe, Diagnostics, Time, Administration, Orders, PawnControl, GameSettings, GameSetup };
+        public static readonly string[] All = { Observe, Diagnostics, Time, Administration, Orders, PawnControl, Decisions, GameSettings, GameSetup };
 
         public static string Label(string group)
         {
@@ -103,6 +104,7 @@ namespace RiMCP.Shared
                 case Administration: return "Administration";
                 case Orders: return "Orders";
                 case PawnControl: return "Pawn control";
+                case Decisions: return "Decisions";
                 case GameSettings: return "Game settings";
                 case GameSetup: return "Game setup";
                 default: return group;
@@ -119,6 +121,7 @@ namespace RiMCP.Shared
                 case Administration: return "Change work priorities, assignments, policies, bills, research, and animal training.";
                 case Orders: return "Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.";
                 case PawnControl: return "Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.";
+                case Decisions: return "Answer letters and quest offers: who joins the colony, what comes to it, and which rewards.";
                 case GameSettings: return "Change the storyteller, difficulty, and global game options.";
                 case GameSetup: return "Save, load, and leave games, and set up new ones. It can abandon a colony or overwrite a save, so only Full control includes it.";
                 default: return "";
@@ -234,7 +237,17 @@ namespace RiMCP.Shared
                 Get(ToolGroups.Observe, "research", "get_research", "Current research, what stops it (noProject, missingResearchBench, or noResearcher), and paged projects; availableOnly lists those that can start now.", "/v1/research", Input(Prop("availableOnly", Bool("Only projects that can be started now. Needs a loaded colony."))), "availableOnly"),
                 Get(ToolGroups.Observe, "ideoligions", "list_ideoligions", "Ideoligions with identity, memes, culture, and mode flags; active=false and an empty list without Ideology.", "/v1/ideoligions", Input()),
                 Get(ToolGroups.Observe, "ideoligion", "get_ideoligion", "Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.", "/v1/ideoligions/{id}", Required(Prop("id", Str("Ideoligion id returned by list_ideoligions.")))),
-                Get(ToolGroups.Observe, "quests", "list_quests", "List active quests and quest state exposed by RimWorld.", "/v1/quests", Input()),
+                Get(ToolGroups.Observe, "quests", "list_quests", "Quests as the Quests tab lists them, hidden ones left out; tab picks available, active, or historical (with dismissed ones). An available quest shows canAccept (else reason and unmetRequirements), expiresInTicks, rewardChoices (each with index, value, and needsAccepter), and accepters: the colonists who can accept it. An accepted quest shows its accepter and the reward chosen. detail=normal adds the description and parts.", "/v1/quests", Input(Prop("tab", EnumString("Quests tab. Defaults to all three.", "available", "active", "historical"))), "tab"),
+                Post(ToolGroups.Decisions, "answer-letter", "answer_letter", "Answer a letter waiting (letterId) as its dialog does, by option and revision from get_events; refused if its options changed since. dismiss: true dismisses it where the game allows. Shown in game. If the answer leads to another question, dialogs has it for answer_dialog.", "/v1/letters/{letterId}/answer", AnswerLetterInput(), Mutation(false, true), Body("option", "revision", "dismiss", "requestId")),
+                Post(ToolGroups.Decisions, "respond-to-quest", "respond_to_quest", "Accept a quest offer as the Quests tab does, or dismiss or restore a quest. An offer with rewardChoices is accepted for one (reward, its index), and one that needs an accepter takes accepter, one of its accepters in list_quests. If the game asks first, as before giving royal favor, dialogs has the question for answer_dialog. Shown in game.", "/v1/quests/{questId}/response", RespondToQuestInput(), Mutation(false, true), Body("action", "reward", "accepter", "requestId")),
+                Post(ToolGroups.Observe, "answer-dialog", "answer_dialog", "Answer a dialog an agent's call opened (interactionId) by page and option id, as clicking it does, under the same rules as the call that opened it; cancel: true closes it as Escape does, where allowed. Refused once that page is no longer showing: the player answered or closed it, or it moved on or changed, which makes a new page to read. Needs the tool that opened it to be on.", "/v1/interactions/{interactionId}/answer", AnswerDialogInput(), Mutation(false, true), Body("page", "option", "value", "cancel", "aimId", "aimX", "aimZ", "requestId")),
+                Post(ToolGroups.Administration, "assign-owner", "assign_owner", "Assign a pawn to a bed, throne, or other building with owners, or unassign one, with the Assign dialog's checks (who it takes, bed size and kind, ideoligion). Assigning to a full bed replaces an owner, as in game; unassigned lists who lost it.", "/v1/buildings/{buildingId}/owners", AssignOwnerInput(), Mutation(false, true), Body("mapId", "pawnId", "action", "requestId")),
+                Get(ToolGroups.Observe, "pawn-actions", "list_pawn_actions", "The right-click menu a player pawn gets on a thing (targetId) or a cell (x and z), as the game builds it: each option's id, text, disabled, origin (the mod, for mod content), and unsupported with why, such as trading, which opens a window agents cannot use. A thing gives its own options and its cell's; a cell gives everything there. Uses the map shown in game.", "/v1/pawns/{pawnId}/actions", InputWithOptionalMap(true, new[] { "pawnId" }, Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("targetId", Str("A thing's or pawn's ThingID or load id.")), Prop("x", Int("Cell x.", 0, 1000)), Prop("z", Int("Cell z.", 0, 1000))), "targetId", "x", "z"),
+                Post(ToolGroups.PawnControl, "choose-pawn-action", "choose_pawn_action", "Choose an option from list_pawn_actions (its revision and option, with the same target) as clicking it does; refused if the menu changed since. A mod's option that asks for a target takes aimId, or aimX and aimZ, checked against the mod's own rules; without one its targeting is cancelled. dialogs has any question that follows, for answer_dialog.", "/v1/pawns/{pawnId}/actions", ChoosePawnActionInput(), Mutation(false, true), Body("mapId", "targetId", "x", "z", "revision", "option", "aimId", "aimX", "aimZ", "requestId")),
+                Get(ToolGroups.Observe, "gizmos", "list_gizmos", "The buttons a building or pawn (thingId) shows when selected: id, label, kind (toggle with on, action, or target with what it takes), disabledReason, origin, unsupported with why, and the tool that presses it. detail=normal adds descriptions.", "/v1/things/{thingId}/gizmos", InputWithOptionalMap(true, new[] { "thingId" }, Prop("thingId", Str("The building's or pawn's ThingID or load id.")), Prop("detail", EnumString("Defaults to summary.", "summary", "normal", "full")))),
+                Post(ToolGroups.Administration, "set-building-toggle", "set_building_toggle", "Turn one of the game's building toggles on or off (gizmo and revision from list_gizmos), such as a power switch, a door held open, a medical bed, or a turret's hold fire. A power switch changes once a colonist flicks it; pending says so.", "/v1/buildings/{buildingId}/toggles", SetBuildingToggleInput(), IdempotentMutation(), Body("mapId", "gizmo", "revision", "on", "requestId")),
+                Post(ToolGroups.PawnControl, "use-gizmo", "use_gizmo", "Press a button from list_gizmos (gizmo and revision) as a click does: an action, a toggle on a pawn or from a mod (on), or a target button with targetId or x and z, and destinationX and destinationZ for a two-step ability, checked with the button's own rules before it is given. dialogs has any question that follows, for answer_dialog.", "/v1/things/{thingId}/gizmos", UseGizmoInput(), Mutation(false, true), Body("mapId", "gizmo", "revision", "on", "targetId", "x", "z", "destinationX", "destinationZ", "requestId")),
+                Get(ToolGroups.Observe, "events", "get_events", "What the game is telling the player: alerts (with culprits: the pawns, things, or places they concern, up to 10 of culpritCount), letters waiting (text, expiry, quest, and a choice letter's options), and the History tab's letters and messages. Without since, history has the latest entries; with since (history.cursor from the last call), the entries after it, oldest first, with more if another page follows. repeated lists messages the game repeated since; reset means since was from another load, and incomplete that some entries may have been dropped. detail=normal adds alert explanations and letter texts in history.", "/v1/events", ObjectSchema(J(F("since", Str("history.cursor from the previous call.")), F("limit", Int("History entries; defaults to 20.", 1, 100)), F("detail", EnumString("Defaults to summary.", "summary", "normal", "full")))), "since"),
                 Get(ToolGroups.Observe, "buildings", "list_buildings", "Colony buildings, compact by default; detail=normal adds size, passability, power, battery, fuel, and billGiver. category filters by production, power, bed, storage, or a defName substring; include=[\"contents\"] adds storage contents.", "/v1/buildings", Input(Prop("category", BuildingCategory())), "category"),
                 Get(ToolGroups.Observe, "building", "get_building", "One building by ThingID or load id: size, passability, power, fuel, bills, and storage contents.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")))),
                 Get(ToolGroups.Observe, "world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input()),
@@ -535,6 +548,101 @@ namespace RiMCP.Shared
             props["confirmationId"] = Str("The confirmationId get_operation shows for the question.");
             props["accept"] = Bool("true to go ahead, as the game's confirm button; false to go back.");
             return ObjectSchema(props, "operationId", "confirmationId", "accept");
+        }
+
+        private static Dictionary<string, object> SafeRetry()
+        {
+            return J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat returns the first result without acting again." + RetryWindow));
+        }
+
+        private static Dictionary<string, object> AnswerLetterInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["letterId"] = J(F("type", "integer"), F("minimum", 0), F("description", "The letter's id from get_events."));
+            props["option"] = Str("The option's id from the letter's options in get_events.");
+            props["revision"] = Str("The letter's revision from get_events, with option.");
+            props["dismiss"] = Bool("Dismiss the letter instead of answering it, as right-clicking it does.");
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "letterId");
+        }
+
+        private static Dictionary<string, object> RespondToQuestInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["questId"] = J(F("type", "integer"), F("minimum", 0), F("description", "The quest's id from list_quests."));
+            props["action"] = EnumString("accept an offer; dismiss a quest to the Historical tab, or restore it.", "accept", "dismiss", "restore");
+            props["reward"] = J(F("type", "integer"), F("minimum", 0), F("description", "For accept: the index of one of the quest's rewardChoices."));
+            props["accepter"] = Str("For accept: a colonist's id from the quest's accepters.");
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "questId", "action");
+        }
+
+        private static Dictionary<string, object> AnswerDialogInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["interactionId"] = Str("The dialog's interactionId.");
+            props["page"] = J(F("type", "integer"), F("minimum", 1), F("description", "The page the options were read from."));
+            props["option"] = Str("The option's id on that page.");
+            props["value"] = J(F("type", "integer"), F("description", "For a count dialog: the count, within its valueRange."));
+            props["cancel"] = Bool("Close the dialog as Escape does, instead of choosing an option.");
+            props["aimId"] = Str("For an answer that asks for a target: a thing's ThingID or load id.");
+            props["aimX"] = Int("For an answer that asks for a target: cell x.", 0, 1000);
+            props["aimZ"] = Int("For an answer that asks for a target: cell z.", 0, 1000);
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "interactionId", "page");
+        }
+
+        private static Dictionary<string, object> AssignOwnerInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["buildingId"] = Str("The bed's or building's ThingID or load id.");
+            props["pawnId"] = Str("The pawn's ThingID or load id.");
+            props["action"] = EnumString("Defaults to assign.", "assign", "unassign");
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "buildingId", "pawnId");
+        }
+
+        private static Dictionary<string, object> ChoosePawnActionInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["pawnId"] = Str("Pawn ThingID or load id.");
+            props["targetId"] = Str("The thing the menu was read on, as in list_pawn_actions.");
+            props["x"] = Int("The cell the menu was read on: x.", 0, 1000);
+            props["z"] = Int("The cell the menu was read on: z.", 0, 1000);
+            props["revision"] = Str("The menu's revision from list_pawn_actions.");
+            props["option"] = Str("The option's id.");
+            props["aimId"] = Str("For a mod's option that asks for a target: a thing's ThingID or load id.");
+            props["aimX"] = Int("For a mod's option that asks for a target: cell x.", 0, 1000);
+            props["aimZ"] = Int("For a mod's option that asks for a target: cell z.", 0, 1000);
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "pawnId", "revision", "option");
+        }
+
+        private static Dictionary<string, object> SetBuildingToggleInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["buildingId"] = Str("The building's ThingID or load id.");
+            props["gizmo"] = Str("The toggle's id from list_gizmos.");
+            props["revision"] = Str("The buttons' revision from list_gizmos.");
+            props["on"] = Bool("Whether the toggle should be on.");
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "buildingId", "gizmo", "revision", "on");
+        }
+
+        private static Dictionary<string, object> UseGizmoInput()
+        {
+            Dictionary<string, object> props = MapProperty();
+            props["thingId"] = Str("The building's or pawn's ThingID or load id.");
+            props["gizmo"] = Str("The button's id from list_gizmos.");
+            props["revision"] = Str("The buttons' revision from list_gizmos.");
+            props["on"] = Bool("For a toggle: whether it should be on.");
+            props["targetId"] = Str("For a target button: a thing's or pawn's ThingID or load id.");
+            props["x"] = Int("For a target button: cell x.", 0, 1000);
+            props["z"] = Int("For a target button: cell z.", 0, 1000);
+            props["destinationX"] = Int("For a two-step ability: the destination's x.", 0, 1000);
+            props["destinationZ"] = Int("For a two-step ability: the destination's z.", 0, 1000);
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "thingId", "gizmo", "revision");
         }
 
         private static Dictionary<string, object> OperationWaitSeconds()

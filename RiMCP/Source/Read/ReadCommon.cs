@@ -419,7 +419,7 @@ namespace RiMCP.Read
             return Dto.Obj(
                 Dto.Field("ids", ThingIds(thing)),
                 Dto.Field("def", Def(thing.def)),
-                Dto.Field("label", thing.LabelCap));
+                Dto.Field("label", thing.LabelCap.StripTags()));
         }
 
         // A thing someone holds, such as a pawn's weapon or what a container stores, is where its

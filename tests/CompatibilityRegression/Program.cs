@@ -88,7 +88,26 @@ internal static class Program
         Test("quest listing at main menu is empty", () =>
         {
             Check(Rows(Data(Call("QuestWorldReadService", "ListQuests", "/v1/quests"))["quests"]).Count == 0, "quests must be empty");
+            Check(Rows(Data(Call("QuestWorldReadService", "ListQuests", "/v1/quests?tab=available"))["quests"]).Count == 0, "a tab of no quests must be empty");
+            ExpectBridgeError(400, () => Invoke("RiMCP.Read.QuestWorldReadService", "ListQuests", Request("/v1/quests?tab=finished"), Route()));
         });
+        Test("events need a loaded game", () =>
+        {
+            ExpectBridgeError(409, () => Invoke("RiMCP.Read.EventReadService", "GetEvents", Request("/v1/events"), Route()));
+        });
+        Test("History pages by message id and by tick, reports repeats once, starts over after a load, and flags recorded losses after the cursor", CheckHistoryPaging);
+        Test("the History watch, on the game's own archive, sees culled entries go and flags arrivals culled between looks", CheckHistoryWatch);
+        Test("dialog answers name the page they read, and the player answering, closing, cancel, and revoked access end the interaction", CheckInteractionPages);
+        Test("a count dialog takes a value within its range, and other dialogs take none", CheckCountDialog);
+        Test("a player's answer that leaves the dialog open ends the agent's part, and changed options make a new page", CheckDialogTakeover);
+        Test("dialog answers follow the press rules and keep their receipts after the dialog is forgotten", CheckDialogPressRules);
+        Test("an answer to options that shrank since they were read is refused before its option's code is looked up", CheckLateAnswer);
+        Test("a press that fails cancels the targeting it started and settles its dialog, and none runs while the player targets", CheckPressFailure);
+        Test("letter revisions belong to one loaded game", CheckLetterRevision);
+        Test("every right-click menu provider and button type in the game is classified", CheckGameActionTables);
+        Test("options and buttons are the game's only when their code is, and the audited ones are refused", CheckActionOrigins);
+        Test("the audit tables name launching, comms calls, ceremonies, and permits", CheckAuditedOrigins);
+        Test("game buttons and options are refused by the code they compose: ritual ability parts, a sealable, a bed's owner code, and a comms call", CheckComposedAudit);
         Test("ideology enumeration without a world is empty", () =>
         {
             // This is the exact enumerable used by both ideology endpoints.
@@ -200,7 +219,7 @@ internal static class Program
         {
             IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
             Dictionary<string, int> counts = tools.Cast<object>().GroupBy(tool => Field<string>(tool, "Group") ?? "(none)").ToDictionary(group => group.Key, group => group.Count());
-            var expected = new Dictionary<string, int> { { "observe", 34 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 10 }, { "orders", 3 }, { "pawnControl", 2 }, { "gameSettings", 1 }, { "gameSetup", 14 } };
+            var expected = new Dictionary<string, int> { { "observe", 38 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 12 }, { "orders", 3 }, { "pawnControl", 4 }, { "decisions", 2 }, { "gameSettings", 1 }, { "gameSetup", 14 } };
             int count;
             Check(counts.Count == expected.Count && expected.All(pair => counts.TryGetValue(pair.Key, out count) && count == pair.Value),
                 "group sizes: " + string.Join(", ", counts.Select(pair => pair.Key + "=" + pair.Value).ToArray()));
@@ -591,6 +610,588 @@ internal static class Program
     private static string[] Events(object run)
     {
         return Field<IEnumerable>(run, "Events").Cast<object>().Select(change => Field<string>(change, "Kind")).ToArray();
+    }
+
+    private static void CheckHistoryPaging()
+    {
+        // Message_5 was loaded from a save, so its frame is from the session that made it.
+        var entries = new List<object> { HistoryEntry("Letter_1", 10), HistoryEntry("Message_5", 12, 5, 999999), HistoryEntry("Letter_2", 20), HistoryEntry("Message_6", 20, 6, 110) };
+        object first = HistoryPage(entries, null, 3, "load-a", 200, 20);
+        Check(HistoryIds(first, "Entries").SequenceEqual(new[] { "Message_5", "Letter_2", "Message_6" }), "without a cursor, the latest entries come oldest first: " + string.Join(",", HistoryIds(first, "Entries")));
+        Check(!Field<bool>(first, "More") && !Field<bool>(first, "Reset"), "the first page covers everything there");
+
+        // Letter_0, a quest's letter numbered early, arrives late; Letter_9 arrives at the cursor's
+        // own tick while paused.
+        entries.Add(HistoryEntry("Letter_0", 30));
+        entries.Add(HistoryEntry("Message_7", 25, 7, 300));
+        entries.Add(HistoryEntry("Message_8", 31, 8, 310));
+        entries.Add(HistoryEntry("Letter_9", 20));
+        object second = HistoryPage(entries, HistoryCursor(first), 2, "load-a", 400, 31);
+        Check(HistoryIds(second, "Entries").SequenceEqual(new[] { "Letter_9", "Message_7" }) && Field<bool>(second, "More"), "the first new page, oldest first, with more to come: " + string.Join(",", HistoryIds(second, "Entries")));
+        object third = HistoryPage(entries, HistoryCursor(second), 2, "load-a", 410, 31);
+        Check(HistoryIds(third, "Entries").SequenceEqual(new[] { "Letter_0", "Message_8" }) && !Field<bool>(third, "More"), "the next page continues without gaps or repeats: " + string.Join(",", HistoryIds(third, "Entries")));
+        object quiet = HistoryPage(entries, HistoryCursor(third), 2, "load-a", 420, 31);
+        Check(HistoryIds(quiet, "Entries").Length == 0 && HistoryIds(quiet, "Repeated").Length == 0, "with nothing new, nothing is returned");
+
+        // The game repeats Message_6 while it shows: same id, a later tick and frame.
+        entries[3] = HistoryEntry("Message_6", 40, 6, 500);
+        object repeat = HistoryPage(entries, HistoryCursor(quiet), 20, "load-a", 510, 40);
+        Check(HistoryIds(repeat, "Entries").Length == 0 && HistoryIds(repeat, "Repeated").SequenceEqual(new[] { "Message_6" }), "a repeated message comes back as repeated, not as a new entry");
+        object after = HistoryPage(entries, HistoryCursor(repeat), 20, "load-a", 520, 40);
+        Check(HistoryIds(after, "Entries").Length == 0 && HistoryIds(after, "Repeated").Length == 0, "a repeat is reported once");
+
+        // Paused at the cursor's tick, a repeat moves only the frame; a frame from another
+        // session at that tick is not a repeat.
+        entries[5] = HistoryEntry("Message_7", 40, 7, 530);
+        entries[6] = HistoryEntry("Message_8", 40, 8, 999999);
+        object paused = HistoryPage(entries, HistoryCursor(after), 20, "load-a", 540, 40);
+        Check(HistoryIds(paused, "Repeated").SequenceEqual(new[] { "Message_7" }), "a repeat while paused shows by its frame, counting only this session's frames: " + string.Join(",", HistoryIds(paused, "Repeated")));
+
+        object other = HistoryPage(entries, HistoryCursor(after), 2, "load-b", 600, 40);
+        Check(Field<bool>(other, "Reset") && HistoryIds(other, "Entries").SequenceEqual(new[] { "Message_7", "Message_8" }), "a cursor from another load starts over with the latest entries");
+
+        object loss = Activator.CreateInstance(mod.GetType("RiMCP.Read.HistoryLoss", true));
+        MethodInfo record = loss.GetType().GetMethod("Record");
+        record.Invoke(loss, new[] { HistoryEntry("Letter_1", 10) });
+        record.Invoke(loss, new[] { HistoryEntry("Message_5", 12, 5, 999999) });
+        Check(!Field<bool>(HistoryPage(entries, HistoryCursor(after), 20, "load-a", 700, 40, loss), "Incomplete"), "losing entries already read is no gap");
+        record.Invoke(loss, new[] { HistoryEntry("Message_9", 41, 9, 600) });
+        Check(Field<bool>(HistoryPage(entries, HistoryCursor(after), 20, "load-a", 700, 41, loss), "Incomplete"), "losing a message after the cursor is a gap, though entries read are still there");
+        object late = Activator.CreateInstance(mod.GetType("RiMCP.Read.HistoryLoss", true));
+        late.GetType().GetMethod("Record").Invoke(late, new[] { HistoryEntry("Letter_20", 45) });
+        Check(Field<bool>(HistoryPage(entries, HistoryCursor(after), 20, "load-a", 700, 46, late), "Incomplete"), "losing a letter after the cursor is a gap");
+        ExpectBridgeError(400, () => HistoryPage(entries, "not-a-cursor", 20, "load-a", 0, 0));
+    }
+
+    private static void CheckInteractionPages()
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        Func<FakeDialog, object> start = fake => runner.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "Test letter", FakeAdapter(fake), null, null });
+        Action<object, int, string> answer = (interaction, page, option) => AnswerPage(interaction, page, option, null);
+
+        var fake = new FakeDialog();
+        fake.OnChoose = id => fake.Key = "second";
+        object first = start(fake);
+        int page1 = Field<int>(first, "Page");
+        answer(first, page1, "1");
+        int page2 = Field<int>(first, "Page");
+        Check(page2 > page1 && Field<string>(first, "State") == "open" && fake.Chosen.SequenceEqual(new[] { "1" }), "answering moves the dialog on to a new page");
+        ExpectCommandError(409, () => answer(first, page1, "1"));
+        Check(fake.Chosen.Count == 1, "an answer for a page no longer showing chooses nothing");
+        ExpectCommandError(400, () => answer(first, page2, "9"));
+
+        fake.Options[0][2] = "Yes, now";
+        ExpectCommandError(409, () => answer(first, page2, "1"));
+        fake.Options[0][2] = "Yes";
+        mod.GetType("RiMCP.Command.Interactions", true).GetMethod("Update", Static).Invoke(null, null);
+        int page3 = Field<int>(first, "Page");
+        Check(page3 > page2, "options that change, and change back, are new pages to read");
+        fake.NotReady = "still counting down";
+        ExpectCommandError(409, () => answer(first, page3, "1"));
+        fake.NotReady = null;
+        fake.Covered = true;
+        ExpectCommandError(409, () => answer(first, page3, "1"));
+        fake.Covered = false;
+        var disabled = new FakeDialog();
+        disabled.Options[1][3] = "Nobody can go.";
+        object refused = start(disabled);
+        ExpectCommandError(409, () => answer(refused, Field<int>(refused, "Page"), "2"));
+        Check(fake.Chosen.Count == 1 && disabled.Chosen.Count == 0, "refused answers choose nothing");
+
+        fake.OnChoose = id => fake.Open = false;
+        answer(first, page3, "2");
+        Check(Field<string>(first, "State") == "answered", "an answer that closes the dialog ends it");
+        ExpectCommandError(409, () => answer(first, page3, "2"));
+
+        var taken = new FakeDialog();
+        object byPlayer = start(taken);
+        taken.Key = "the player's next question";
+        ExpectCommandError(409, () => answer(byPlayer, Field<int>(byPlayer, "Page"), "1"));
+        Check(Field<string>(byPlayer, "State") == "answeredByPlayer" && taken.Chosen.Count == 0, "the player answering first ends the interaction");
+        var closing = new FakeDialog();
+        object closed = start(closing);
+        closing.Open = false;
+        runner.GetMethod("Update", Static).Invoke(null, null);
+        Check(Field<string>(closed, "State") == "closed", "a dialog closed by the player ends the interaction");
+
+        var cancelling = new FakeDialog();
+        object cancel = start(cancelling);
+        ExpectCommandError(409, () => Invoke("RiMCP.Command.Interactions", "Cancel", cancel, Field<int>(cancel, "Page")));
+        cancelling.CanCancel = true;
+        Invoke("RiMCP.Command.Interactions", "Cancel", cancel, Field<int>(cancel, "Page"));
+        Check(Field<string>(cancel, "State") == "cancelled" && cancelling.Cancelled, "a dialog that allows it is cancelled as Escape does");
+        object revoked = start(new FakeDialog());
+        Type interactionType = mod.GetType("RiMCP.Command.Interaction", true);
+        ParameterExpression each = Expression.Parameter(interactionType);
+        Delegate all = Expression.Lambda(typeof(Func<,>).MakeGenericType(interactionType, typeof(bool)), Expression.Constant(true), each).Compile();
+        runner.GetMethod("Revoke", Static).Invoke(null, new object[] { all, "Turned off." });
+        Check(Field<string>(revoked, "State") == "revoked", "turning the tool off revokes its open dialogs");
+        ExpectCommandError(409, () => answer(revoked, Field<int>(revoked, "Page"), "1"));
+        int newest = Field<int>(start(new FakeDialog()), "Page");
+        Check(newest > page3, "page numbers are never reused");
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+    }
+
+    private static void CheckCountDialog()
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        var fake = new FakeDialog();
+        fake.Options = new List<string[]> { new[] { "ok", "0", "OK", null } };
+        fake.OnChoose = id => fake.Open = false;
+        object adapter = FakeAdapter(fake);
+        int set = -1;
+        adapter.GetType().GetField("Min").SetValue(adapter, 1);
+        adapter.GetType().GetField("Max").SetValue(adapter, 75);
+        adapter.GetType().GetField("SetValue").SetValue(adapter, (Action<int>)(value => set = value));
+        object count = runner.GetMethod("Start", Static).Invoke(null, new object[] { "choose_pawn_action", "Pick up some", adapter, null, null });
+        int page = Field<int>(count, "Page");
+        ExpectCommandError(400, () => AnswerPage(count, page, "ok", null));
+        ExpectCommandError(400, () => AnswerPage(count, page, "ok", 76));
+        Check(set == -1 && fake.Chosen.Count == 0, "a missing or out-of-range count chooses nothing");
+        AnswerPage(count, page, "ok", 30);
+        Check(set == 30 && fake.Chosen.SequenceEqual(new[] { "ok" }) && Field<string>(count, "State") == "answered", "the count is set, then OK chosen");
+        object plain = runner.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "A letter", FakeAdapter(new FakeDialog()), null, null });
+        ExpectCommandError(400, () => AnswerPage(plain, Field<int>(plain, "Page"), "1", 3));
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+    }
+
+    private static void CheckGameActionTables()
+    {
+        Type actions = mod.GetType("RiMCP.Command.GameActions", true);
+        Type[] types;
+        try
+        {
+            types = typeof(Pawn).Assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException e)
+        {
+            // Types that need Unity modules this harness does not load are left out.
+            types = e.Types.Where(type => type != null).ToArray();
+        }
+        List<string> providers = types.Where(type => typeof(FloatMenuOptionProvider).IsAssignableFrom(type) && !type.IsAbstract).Select(type => type.Name).ToList();
+        List<string> classified = ((IDictionary)actions.GetField("Providers", Static).GetValue(null)).Keys.Cast<string>().ToList();
+        Check(providers.Count > 40 && providers.All(classified.Contains), "unclassified providers: " + string.Join(", ", providers.Where(name => !classified.Contains(name)).ToArray()));
+        Check(classified.All(providers.Contains), "the audit names providers the game lacks: " + string.Join(", ", classified.Where(name => !providers.Contains(name)).ToArray()));
+        List<string> buttons = types.Where(type => typeof(Command).IsAssignableFrom(type) && !type.IsAbstract && !typeof(Designator).IsAssignableFrom(type) && type.IsPublic).Select(type => type.Name).ToList();
+        List<string> kinds = ((IDictionary)actions.GetField("ButtonTypes", Static).GetValue(null)).Keys.Cast<string>().ToList();
+        Check(buttons.All(kinds.Contains), "unclassified button types: " + string.Join(", ", buttons.Where(name => !kinds.Contains(name)).ToArray()));
+    }
+
+    private static void CheckActionOrigins()
+    {
+        Type actions = mod.GetType("RiMCP.Command.GameActions", true);
+        MethodInfo forOption = actions.GetMethod("ForOption", Static);
+        MethodInfo forButton = actions.GetMethod("ForButton", Static, null, new[] { typeof(Command) }, null);
+        Func<object, string> modOf = origin => Field<string>(origin, "Mod");
+        Func<object, string> unsupported = origin => Field<string>(origin, "Unsupported");
+        Action fromHere = () => { };
+        Action fromGame = Log.Clear;
+        FloatMenuOptionProvider strip = (FloatMenuOptionProvider)Activator.CreateInstance(typeof(FloatMenuOptionProvider_Strip));
+        FloatMenuOptionProvider trade = (FloatMenuOptionProvider)Activator.CreateInstance(typeof(FloatMenuOptionProvider_Trade));
+        // Made without the constructor, which needs the game's own runtime.
+        Func<Action, FloatMenuOption> option = action =>
+        {
+            FloatMenuOption made = (FloatMenuOption)FormatterServices.GetUninitializedObject(typeof(FloatMenuOption));
+            made.action = action;
+            return made;
+        };
+        object mine = forOption.Invoke(null, new object[] { strip, option(fromHere), null });
+        Check(modOf(mine) != null && unsupported(mine) == null, "an option running a mod's code is mod content, even from a game provider");
+        object game = forOption.Invoke(null, new object[] { trade, option(fromGame), null });
+        Check(modOf(game) == null && unsupported(game) != null, "trading is the game's own and refused: " + unsupported(game));
+        object button = forButton.Invoke(null, new object[] { new Command_Action { action = fromHere } });
+        Check(modOf(button) != null, "a button running a mod's code is mod content");
+        object designator = forButton.Invoke(null, new object[] { FormatterServices.GetUninitializedObject(typeof(Designator_Cancel)) });
+        Check(modOf(designator) == null && unsupported(designator) != null, "designator buttons are refused, for designate");
+        object pressed = forButton.Invoke(null, new object[] { new CustomPress { action = fromGame } });
+        Check(modOf(pressed) != null, "a button whose own press handling is a mod's is mod content");
+    }
+
+    private sealed class CustomPress : Command_Action
+    {
+        public override void ProcessInput(UnityEngine.Event ev)
+        {
+        }
+    }
+
+    private static void CheckDialogTakeover()
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        Func<FakeDialog, object> start = fake => runner.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "A box", FakeAdapter(fake), null, null });
+        Action<object, int, string> answer = (interaction, page, option) => AnswerPage(interaction, page, option, null);
+
+        var box = new FakeDialog();
+        object taken = start(box);
+        box.Activations++;
+        ExpectCommandError(409, () => answer(taken, Field<int>(taken, "Page"), "1"));
+        Check(Field<string>(taken, "State") == "answeredByPlayer" && box.Chosen.Count == 0, "a player's answer that leaves the box open is still the player's");
+
+        var mine = new FakeDialog();
+        object own = start(mine);
+        answer(own, Field<int>(own, "Page"), "1");
+        runner.GetMethod("Update", Static).Invoke(null, null);
+        Check(Field<string>(own, "State") == "open", "the agent's own answer keeps the dialog the agent's");
+
+        var changing = new FakeDialog();
+        object dialog = start(changing);
+        int first = Field<int>(dialog, "Page");
+        changing.Options[1][2] = "No, never";
+        runner.GetMethod("Update", Static).Invoke(null, null);
+        int second = Field<int>(dialog, "Page");
+        Check(second > first, "changed options make a new page");
+        var described = (Dictionary<string, object>)runner.GetMethod("Describe", Static).Invoke(null, new[] { dialog });
+        Check(((object[])described["options"]).Cast<Dictionary<string, object>>().Any(option => (string)option["text"] == "No, never"), "reading again shows the changed options");
+        ExpectCommandError(409, () => answer(dialog, first, "2"));
+        answer(dialog, second, "2");
+        Check(changing.Chosen.SequenceEqual(new[] { "2" }), "the new page can be answered");
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+    }
+
+    private static void CheckDialogPressRules()
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        Func<object> origin = () => Activator.CreateInstance(mod.GetType("RiMCP.Command.ActionOrigin", true));
+        var fake = new FakeDialog();
+        object dialog = runner.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "A letter", FakeAdapter(fake), null, null });
+        string id = Field<string>(dialog, "Id");
+        string body = "{\"page\":" + Field<int>(dialog, "Page") + ",\"option\":\"1\",\"requestId\":\"retry-1\"}";
+        Func<object> send = () => Invoke("RiMCP.Command.DecisionCommandService", "AnswerDialog", Request("/v1/interactions/" + id + "/answer", "POST", body), Route("interactionId", id));
+        object first = send();
+        Check((int)first.GetType().GetField("StatusCode").GetValue(first) == 200 && fake.Chosen.Count == 1, "the answer runs once");
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        object again = send();
+        var json = Json.Deserialize<Dictionary<string, object>>((string)again.GetType().GetField("Body").GetValue(again));
+        Check((int)again.GetType().GetField("StatusCode").GetValue(again) == 200 && !(bool)json["changed"] && fake.Chosen.Count == 1, "a retry gets its receipt after the dialog is forgotten, without answering again");
+
+        Type runtime = mod.GetType("RiMCP.Bridge.BridgeRuntime", true);
+        FieldInfo settingsField = runtime.GetField("settings", Static);
+        object saved = settingsField.GetValue(null);
+        object settings = Activator.CreateInstance(mod.GetType("RiMCP.Settings.RiMCPSettings", true));
+        settings.GetType().GetField("AllowModActions").SetValue(settings, false);
+        try
+        {
+            settingsField.SetValue(null, settings);
+            object modded = origin();
+            modded.GetType().GetField("Mod").SetValue(modded, "Some mod");
+            var modFake = new FakeDialog();
+            object modDialog = runner.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "A mod's menu", FakeAdapter(modFake), null, modded });
+            string modId = Field<string>(modDialog, "Id");
+            string modBody = "{\"page\":" + Field<int>(modDialog, "Page") + ",\"option\":\"1\"}";
+            ExpectCommandError(403, () => Invoke("RiMCP.Command.DecisionCommandService", "AnswerDialog", Request("/v1/interactions/" + modId + "/answer", "POST", modBody), Route("interactionId", modId)));
+            Check(modFake.Chosen.Count == 0, "a mod's dialog is not answered while mods' content is off");
+        }
+        finally
+        {
+            settingsField.SetValue(null, saved);
+            runner.GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckLetterRevision()
+    {
+        Letter letter = (Letter)FormatterServices.GetUninitializedObject(typeof(StandardLetter));
+        letter.ID = 7;
+        Type choiceType = mod.GetType("RiMCP.Read.LetterChoice", true);
+        IList choices = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(choiceType));
+        choices.Add(Activator.CreateInstance(choiceType, 0, "1", "Accept", null));
+        MethodInfo revision = mod.GetType("RiMCP.Read.LetterChoices", true).GetMethod("Revision", Static);
+        string a = (string)revision.Invoke(null, new object[] { "session-1", letter, choices });
+        string b = (string)revision.Invoke(null, new object[] { "session-2", letter, choices });
+        Check(a != b, "the same letter and options in another loaded game have another revision");
+        Check(a == (string)revision.Invoke(null, new object[] { "session-1", letter, choices }), "a revision is stable within one loaded game");
+    }
+
+    private static void CheckAuditedOrigins()
+    {
+        Type actions = mod.GetType("RiMCP.Command.GameActions", true);
+        Func<string, string> button = type => (string)actions.GetMethod("ButtonOriginReason", Static).Invoke(null, new object[] { type });
+        Func<string, string> option = type => (string)actions.GetMethod("OptionOriginReason", Static).Invoke(null, new object[] { type, null });
+        Check(button("CompLaunchable") != null, "launching pods or shuttles goes on to the world map");
+        Check(button("RoyalTitlePermitWorker_CallShuttle") != null, "royal permits go on to a target");
+        Check(option("Faction") != null && option("PassingShip") != null, "comms calls run in the faction or ship called and open later");
+        Check(option("LordToil_BestowingCeremony_Wait") != null, "a bestowing ceremony opens the ritual window");
+        Check(button("Command_Action") == null && option("Building_Door") == null, "ordinary code is not refused");
+
+        object verbButton = forButton(new Command_VerbTarget { verb = new ModVerb() });
+        Check(Field<string>(verbButton, "Mod") != null, "a mod's verb in a stock button is mod content");
+    }
+
+    private static void CheckHistoryWatch()
+    {
+        Type watcherType = mod.GetType("RiMCP.Read.HistoryWatcher", true);
+        object watcher = Activator.CreateInstance(watcherType, true);
+        object loss = Field<object>(watcher, "Loss");
+        Archive archive = new Archive();
+        Action<int> look = tick => watcherType.GetMethod("Look").Invoke(watcher, new object[] { archive, tick });
+        Func<List<object>> entries = () => archive.ArchivablesListForReading.Select(each => Invoke("RiMCP.Read.HistoryEntry", "Of", each)).ToList();
+        for (int i = 0; i < 200; i++) archive.Add(new FakeArchivable("Old_" + i, i));
+        look(1000);
+        string read = HistoryCursor(HistoryPage(entries(), null, 20, "load-a", 0, 1000, loss));
+
+        archive.Add(new FakeArchivable("New_0", 1000));
+        look(1000);
+        object one = HistoryPage(entries(), read, 300, "load-a", 0, 1000, loss);
+        Check(archive.ArchivablesListForReading.All(each => each.GetUniqueLoadID() != "Old_0") && Field<int>(loss, "Unseen") < 0 && !Field<bool>(one, "Incomplete"),
+            "an arrival that culls an entry already read is seen go, and the entries left show nothing else went");
+        Check(HistoryIds(one, "Entries").SequenceEqual(new[] { "New_0" }), "the arrival is read: " + string.Join(",", HistoryIds(one, "Entries")));
+
+        // More arrivals between two looks than the tab keeps: the game culls every older entry, and
+        // one of the new ones before the watch sees it.
+        string caughtUp = HistoryCursor(one);
+        for (int i = 1; i <= 201; i++) archive.Add(new FakeArchivable("New_" + i, 1001));
+        look(1001);
+        Check(archive.ArchivablesListForReading.Count == 200, "the game keeps only its limit");
+        Check(Field<bool>(HistoryPage(entries(), caughtUp, 300, "load-a", 0, 1001, loss), "Incomplete"), "a reader caught up before the burst is told entries may be missing");
+        FieldInfo unseen = loss.GetType().GetField("Unseen");
+        object flagged = unseen.GetValue(loss);
+        unseen.SetValue(loss, -1);
+        Check(!Field<bool>(HistoryPage(entries(), caughtUp, 300, "load-a", 0, 1001, loss), "Incomplete"), "every entry the watch saw go had been read, so only the unseen one makes the gap");
+        unseen.SetValue(loss, flagged);
+
+        string after = HistoryCursor(HistoryPage(entries(), null, 20, "load-a", 0, 1001, loss));
+        look(1001);
+        Check(!Field<bool>(HistoryPage(entries(), after, 300, "load-a", 0, 1001, loss), "Incomplete"), "a reader caught up after the burst is not told again while nothing changes");
+    }
+
+    private sealed class FakeArchivable : IArchivable
+    {
+        private readonly string id;
+        private readonly int tick;
+
+        public FakeArchivable(string id, int tick)
+        {
+            this.id = id;
+            this.tick = tick;
+        }
+
+        public UnityEngine.Texture ArchivedIcon => null;
+        public UnityEngine.Color ArchivedIconColor => default(UnityEngine.Color);
+        public string ArchivedLabel => id;
+        public string ArchivedTooltip => id;
+        public int CreatedTicksGame => tick;
+        public bool CanCullArchivedNow => true;
+        public LookTargets LookTargets => null;
+        public void OpenArchived() { }
+        public void ExposeData() { }
+        public string GetUniqueLoadID() => id;
+    }
+
+    private static void CheckLateAnswer()
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        Type optionType = mod.GetType("RiMCP.Command.DialogOption", true);
+        var fake = new FakeDialog();
+        fake.Options.Add(new[] { "3", "2", "Later", null });
+        object adapter = FakeAdapter(fake);
+        // As in a node tree, an option's code is found by its place among the options showing now.
+        FieldInfo callback = adapter.GetType().GetField("Callback");
+        callback.SetValue(adapter, Typed(callback.FieldType, args => fake.Options[(int)optionType.GetField("Index").GetValue(args[0])] == null ? null : (Action)(() => { })));
+        object dialog = runner.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "A letter", adapter, null, null });
+        string id = Field<string>(dialog, "Id");
+        string body = "{\"page\":" + Field<int>(dialog, "Page") + ",\"option\":\"3\"}";
+        fake.Options.RemoveRange(1, 2);
+        ExpectCommandError(409, () => Invoke("RiMCP.Command.DecisionCommandService", "AnswerDialog", Request("/v1/interactions/" + id + "/answer", "POST", body), Route("interactionId", id)));
+        Check(fake.Chosen.Count == 0, "nothing is chosen");
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+    }
+
+    private static void CheckPressFailure()
+    {
+        Type targets = mod.GetType("RiMCP.Command.Targets", true);
+        FieldInfo active = targets.GetField("Active", Static);
+        FieldInfo cancel = targets.GetField("Cancel", Static);
+        object savedActive = active.GetValue(null);
+        object savedCancel = cancel.GetValue(null);
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        runner.GetMethod("Reset", Static).Invoke(null, null);
+        bool targeting = false;
+        int cancels = 0;
+        try
+        {
+            active.SetValue(null, (Func<bool>)(() => targeting));
+            cancel.SetValue(null, (Action)(() => { targeting = false; cancels++; }));
+            var fake = new FakeDialog();
+            fake.OnChoose = option => { targeting = true; throw new InvalidOperationException("the option failed"); };
+            object dialog = runner.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "A box", FakeAdapter(fake), null, null });
+            string id = Field<string>(dialog, "Id");
+            Func<int, object> answer = page => Invoke("RiMCP.Command.DecisionCommandService", "AnswerDialog",
+                Request("/v1/interactions/" + id + "/answer", "POST", "{\"page\":" + page + ",\"option\":\"1\"}"), Route("interactionId", id));
+            int first = Field<int>(dialog, "Page");
+            bool failed = false;
+            try
+            {
+                answer(first);
+            }
+            catch (InvalidOperationException)
+            {
+                failed = true;
+            }
+            Check(failed, "the option's failure reaches the caller");
+            Check(!targeting && cancels == 1, "targeting the failed press started is cancelled");
+            int settled = Field<int>(dialog, "Page");
+            Check(settled > first && Field<string>(dialog, "State") == "open", "the dialog is settled on a new page, so the failed answer is not taken for the player's");
+
+            targeting = true;
+            ExpectCommandError(409, () => answer(settled));
+            Check(fake.Chosen.Count == 1 && Field<int>(dialog, "Page") == settled && cancels == 1, "while the player targets, nothing runs and their targeting is left alone");
+        }
+        finally
+        {
+            active.SetValue(null, savedActive);
+            cancel.SetValue(null, savedCancel);
+            runner.GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckComposedAudit()
+    {
+        const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        MethodInfo withAbility = mod.GetType("RiMCP.Command.GameActions", true).GetMethod("ForButton", Static, null, new[] { typeof(Command), typeof(Ability) }, null);
+        foreach (Type part in new[] { typeof(CompAbilityEffect_StartRitual), typeof(CompAbilityEffect_StartAnimaLinking) })
+        {
+            Ability ability = (Ability)FormatterServices.GetUninitializedObject(typeof(Ability));
+            ability.comps = new List<AbilityComp> { (AbilityComp)FormatterServices.GetUninitializedObject(part) };
+            VerbTracker verbs = (VerbTracker)FormatterServices.GetUninitializedObject(typeof(VerbTracker));
+            typeof(VerbTracker).GetField("verbs", Fields).SetValue(verbs, new List<Verb>());
+            typeof(Ability).GetField("verbTracker", Fields).SetValue(ability, verbs);
+            object ritual = withAbility.Invoke(null, new object[] { new Command_Action(), ability });
+            Check(Field<string>(ritual, "Mod") == null && Field<string>(ritual, "Unsupported") != null, "a button whose ability has a part (" + part.Name + ") that opens the ritual window is refused");
+        }
+
+        CompSealable sealable = (CompSealable)FormatterServices.GetUninitializedObject(typeof(CompSealable));
+        object seal = forButton(new Command_Action { action = (Action)Delegate.CreateDelegate(typeof(Action), sealable, "Seal") });
+        Check(Field<string>(seal, "Mod") == null && Field<string>(seal, "Unsupported") != null, "an action button running a sealable's code, which asks for a target, is refused");
+        CompAssignableToPawn_Bed bed = (CompAssignableToPawn_Bed)FormatterServices.GetUninitializedObject(typeof(CompAssignableToPawn_Bed));
+        object assign = forButton(new Command_Action { action = (Action)Delegate.CreateDelegate(typeof(Action), bed, "PostExposeData") });
+        Check(Field<string>(assign, "Mod") == null && Field<string>(assign, "Unsupported") != null, "an action button running a bed's owner code is refused by its base type's entry");
+
+        Faction faction = (Faction)FormatterServices.GetUninitializedObject(typeof(Faction));
+        FloatMenuOption call = (FloatMenuOption)FormatterServices.GetUninitializedObject(typeof(FloatMenuOption));
+        call.action = (Action)Delegate.CreateDelegate(typeof(Action), faction, "RemoveAllRelations");
+        object comms = Invoke("RiMCP.Command.GameActions", "ForOption", new FloatMenuOptionProvider_FromThing(), call, null);
+        Check(Field<string>(comms, "Mod") == null && Field<string>(comms, "Unsupported") != null, "a thing's option running a faction's code, a comms call, is refused");
+
+        Check(Field<string>(forButton(new Command_Action { action = Log.Clear }), "Unsupported") == null, "an ordinary game button is not refused");
+    }
+
+    private static object forButton(Command command)
+    {
+        try { return mod.GetType("RiMCP.Command.GameActions", true).GetMethod("ForButton", Static, null, new[] { typeof(Command) }, null).Invoke(null, new object[] { command }); }
+        catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+    }
+
+    private sealed class ModVerb : Verb_Shoot
+    {
+    }
+
+    private sealed class FakeDialog
+    {
+        public int Activations;
+        public object Key = "first";
+        public bool Open = true;
+        public bool CanCancel;
+        public bool Cancelled;
+        public bool Covered;
+        public string NotReady;
+        public List<string[]> Options = new List<string[]> { new[] { "1", "0", "Yes", null }, new[] { "2", "1", "No", null } };
+        public List<string> Chosen = new List<string>();
+        public Action<string> OnChoose = id => { };
+    }
+
+    // As Press.Execute answers: checked against the page, chosen, then settled even if it failed.
+    private static object AnswerPage(object interaction, int page, string option, object value)
+    {
+        Type runner = mod.GetType("RiMCP.Command.Interactions", true);
+        object[] args = { interaction, page, option, value, null };
+        object chosen;
+        try
+        {
+            chosen = runner.GetMethod("Prepare", Static).Invoke(null, args);
+        }
+        catch (TargetInvocationException e)
+        {
+            throw e.InnerException ?? e;
+        }
+        try
+        {
+            ((Action)args[4])();
+        }
+        finally
+        {
+            runner.GetMethod("Settle", Static).Invoke(null, new[] { interaction });
+        }
+        return chosen;
+    }
+
+    private static object FakeAdapter(FakeDialog fake)
+    {
+        Type adapterType = mod.GetType("RiMCP.Command.DialogAdapter", true);
+        Type optionType = mod.GetType("RiMCP.Command.DialogOption", true);
+        object adapter = Activator.CreateInstance(adapterType);
+        Action<string, object> set = (name, value) => adapterType.GetField(name).SetValue(adapter, value);
+        set("Kind", "dialog");
+        set("IsOpen", (Func<bool>)(() => fake.Open));
+        set("PageKey", (Func<object>)(() => fake.Key));
+        set("Title", (Func<string>)(() => null));
+        set("Question", (Func<string>)(() => "Do you agree?"));
+        set("CanCancel", (Func<bool>)(() => fake.CanCancel));
+        set("Cancel", (Action)(() => { fake.Cancelled = true; fake.Open = false; }));
+        set("Covered", (Func<bool>)(() => fake.Covered));
+        set("Options", Typed(adapterType.GetField("Options").FieldType, args =>
+        {
+            IList list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(optionType));
+            foreach (string[] option in fake.Options) list.Add(Activator.CreateInstance(optionType, option[0], int.Parse(option[1]), option[2], option[3]));
+            return list;
+        }));
+        set("NotReady", Typed(adapterType.GetField("NotReady").FieldType, args => fake.NotReady));
+        set("Activations", (Func<int>)(() => fake.Activations));
+        set("Choose", Typed(adapterType.GetField("Choose").FieldType, args =>
+        {
+            string id = (string)optionType.GetField("Id").GetValue(args[0]);
+            fake.Activations++;
+            fake.Chosen.Add(id);
+            fake.OnChoose(id);
+            return null;
+        }));
+        return adapter;
+    }
+
+    // A delegate of a type naming the mod's internal types, calling body with its arguments.
+    private static Delegate Typed(Type delegateType, Func<object[], object> body)
+    {
+        MethodInfo invoke = delegateType.GetMethod("Invoke");
+        ParameterExpression[] parameters = invoke.GetParameters().Select(parameter => Expression.Parameter(parameter.ParameterType)).ToArray();
+        Expression call = Expression.Invoke(Expression.Constant(body), Expression.NewArrayInit(typeof(object), parameters.Select(parameter => (Expression)Expression.Convert(parameter, typeof(object)))));
+        Expression result = invoke.ReturnType == typeof(void) ? call : Expression.Convert(call, invoke.ReturnType);
+        return Expression.Lambda(delegateType, result, parameters).Compile();
+    }
+
+    private static object HistoryEntry(string loadId, int tick, int messageId = -1, int frame = 0)
+    {
+        return Activator.CreateInstance(mod.GetType("RiMCP.Read.HistoryEntry", true), new object[] { null, loadId, tick, messageId, frame });
+    }
+
+    private static object HistoryPage(IEnumerable entries, string since, int limit, string loadId, int frame, int tick, object loss = null)
+    {
+        IList typed = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(mod.GetType("RiMCP.Read.HistoryEntry", true)));
+        foreach (object entry in entries) typed.Add(entry);
+        return Invoke("RiMCP.Read.EventHistory", "Page", typed, since, limit, loadId, frame, tick, loss);
+    }
+
+    private static string[] HistoryIds(object page, string field)
+    {
+        return Field<IEnumerable>(page, field).Cast<object>().Select(entry => Field<string>(entry, "LoadId")).ToArray();
+    }
+
+    private static string HistoryCursor(object page)
+    {
+        object next = Field<object>(page, "Next");
+        return (string)next.GetType().GetMethod("Encode").Invoke(next, null);
     }
 
     private static object New(string type, params object[] fields)
@@ -1924,8 +2525,10 @@ internal static class Program
         }
         catch (Exception e)
         {
+            while (e is TargetInvocationException && e.InnerException != null) e = e.InnerException;
             failed++;
             Console.WriteLine("FAIL " + name + ": " + e.GetType().Name + ": " + e.Message);
+            if (Environment.GetEnvironmentVariable("RIMCP_TRACE") != null) Console.WriteLine(e);
         }
     }
 }

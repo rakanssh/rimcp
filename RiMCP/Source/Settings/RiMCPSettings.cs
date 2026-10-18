@@ -24,6 +24,8 @@ namespace RiMCP.Settings
         // Agents answer the game's questions during new-game setup and start the colony without the
         // player's approval. Off by default: the player approves and answers on screen.
         public bool UnattendedSetup;
+        // Mods' right-click options and buttons, which RimMCP cannot check before they run.
+        public bool AllowModActions = true;
         // Only read, to migrate settings saved before access presets.
         private bool legacyAllowChanges = true;
 
@@ -42,6 +44,7 @@ namespace RiMCP.Settings
             Scribe_Values.Look(ref Port, "port", 39571);
             Scribe_Values.Look(ref Token, "token");
             Scribe_Values.Look(ref UnattendedSetup, "unattendedSetup", false);
+            Scribe_Values.Look(ref AllowModActions, "allowModActions", true);
         }
 
         internal string[] EnabledGroups

@@ -273,6 +273,11 @@ namespace RiMCP.Command
             get { return latest != null && ReferenceEquals(latest.Game, Current.Game) ? latest : null; }
         }
 
+        public static AdvanceRun Recall(string requestId)
+        {
+            return requestId == null ? null : history.LastOrDefault(run => run.RequestId == requestId && ReferenceEquals(run.Game, Current.Game));
+        }
+
         public static AdvanceRun RunById(int id)
         {
             return history.FirstOrDefault(run => run.Id == id && ReferenceEquals(run.Game, Current.Game));
@@ -339,6 +344,17 @@ namespace RiMCP.Command
             }
             run.End("interrupted", reason, Current.Game == null ? run.Previous.Tick : Find.TickManager.TicksGame);
             run.Ended.Set();
+            return run;
+        }
+
+        // A dialog pauses the game without changing its speed, so a run would resume once it closed.
+        public static AdvanceRun EndForDialog(string reason)
+        {
+            AdvanceRun run = Interrupt(reason);
+            if (run != null && Current.Game != null && ReferenceEquals(Current.Game, run.Game))
+            {
+                Find.TickManager.Pause();
+            }
             return run;
         }
 

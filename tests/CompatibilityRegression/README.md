@@ -27,12 +27,53 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The sixty checks cover:
+The seventy-seven checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
   refused without a colony.
-- Empty quests, ideology enumeration, and world data without a loaded game.
+- Empty quests, ideology enumeration, and world data without a loaded game; quest tabs
+  other than available, active and historical refused; and events refused without a game.
+- History paging on entries made in the test: the latest entries without a cursor, then
+  every new entry exactly once across pages, including a quest letter numbered before
+  others but arriving later and a letter arriving at the cursor's own tick; a message the
+  game repeats reported once as repeated; a cursor from another load starting over; and
+  gaps flagged from recorded losses after the cursor, but not before it.
+- The History watch on the game's own `Archive`, which culls as entries arrive: an arrival
+  that culls an entry already read is seen go without a gap; more arrivals between two looks
+  than the archive keeps, one culled before the watch saw it, flag a gap for a reader caught
+  up before them (and only because of the unseen one); and a reader caught up after them is
+  not told again while nothing changes.
+- Dialog answers on a scripted dialog: a new page for each question with numbers never
+  reused, an answer naming an earlier page refused on a later one with the same buttons,
+  changed, disabled, counting-down and covered options refused before anything is chosen,
+  and the player answering or closing first, cancel where allowed, and revoked access
+  ending the interaction.
+- A count dialog taking a value only within its range, and other dialogs taking none.
+- A player's answer that leaves a dialog open ending the agent's part, the agent's own answer
+  not mistaken for the player's, and changed options making a new page to read.
+- Dialog answers keeping their receipts after the dialog is no longer kept, and a mod's dialog
+  refused while mods' content is off.
+- An answer to a page whose options shrank before it arrived refused with a controlled 409
+  before the answer's code is looked up, choosing nothing.
+- A press that fails after starting targeting: the targeting cancelled, the failure reaching the
+  caller, and the dialog settled on a new page so the answer is not taken for the player's; and
+  no press run, or targeting touched, while the player is choosing a target. Targeting is
+  simulated through the replaceable check and cancel, since the harness has no targeter.
+- Letter revisions differing between loaded games.
+- Every right-click menu provider and every kind of button in the game present in the
+  audit, and the audit naming none the game lacks.
+- Options and buttons counted as the game's own only when their code is: a game provider
+  running a mod's code, a button with a mod's callback, and a button whose own press handling
+  is a mod's are mod content; trading and designator buttons are refused.
+- The audit tables naming launching, royal permits, comms calls run in the faction or ship called,
+  and bestowing ceremonies, and a mod's verb inside a stock button counted as mod content.
+- Composed game buttons and options refused by the code they run: ability parts that open the
+  ritual window (a subclass by its base type), an action button running a sealable's code, one
+  running a bed's owner code (by its base type's entry), and a thing's option running a
+  faction's code (a comms call); an ordinary game button is not refused. A `Command_Ability`
+  cannot be made outside the game, since its static fields load textures, so its ability is
+  given to the button audit apart.
 - A controlled 409 research-command rejection without a game.
 - A numeric cursor roundtrip through actual endpoint JSON, including distinct
   subsequent pages and termination on the last page.
