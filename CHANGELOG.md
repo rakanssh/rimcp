@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-10-18
 
 ### Added
 
@@ -202,7 +202,7 @@ All notable changes to this project are documented in this file.
 - Detail, include, pagination, map selection, and ids-only controls for supported read tools.
 - RimWorld mod settings flow for copying MCP client configuration.
 
-[Unreleased]: https://github.com/rakanssh/rimcp/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/rakanssh/rimcp/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rakanssh/rimcp/releases/tag/v1.0.0
 [0.5.4]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.4
 [0.5.3]: https://github.com/rakanssh/rimcp/releases/tag/v0.5.3
