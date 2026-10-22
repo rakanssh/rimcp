@@ -1,6 +1,8 @@
 # RimMCP
 
-Agentic intelligence for the Rim.
+<a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3809698070"><img src="RiMCP/About/Preview.png" alt="RimMCP: agentic intelligence for the Rim" width="640"></a>
+
+**[RimMCP - AI Agents for RimWorld (MCP)](https://steamcommunity.com/sharedfiles/filedetails/?id=3809698070)** on the Steam Workshop
 
 RimMCP is a RimWorld mod that connects MCP-compatible clients to a live colony. The mod runs inside RimWorld and hosts a token-protected HTTP endpoint on `127.0.0.1`. MCP clients can then use the bundled stdio proxy.
 
