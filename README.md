@@ -128,6 +128,23 @@ The **Build MCP helpers** workflow builds all four platforms on native runners. 
 - `RiMCP/Tools/McpProxy/osx-x64/RiMCP.McpProxy`
 - `RiMCP/Tools/McpProxy/osx-arm64/RiMCP.McpProxy`
 
+## Localization
+
+The in-game UI follows RimWorld's selected language. English and Simplified Chinese
+are included; other languages fall back to English. Tool names, MCP schemas and
+descriptions, configuration files, and diagnostic logs stay unchanged.
+
+To add a language, copy `RiMCP/Languages/English/Keyed/RiMCP.xml` to
+`RiMCP/Languages/<RimWorld language folder>/Keyed/RiMCP.xml` and translate its values.
+Keep the keys, placeholders such as `{0}`, tool/parameter identifiers, and numeric
+limits intact. Copy the Chinese `DefInjected` layout to translate the quick-control
+button's description, or leave the definition's English default. No code changes
+are needed; the release packager includes every language directory automatically.
+
+For UI changes, also check the settings tabs, localized tool search, tooltips and
+quick-control menu in game, then switch back to English. Mod and proxy builds use
+the existing commands above.
+
 ## License
 
 RimMCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).

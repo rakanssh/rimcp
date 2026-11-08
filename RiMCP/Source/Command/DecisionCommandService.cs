@@ -104,7 +104,7 @@ namespace RiMCP.Command
                     throw new CommandException(409, "'" + label + "' cannot be dismissed; it needs one of its options.");
                 }
                 Find.LetterStack.RemoveLetter(letter);
-                FollowUps.Announce("dismissed the letter '" + label + "'.", letter.lookTargets);
+                FollowUps.Announce("RiMCP.LetterDismissed".Translate(label), letter.lookTargets);
                 return new CommandResult(true, Dto.Obj(Dto.Field("letterId", letterId), Dto.Field("dismissed", true)));
             }
             if (string.IsNullOrEmpty(body.Option))
@@ -177,7 +177,7 @@ namespace RiMCP.Command
                 Dto.Field("origin", origin.Mod));
             Press.Execute(data, origin, "answer_letter", label, null, Find.CurrentMap, LocalTargetInfo.Invalid, choose, () => Interactions.Settle(interaction), interaction);
             data["letterWaiting"] = Find.LetterStack.LettersListForReading.Contains(letter);
-            FollowUps.Announce("chose \"" + chosen.Text + "\" for '" + label + "'.", letter.lookTargets);
+            FollowUps.Announce("RiMCP.LetterChosen".Translate(chosen.Text, label), letter.lookTargets);
             return new CommandResult(true, data);
         }
 
@@ -211,7 +211,7 @@ namespace RiMCP.Command
             {
                 subquest.dismissed = dismiss;
             }
-            FollowUps.Announce((dismiss ? "dismissed" : "restored") + " the quest '" + quest.name + "'.");
+            FollowUps.Announce((dismiss ? "RiMCP.QuestDismissed" : "RiMCP.QuestRestored").Translate(quest.name));
             return new CommandResult(true, Dto.Obj(Dto.Field("questId", quest.id), Dto.Field("dismissed", dismiss)));
         }
 
@@ -293,7 +293,7 @@ namespace RiMCP.Command
                 {
                     Messages.Message("MessageQuestAccepted".Translate(by, quest.name), by, MessageTypeDefOf.TaskCompletion, false);
                 }
-                FollowUps.Announce("accepted the quest '" + quest.name + "'" + (by == null ? "" : " with " + ReadUtil.PawnName(by)) + ".");
+                FollowUps.Announce(by == null ? "RiMCP.QuestAccepted".Translate(quest.name).ToString() : "RiMCP.QuestAcceptedBy".Translate(quest.name, ReadUtil.PawnName(by)).ToString());
                 return true;
             };
             Dictionary<string, object> data = Dto.Obj(Dto.Field("questId", quest.id));

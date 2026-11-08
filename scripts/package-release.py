@@ -35,6 +35,8 @@ def main():
         "README.md": "README.md",
         "CHANGELOG.md": "CHANGELOG.md",
     }
+    for source in sorted((root / "RiMCP/Languages").rglob("*.xml")):
+        files[str(source.relative_to(root))] = source.relative_to(root / "RiMCP").as_posix()
     for rid in ("win-x64", "linux-x64", "osx-x64", "osx-arm64"):
         executable = "RiMCP.McpProxy.exe" if rid == "win-x64" else "RiMCP.McpProxy"
         for name in (executable, "LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
