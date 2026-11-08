@@ -7,6 +7,7 @@ using RiMCP.Bridge;
 using RiMCP.Settings;
 using RiMCP.Shared;
 using RiMCP.Util;
+using RiMCP.UI;
 using UnityEngine;
 using Verse;
 
@@ -96,15 +97,15 @@ namespace RiMCP
         private static void DoHeader(Rect rect)
         {
             Text.Font = GameFont.Small;
-            string status = !Settings.BridgeEnabled ? "Agents are off"
-                : !BridgeRuntime.IsRunning ? "Not running; see Activity"
-                : "Running · " + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " client" : " clients") + " · last request " + BridgeRuntime.LastRequestDescription;
+            string status = !Settings.BridgeEnabled ? "RiMCP.AgentsOff".Translate()
+                : !BridgeRuntime.IsRunning ? "RiMCP.NotRunning".Translate()
+                : (BridgeRuntime.RecentClientCount == 1 ? "RiMCP.RunningOne" : "RiMCP.RunningMany").Translate(BridgeRuntime.RecentClientCount, UiText.LastRequest).ToString();
             GUI.color = Settings.BridgeEnabled && BridgeRuntime.IsRunning ? new Color(0.55f, 0.85f, 0.55f) : Color.gray;
             LabelMiddle(new Rect(rect.x, rect.y, rect.width - 200f, rect.height), status);
             GUI.color = Color.white;
             bool enabled = Settings.BridgeEnabled;
-            Widgets.CheckboxLabeled(new Rect(rect.xMax - 150f, rect.y + 5f, 150f, 24f), "Agents on", ref enabled);
-            TooltipHandler.TipRegion(new Rect(rect.xMax - 150f, rect.y, 150f, rect.height), "The master switch. Off stops the bridge, so no agent can read or change anything, and a running advance or operation stops. Your access choices are kept.");
+            Widgets.CheckboxLabeled(new Rect(rect.xMax - 150f, rect.y + 5f, 150f, 24f), "RiMCP.AgentsOn".Translate(), ref enabled);
+            TooltipHandler.TipRegion(new Rect(rect.xMax - 150f, rect.y, 150f, rect.height), "RiMCP.MasterTip".Translate());
             if (enabled != Settings.BridgeEnabled)
             {
                 Settings.BridgeEnabled = enabled;
@@ -118,7 +119,7 @@ namespace RiMCP
             foreach (SettingsTab each in new[] { SettingsTab.Connection, SettingsTab.Access, SettingsTab.Activity, SettingsTab.Safety })
             {
                 Rect button = new Rect(x, rect.y, 130f, rect.height);
-                if (Button(button, each.ToString()))
+                if (Button(button, ("RiMCP.Tab." + each).Translate()))
                 {
                     tab = each;
                 }
@@ -134,13 +135,13 @@ namespace RiMCP
         private static void DoAccessTab(Rect rect)
         {
             float y = rect.y;
-            LabelMiddle(new Rect(rect.x, y, 110f, 30f), "Access level");
+            LabelMiddle(new Rect(rect.x, y, 110f, 30f), "RiMCP.AccessLevel".Translate());
             float x = rect.x + 110f;
             foreach (string preset in AccessPresets.Named.Concat(new[] { AccessPresets.Custom }))
             {
                 Rect button = new Rect(x, y, 128f, 30f);
                 bool current = Settings.AccessPreset == preset;
-                if (Button(button, AccessPresets.Label(preset), preset != AccessPresets.Custom) && preset != AccessPresets.Custom && !current)
+                if (Button(button, UiText.PresetLabel(preset), preset != AccessPresets.Custom) && preset != AccessPresets.Custom && !current)
                 {
                     Settings.SetPreset(preset);
                     BridgeRuntime.ApplySettings();
@@ -149,18 +150,18 @@ namespace RiMCP
                 {
                     Widgets.DrawBox(button, 2);
                 }
-                TooltipHandler.TipRegion(button, AccessPresets.Description(preset));
+                TooltipHandler.TipRegion(button, UiText.PresetDescription(preset));
                 x += button.width + 4f;
             }
             y += 36f;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), Settings.BridgeEnabled ? AccessPresets.Description(Settings.AccessPreset) : "Agents are off. Nothing runs until you turn them back on; these choices apply then.");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), Settings.BridgeEnabled ? UiText.PresetDescription(Settings.AccessPreset) : "RiMCP.OffAccessTip".Translate().ToString());
             GUI.color = Color.white;
             y += 30f;
 
-            LabelMiddle(new Rect(rect.x, y, 60f, 28f), "Search");
+            LabelMiddle(new Rect(rect.x, y, 60f, 28f), "RiMCP.Search".Translate());
             search = Widgets.TextField(new Rect(rect.x + 60f, y, 300f, 28f), search ?? "");
-            if (!string.IsNullOrEmpty(search) && Button(new Rect(rect.x + 366f, y, 70f, 28f), "Clear"))
+            if (!string.IsNullOrEmpty(search) && Button(new Rect(rect.x + 366f, y, 70f, 28f), "RiMCP.Clear".Translate()))
             {
                 search = "";
             }
@@ -175,7 +176,7 @@ namespace RiMCP
             List<ToolSpec> all = ToolManifest.McpTools.ToList();
             int on = all.Count(Settings.IsToolOn);
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x, rect.yMax - footer + 4f, rect.width, footer), on + " of " + all.Count + " tools on. Agents see only the tools that are on, so the list they load stays short.");
+            Widgets.Label(new Rect(rect.x, rect.yMax - footer + 4f, rect.width, footer), "RiMCP.ToolsEnabled".Translate(on, all.Count).ToString());
             GUI.color = Color.white;
         }
 
@@ -207,7 +208,7 @@ namespace RiMCP
                     BridgeRuntime.ApplySettings();
                 }
                 Rect label = new Rect(box.xMax + 8f, row.y, row.width - box.width - 60f, row.height);
-                LabelMiddle(label, ToolGroups.Label(group));
+                LabelMiddle(label, UiText.GroupLabel(group));
                 GUI.color = Color.gray;
                 LabelRight(new Rect(row.xMax - 52f, row.y, 48f, row.height), on + "/" + members.Count);
                 GUI.color = Color.white;
@@ -217,7 +218,7 @@ namespace RiMCP
                     search = "";
                     toolScroll = Vector2.zero;
                 }
-                TooltipHandler.TipRegion(row, ToolGroups.Description(group));
+                TooltipHandler.TipRegion(row, UiText.GroupDescription(group));
                 y += GroupRowHeight + 2f;
             }
         }
@@ -228,26 +229,26 @@ namespace RiMCP
             string query = (search ?? "").Trim();
             List<ToolSpec> shown = string.IsNullOrEmpty(query)
                 ? ToolManifest.McpTools.Where(spec => spec.Group == selectedGroup).ToList()
-                : ToolManifest.McpTools.Where(spec => spec.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || (spec.Description ?? "").IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                : ToolManifest.McpTools.Where(spec => spec.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || (spec.Description ?? "").IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || UiText.ToolDescription(spec).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
             float y = rect.y;
             Text.Font = GameFont.Medium;
-            LabelMiddle(new Rect(rect.x, y, rect.width - 200f, 30f), string.IsNullOrEmpty(query) ? ToolGroups.Label(selectedGroup) : shown.Count + (shown.Count == 1 ? " matching tool" : " matching tools"));
+            LabelMiddle(new Rect(rect.x, y, rect.width - 200f, 30f), string.IsNullOrEmpty(query) ? UiText.GroupLabel(selectedGroup) : (shown.Count == 1 ? "RiMCP.MatchingOne" : "RiMCP.MatchingMany").Translate(shown.Count).ToString());
             Text.Font = GameFont.Small;
             if (string.IsNullOrEmpty(query))
             {
-                if (Button(new Rect(rect.xMax - 196f, y, 94f, 28f), "All on"))
+                if (Button(new Rect(rect.xMax - 196f, y, 94f, 28f), "RiMCP.AllOn".Translate()))
                 {
                     Settings.SetGroup(selectedGroup, true);
                     BridgeRuntime.ApplySettings();
                 }
-                if (Button(new Rect(rect.xMax - 96f, y, 94f, 28f), "All off"))
+                if (Button(new Rect(rect.xMax - 96f, y, 94f, 28f), "RiMCP.AllOff".Translate()))
                 {
                     Settings.SetGroup(selectedGroup, false);
                     BridgeRuntime.ApplySettings();
                 }
                 y += 32f;
                 GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, y, rect.width, 24f), ToolGroups.Description(selectedGroup));
+                Widgets.Label(new Rect(rect.x, y, rect.width, 24f), UiText.GroupDescription(selectedGroup));
                 GUI.color = Color.white;
                 y += 26f;
             }
@@ -286,7 +287,7 @@ namespace RiMCP
             {
                 GUI.color = new Color(0.95f, 0.7f, 0.3f);
                 Text.Font = GameFont.Tiny;
-                Widgets.Label(new Rect(after, row.y + 4f, 140f, 20f), "can undo player work");
+                Widgets.Label(new Rect(after, row.y + 4f, 140f, 20f), "RiMCP.Destructive".Translate());
                 after += 130f;
                 Text.Font = GameFont.Small;
                 GUI.color = Color.white;
@@ -295,16 +296,16 @@ namespace RiMCP
             {
                 GUI.color = Color.gray;
                 Text.Font = GameFont.Tiny;
-                Widgets.Label(new Rect(after, row.y + 4f, 160f, 20f), ToolGroups.Label(spec.Group));
+                Widgets.Label(new Rect(after, row.y + 4f, 160f, 20f), UiText.GroupLabel(spec.Group));
                 Text.Font = GameFont.Small;
                 GUI.color = Color.white;
             }
             GUI.color = Color.gray;
             Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(x, row.y + 23f, row.width - 34f, 20f), Summary(spec.Description).Truncate(row.width - 40f));
+            Widgets.Label(new Rect(x, row.y + 23f, row.width - 34f, 20f), Summary(UiText.ToolDescription(spec)).Truncate(row.width - 40f));
             Text.Font = GameFont.Small;
             GUI.color = Color.white;
-            TooltipHandler.TipRegion(row, spec.Name + "\n\n" + spec.Description);
+            TooltipHandler.TipRegion(row, spec.Name + "\n\n" + UiText.ToolDescription(spec));
         }
 
         // Labels centred vertically, or also right-aligned, measured rather than anchored, which keeps
@@ -349,6 +350,8 @@ namespace RiMCP
                 return "";
             }
             int end = description.IndexOf(". ", StringComparison.Ordinal);
+            int localizedEnd = description.IndexOf('。');
+            if (localizedEnd >= 0 && (end < 0 || localizedEnd < end)) end = localizedEnd;
             return end > 0 ? description.Substring(0, end + 1) : description;
         }
 
@@ -362,22 +365,22 @@ namespace RiMCP
             Color color;
             if (!Settings.BridgeEnabled)
             {
-                status = "Agents are off. Turn on Agents on, above, to connect one.";
+                status = "RiMCP.OffConnection".Translate();
                 color = Color.gray;
             }
             else if (!BridgeRuntime.IsRunning)
             {
-                status = "RimMCP isn't running; the Activity tab shows why.";
+                status = "RiMCP.NotRunningConnection".Translate();
                 color = new Color(0.95f, 0.45f, 0.4f);
             }
             else if (connected)
             {
-                status = "Connected: " + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " agent" : " agents") + ", last request " + BridgeRuntime.LastRequestDescription + ".";
+                status = (BridgeRuntime.RecentClientCount == 1 ? "RiMCP.ConnectedOne" : "RiMCP.ConnectedMany").Translate(BridgeRuntime.RecentClientCount, UiText.LastRequest).ToString();
                 color = new Color(0.55f, 0.85f, 0.55f);
             }
             else
             {
-                status = "Waiting for an agent to connect.";
+                status = "RiMCP.Waiting".Translate();
                 color = new Color(0.95f, 0.75f, 0.3f);
             }
             Text.Font = GameFont.Medium;
@@ -387,43 +390,43 @@ namespace RiMCP
             Text.Font = GameFont.Small;
             y += 44f;
 
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "1. Copy the MCP config.");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.StepOne".Translate());
             y += 28f;
-            if (Button(new Rect(rect.x + 18f, y, 320f, 40f), "Copy MCP config"))
+            if (Button(new Rect(rect.x + 18f, y, 320f, 40f), "RiMCP.CopyConfig".Translate()))
             {
                 GUIUtility.systemCopyBuffer = BuildMcpConfig();
-                Messages.Message("RimMCP config copied.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message("RiMCP.ConfigCopied".Translate(), MessageTypeDefOf.PositiveEvent, false);
             }
             y += 50f;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "2. Add it to your agent's MCP servers, or paste it into the agent's chat and ask it to add it.");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.StepTwo".Translate());
             y += 28f;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "3. The agent shows as connected here, and its tools follow the Access tab.");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.StepThree".Translate());
             y += 28f;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "The config includes the token, so keep it private. Agents connect through the RimMCP helper, which it starts.");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.ConfigPrivacy".Translate());
             GUI.color = Color.white;
             y += 44f;
 
             Widgets.DrawLineHorizontal(rect.x, y, rect.width);
             y += 10f;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "Advanced");
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.Advanced".Translate());
             GUI.color = Color.white;
             y += 28f;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "Local address: http://127.0.0.1:" + Settings.Port);
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.LocalAddress".Translate("http://127.0.0.1:" + Settings.Port));
             y += 28f;
-            if (Button(new Rect(rect.x, y, 200f, 30f), "Regenerate token"))
+            if (Button(new Rect(rect.x, y, 200f, 30f), "RiMCP.RegenerateToken".Translate()))
             {
                 Settings.RegenerateToken();
                 BridgeRuntime.ApplySettings();
-                Messages.Message("RimMCP token regenerated. Copy MCP config again.", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("RiMCP.TokenRegenerated".Translate(), MessageTypeDefOf.NeutralEvent, false);
             }
             GUI.color = Color.gray;
-            LabelMiddle(new Rect(rect.x + 212f, y, rect.width - 212f, 30f), "Connected agents need the new config afterwards.");
+            LabelMiddle(new Rect(rect.x + 212f, y, rect.width - 212f, 30f), "RiMCP.NewConfigRequired".Translate());
             GUI.color = Color.white;
             y += 40f;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RimWorld config folder: " + GenFilePaths.ConfigFolderPath);
+            Widgets.Label(new Rect(rect.x, y, rect.width, 24f), "RiMCP.ConfigFolder".Translate(GenFilePaths.ConfigFolderPath));
             GUI.color = Color.white;
         }
 
@@ -433,8 +436,8 @@ namespace RiMCP
             Rect calls = new Rect(rect.x, rect.y, half, rect.height);
             Rect recent = new Rect(calls.xMax + 12f, rect.y, half, rect.height);
             Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(calls.x, calls.y, calls.width, 30f), "Tool calls");
-            Widgets.Label(new Rect(recent.x, recent.y, recent.width, 30f), "Recent requests");
+            Widgets.Label(new Rect(calls.x, calls.y, calls.width, 30f), "RiMCP.ToolCalls".Translate());
+            Widgets.Label(new Rect(recent.x, recent.y, recent.width, 30f), "RiMCP.RecentRequests".Translate());
             Text.Font = GameFont.Small;
             List<KeyValuePair<string, int>> counts = BridgeRuntime.ToolCalls.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key).ToList();
             Rect outRect = new Rect(calls.x, calls.y + 34f, calls.width, calls.height - 34f);
@@ -443,7 +446,7 @@ namespace RiMCP
             if (counts.Count == 0)
             {
                 GUI.color = Color.gray;
-                Widgets.Label(new Rect(0f, 0f, view.width, 24f), "No tool calls since RimWorld started.");
+                Widgets.Label(new Rect(0f, 0f, view.width, 24f), "RiMCP.NoCalls".Translate());
                 GUI.color = Color.white;
             }
             for (int i = 0; i < counts.Count; i++)
@@ -465,23 +468,23 @@ namespace RiMCP
         {
             Listing_Standard listing = new Listing_Standard();
             listing.Begin(rect);
-            listing.CheckboxLabeled("Unattended game setup", ref Settings.UnattendedSetup, "Lets agents answer the game's questions while setting up a new game, and start the colony without asking you.");
+            listing.CheckboxLabeled("RiMCP.UnattendedSetup".Translate(), ref Settings.UnattendedSetup, "RiMCP.UnattendedTip".Translate());
             GUI.color = Color.gray;
-            listing.Label("Off: you approve the start of a new colony and answer the game's questions on screen.");
+            listing.Label("RiMCP.UnattendedOff".Translate());
             GUI.color = Color.white;
             listing.Gap();
-            listing.CheckboxLabeled("Mods' menu options and buttons", ref Settings.AllowModActions, "Lets agents use the right-click options and buttons that mods add. RimMCP cannot check them before they run: they run as your click would, and a target is checked against the mod's own rules before it is given.");
+            listing.CheckboxLabeled("RiMCP.ModActions".Translate(), ref Settings.AllowModActions, "RiMCP.ModActionsTip".Translate());
             GUI.color = Color.gray;
-            listing.Label("Off: agents use only the game's own options and buttons, each checked before it runs.");
+            listing.Label("RiMCP.ModActionsOff".Translate());
             GUI.color = Color.white;
             listing.Gap();
-            listing.CheckboxLabeled("RimMCP button in game", ref Settings.ShowQuickControl, "The button on the bottom bar that shows whether agents are on and working, and pauses them or changes the access level in a click.");
+            listing.CheckboxLabeled("RiMCP.QuickButton".Translate(), ref Settings.ShowQuickControl, "RiMCP.QuickButtonTip".Translate());
             GUI.color = Color.gray;
-            listing.Label("Shows whether agents are on and working; click it to pause them or change the access level.");
+            listing.Label("RiMCP.QuickButtonHelp".Translate());
             GUI.color = Color.white;
             listing.Gap();
             GUI.color = Color.gray;
-            listing.Label("During a Multiplayer session, agents can read but never change the game or control time.");
+            listing.Label("RiMCP.Multiplayer".Translate());
             GUI.color = Color.white;
             listing.End();
         }

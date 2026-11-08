@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.RunningOne>运行中 · {0} 个客户端 · 上次请求：{1}</RiMCP.RunningOne>
+  <RiMCP.RunningMany>运行中 · {0} 个客户端 · 上次请求：{1}</RiMCP.RunningMany>
+  <RiMCP.ToolsEnabled>已启用 {0} / {1} 个工具。智能体只会加载已启用的工具。</RiMCP.ToolsEnabled>
+  <RiMCP.MatchingOne>{0} 个匹配工具</RiMCP.MatchingOne>
+  <RiMCP.MatchingMany>{0} 个匹配工具</RiMCP.MatchingMany>
+  <RiMCP.ConnectedOne>已连接：{0} 个智能体，上次请求：{1}。</RiMCP.ConnectedOne>
+  <RiMCP.ConnectedMany>已连接：{0} 个智能体，上次请求：{1}。</RiMCP.ConnectedMany>
+  <RiMCP.LocalAddress>本地地址：{0}</RiMCP.LocalAddress>
+  <RiMCP.ConfigFolder>环世界配置目录：{0}</RiMCP.ConfigFolder>
+  <RiMCP.AgentsOff>智能体已关闭</RiMCP.AgentsOff>
+  <RiMCP.NotRunning>未运行，请查看“活动”</RiMCP.NotRunning>
+  <RiMCP.AgentsOn>启用智能体</RiMCP.AgentsOn>
+  <RiMCP.MasterTip>总开关。关闭后停止桥接服务，智能体无法读取或修改游戏，正在推进的时间或操作也会停止。权限设置会保留。</RiMCP.MasterTip>
+  <RiMCP.AccessLevel>访问权限</RiMCP.AccessLevel>
+  <RiMCP.OffAccessTip>智能体已关闭，重新启用后才会按以下权限运行。</RiMCP.OffAccessTip>
+  <RiMCP.Search>搜索</RiMCP.Search>
+  <RiMCP.Clear>清除</RiMCP.Clear>
+  <RiMCP.AllOn>全部启用</RiMCP.AllOn>
+  <RiMCP.AllOff>全部禁用</RiMCP.AllOff>
+  <RiMCP.Destructive>可能撤销玩家操作</RiMCP.Destructive>
+  <RiMCP.OffConnection>智能体已关闭，请先勾选上方“启用智能体”。</RiMCP.OffConnection>
+  <RiMCP.NotRunningConnection>RimMCP 未运行，请到“活动”页查看原因。</RiMCP.NotRunningConnection>
+  <RiMCP.Waiting>等待智能体连接。</RiMCP.Waiting>
+  <RiMCP.StepOne>1. 复制 MCP 配置。</RiMCP.StepOne>
+  <RiMCP.CopyConfig>复制 MCP 配置</RiMCP.CopyConfig>
+  <RiMCP.ConfigCopied>RimMCP 配置已复制。</RiMCP.ConfigCopied>
+  <RiMCP.StepTwo>2. 将配置添加到客户端的 MCP 服务器设置，或发给智能体帮你配置。</RiMCP.StepTwo>
+  <RiMCP.StepThree>3. 连接成功后会在这里显示，可用工具由“权限”页控制。</RiMCP.StepThree>
+  <RiMCP.ConfigPrivacy>配置含有访问令牌，请勿公开。客户端会启动 RimMCP 辅助程序进行连接。</RiMCP.ConfigPrivacy>
+  <RiMCP.Advanced>高级设置</RiMCP.Advanced>
+  <RiMCP.RegenerateToken>重新生成令牌</RiMCP.RegenerateToken>
+  <RiMCP.TokenRegenerated>RimMCP 令牌已重新生成，请重新复制 MCP 配置。</RiMCP.TokenRegenerated>
+  <RiMCP.NewConfigRequired>已连接的客户端需要换用新配置。</RiMCP.NewConfigRequired>
+  <RiMCP.ToolCalls>工具调用</RiMCP.ToolCalls>
+  <RiMCP.RecentRequests>最近请求</RiMCP.RecentRequests>
+  <RiMCP.NoCalls>本次启动后尚无工具调用。</RiMCP.NoCalls>
+  <RiMCP.UnattendedSetup>无人值守开局</RiMCP.UnattendedSetup>
+  <RiMCP.UnattendedTip>允许智能体回答新游戏设置中的问题，并直接开始殖民地，无需你确认。</RiMCP.UnattendedTip>
+  <RiMCP.UnattendedOff>关闭时：由你在游戏中回答问题，并确认开始新殖民地。</RiMCP.UnattendedOff>
+  <RiMCP.ModActions>允许模组菜单和按钮</RiMCP.ModActions>
+  <RiMCP.ModActionsTip>允许智能体使用其他模组添加的右键选项和按钮。RimMCP 无法事先检查这些操作；它们按玩家点击的方式执行，目标由对应模组的规则检查。</RiMCP.ModActionsTip>
+  <RiMCP.ModActionsOff>关闭时：仅使用原版选项和按钮，并在执行前检查。</RiMCP.ModActionsOff>
+  <RiMCP.QuickButton>显示游戏内 RimMCP 按钮</RiMCP.QuickButton>
+  <RiMCP.QuickButtonTip>底栏按钮显示智能体的启用和工作状态，点击可暂停智能体或更改权限。</RiMCP.QuickButtonTip>
+  <RiMCP.QuickButtonHelp>显示智能体状态，点击可暂停或更改权限。</RiMCP.QuickButtonHelp>
+  <RiMCP.Multiplayer>多人游戏中，智能体只能读取信息，不能修改游戏或控制时间。</RiMCP.Multiplayer>
+  <RiMCP.AccessCurrent>权限：{0}（当前）</RiMCP.AccessCurrent>
+  <RiMCP.AccessChoice>权限：{0}</RiMCP.AccessChoice>
+  <RiMCP.PauseAgents>暂停智能体</RiMCP.PauseAgents>
+  <RiMCP.ResumeAgents>恢复智能体</RiMCP.ResumeAgents>
+  <RiMCP.OpenSettings>RimMCP 设置…</RiMCP.OpenSettings>
+  <RiMCP.PausedStatus>RimMCP：智能体已暂停，点击可恢复。</RiMCP.PausedStatus>
+  <RiMCP.StoppedStatus>RimMCP：桥接服务未运行，请查看 RimMCP 设置。</RiMCP.StoppedStatus>
+  <RiMCP.QuickStatus>RimMCP：{0}，{1}
+{2}，上次请求：{3}。</RiMCP.QuickStatus>
+  <RiMCP.AgentWorking>智能体正在工作。</RiMCP.AgentWorking>
+  <RiMCP.AgentsIdle>智能体空闲。</RiMCP.AgentsIdle>
+  <RiMCP.ClientOne>{0} 个客户端</RiMCP.ClientOne>
+  <RiMCP.ClientMany>{0} 个客户端</RiMCP.ClientMany>
+  <RiMCP.Never>从未</RiMCP.Never>
+  <RiMCP.JustNow>刚刚</RiMCP.JustNow>
+  <RiMCP.SecondsAgo>{0} 秒前</RiMCP.SecondsAgo>
+  <RiMCP.StartColony>开始殖民地</RiMCP.StartColony>
+  <RiMCP.NotYet>暂不开始</RiMCP.NotYet>
+  <RiMCP.StartTitle>RimMCP 已准备好开始殖民地</RiMCP.StartTitle>
+  <RiMCP.SetupScenario>剧本：{0}</RiMCP.SetupScenario>
+  <RiMCP.SetupStoryteller>故事叙述者：{0}</RiMCP.SetupStoryteller>
+  <RiMCP.SetupSite>地点：世界格 {0}{1}，地图尺寸 {2}</RiMCP.SetupSite>
+  <RiMCP.SetupColonists>殖民者：{0}</RiMCP.SetupColonists>
+  <RiMCP.HeldSave>RimMCP 已将殖民地保存为“{0}”，正在载入“{1}”。回答问题前，殖民地会保持在保存时的状态。</RiMCP.HeldSave>
+  <RiMCP.LetterDismissed>已忽略信件“{0}”。</RiMCP.LetterDismissed>
+  <RiMCP.LetterChosen>已为“{1}”选择“{0}”。</RiMCP.LetterChosen>
+  <RiMCP.QuestDismissed>已忽略任务“{0}”。</RiMCP.QuestDismissed>
+  <RiMCP.QuestRestored>已恢复任务“{0}”。</RiMCP.QuestRestored>
+  <RiMCP.QuestAccepted>已接受任务“{0}”。</RiMCP.QuestAccepted>
+  <RiMCP.QuestAcceptedBy>已由 {1} 接受任务“{0}”。</RiMCP.QuestAcceptedBy>
+  <RiMCP.SetupStorytellerCommitment>故事叙述者：{0}（承诺模式）</RiMCP.SetupStorytellerCommitment>
+  <RiMCP.Tool.get_game_context.Description>游戏全局上下文：当前地图及地图 ID、时间、暂停与速度、故事叙述者与难度，以及已加载的模组。</RiMCP.Tool.get_game_context.Description>
+  <RiMCP.Tool.list_mods.Description>按加载顺序列出已加载的模组（位置从 0 开始），或使用 scope=installed 列出所有已安装模组，并包含游戏版本、待处理的更改以及游戏对模组列表给出的警告。</RiMCP.Tool.list_mods.Description>
+  <RiMCP.Tool.get_mod.Description>单个模组的元数据、依赖项、兼容性、程序集和设置面板名称（不包含设置值）。</RiMCP.Tool.get_mod.Description>
+  <RiMCP.Tool.get_game_log.Description>按时间倒序列出近期游戏内日志条目（不是完整的 Player.log）。include=["stackTrace"] 或 detail=full 会附加堆栈跟踪。游标是当前历史记录中的偏移量。</RiMCP.Tool.get_game_log.Description>
+  <RiMCP.Tool.get_game_settings.Description>全局游戏选项，以及殖民地的故事叙述者与难度和可选项。没有加载殖民地时也可使用全局选项。</RiMCP.Tool.get_game_settings.Description>
+  <RiMCP.Tool.set_game_settings.Description>更改全局选项，或更改殖民地的故事叙述者或难度预设；只会更改提供的字段。仅更改故事叙述者时会保留自定义难度。</RiMCP.Tool.set_game_settings.Description>
+  <RiMCP.Tool.get_colony_status.Description>殖民地概览：列出主要风险及深入查看提示；食物部分包括储存的餐食与原始营养、每日消耗、剩余天数，以及最多三天的每日趋势。只统计已储存的食物。</RiMCP.Tool.get_colony_status.Description>
+  <RiMCP.Tool.list_pawns.Description>按筛选条件列出角色。include=["assignments"] 会附加“分配”标签页设置；include=["assignmentOptions"] 会附加这些设置的有效选项。</RiMCP.Tool.list_pawns.Description>
+  <RiMCP.Tool.get_pawn.Description>通过 ThingID 或存档加载 ID 获取一个角色的全部信息。</RiMCP.Tool.get_pawn.Description>
+  <RiMCP.Tool.list_resources.Description>按 def 分组列出地图资源，并提供食物、药品、堆叠、禁止状态、屋顶和腐烂详情。迷雾覆盖的物品不会显示。</RiMCP.Tool.list_resources.Description>
+  <RiMCP.Tool.find_things.Description>查找可搬运物品（资源、食物、药品、武器、服装、石块、尸体、缩小的建筑），返回 id、位置、数量、禁止状态和存放信息。可按 def、category、excludeCategory、label、forbidden、inStorage 筛选，也可按与 x 和 z 的距离筛选并按距离排序。不会搜索未探索区域。</RiMCP.Tool.find_things.Description>
+  <RiMCP.Tool.get_map_view.Description>以字符地图显示一个区域，每格一个字符：rows[0] 是北侧边缘（z = origin.z + height - 1），每行从 origin.x 起由西向东排列。每格显示最上层特征：角色、建筑或蓝图、树木、物品、区域、水或肥沃度。大写字母代表殖民者，并在图例中列出；图例只包含实际显示的符号。未探索格为空白。默认显示殖民者周围 32x32 的区域，最大为 40x40。layers 可添加屋顶或指定标记网格。</RiMCP.Tool.get_map_view.Description>
+  <RiMCP.Tool.check_placement.Description>检查建筑在 x 和 z 处是否可放置，或在最大 20x20 的区域中查找可放置位置，并执行游戏内建造检查。返回可放置位置（先列出最接近中心的位置）、占地范围与交互格偏移、按原因分组的拒绝项、花费，以及 missingMaterial 或 noConstructor 等阻碍项。不做任何更改；使用游戏当前显示的地图。</RiMCP.Tool.check_placement.Description>
+  <RiMCP.Tool.list_work.Description>列出核心角色的工作优先级、当前工作、征召状态、日程安排和允许区域上下文。</RiMCP.Tool.list_work.Description>
+  <RiMCP.Tool.list_production.Description>列出生产工作清单及各自状态（active、suspended、done、paused 或 targetReached）；处于 active 时，还会列出阻碍原因：missingIngredients、noWorker、needsFuel 或 workbenchUnusable。detail=normal 会附加所需且可用的材料。已预留的材料仍计入。</RiMCP.Tool.list_production.Description>
+  <RiMCP.Tool.get_bill.Description>按 id 获取一个工作清单：状态、阻碍项，以及所需和已有的可用材料（已允许、未禁止、在其搜索半径内且可到达）。</RiMCP.Tool.get_bill.Description>
+  <RiMCP.Tool.set_bill.Description>按 id 更新（mode=update）或删除（mode=delete）一个工作清单。search_defs 可列出工作清单模式 def；list_zones 可提供 SpecificStockpile 对应的储存区 ID。</RiMCP.Tool.set_bill.Description>
+  <RiMCP.Tool.list_workshops.Description>列出可接收工作清单的工作台，以及工作清单和配方数量。include=["recipes"] 或 detail=full 会附加可在该工作台添加的配方。</RiMCP.Tool.list_workshops.Description>
+  <RiMCP.Tool.get_workshop.Description>通过 ThingID 或存档加载 ID 获取一个工作台，包括当前工作清单以及可在该工作台添加的配方。</RiMCP.Tool.get_workshop.Description>
+  <RiMCP.Tool.add_bill_to_workshop.Description>为配方添加工作清单；允许重复添加。与游戏中一样，除非 repeatModeDefName 为 Forever，或设置为 TargetCount 并提供 targetCount，否则该配方只执行一次。search_defs 可列出工作清单模式 def；list_zones 可提供 SpecificStockpile 对应的储存区 ID。</RiMCP.Tool.add_bill_to_workshop.Description>
+  <RiMCP.Tool.list_zones.Description>列出储存区、种植区和允许区域。储存区会显示优先级和接收情况：顶层类别会被完全接收（all）、部分接收（some）或完全不接收（none），并计入已关闭的特殊筛选器；若设置了范围限制，还会显示生命值和品质范围。</RiMCP.Tool.list_zones.Description>
+  <RiMCP.Tool.get_zone.Description>按 id 获取某个区域或地带的完整详情。</RiMCP.Tool.get_zone.Description>
+  <RiMCP.Tool.get_environment.Description>天气、季节、环境状况、危险，以及封闭房间的用途、大小、无屋顶格数和温度。通向室外或处于迷雾下的房间不会列出。</RiMCP.Tool.get_environment.Description>
+  <RiMCP.Tool.get_power.Description>获取电力网、电力储备、发电与耗电情况，以及通电组件相关信息。</RiMCP.Tool.get_power.Description>
+  <RiMCP.Tool.list_threats.Description>列出当前威胁：敌对者、狂暴动物、掠食动物和火灾。迷雾覆盖的威胁不会显示。</RiMCP.Tool.list_threats.Description>
+  <RiMCP.Tool.get_research.Description>当前研究项目、阻止研究推进的原因（noProject、missingResearchBench 或 noResearcher），以及分页的项目列表；availableOnly 只列出现在可以开始的项目。</RiMCP.Tool.get_research.Description>
+  <RiMCP.Tool.list_ideoligions.Description>列出文化的身份、meme、文化信息和模式标记；未启用 Ideology 时，active=false 且列表为空。</RiMCP.Tool.list_ideoligions.Description>
+  <RiMCP.Tool.get_ideoligion.Description>通过 list_ideoligions 返回的 id 获取某个文化的完整详情，包括描述和戒律。</RiMCP.Tool.get_ideoligion.Description>
+  <RiMCP.Tool.list_quests.Description>按“任务”标签页的显示方式列出任务，隐藏任务不显示；tab 可选择 available、active 或 historical（包含已关闭的任务）。可接取的任务会显示 canAccept（否则显示原因和 unmetRequirements）、expiresInTicks、rewardChoices（每项包含 index、value 和 needsAccepter），以及可接取者：有资格接取该任务的殖民者。已接取任务会显示接取者和所选奖励。detail=normal 会附加描述和组成部分。</RiMCP.Tool.list_quests.Description>
+  <RiMCP.Tool.answer_letter.Description>按照信件对话框的方式回答待处理信件（letterId），使用 get_events 返回的选项和 revision；若选项自获取后发生变化则会拒绝操作。dismiss: true 会在游戏允许时关闭信件。结果会在游戏中显示。如果回答引出后续问题，可通过 dialogs 获取问题并用 answer_dialog 回答。</RiMCP.Tool.answer_letter.Description>
+  <RiMCP.Tool.respond_to_quest.Description>按照“任务”标签页的操作接取任务提议，或关闭、恢复任务。带有 rewardChoices 的提议需选择一项奖励（reward 及其 index）；需要指定接取者的提议还需提供 accepter，该值须为 list_quests 中列出的可接取者之一。如果游戏先提出确认问题（例如授予皇室恩宠之前），dialogs 会提供问题以供 answer_dialog 回答。结果会在游戏中显示。</RiMCP.Tool.respond_to_quest.Description>
+  <RiMCP.Tool.answer_dialog.Description>回答由智能体调用打开的对话框（interactionId），通过 page 和 option id 选择，效果与点击相同，并遵循打开该对话框的调用所使用的相同规则。cancel: true 会在允许时像按 Escape 一样关闭对话框。如果该页已不再显示（玩家已回答或关闭，或页面已前进或变化），则会拒绝操作；此时应读取新页面。要求打开对话框的工具仍处于活动状态。</RiMCP.Tool.answer_dialog.Description>
+  <RiMCP.Tool.assign_owner.Description>使用“分配”对话框的检查规则，将角色分配给床、王座或其他可分配所有者的建筑，或解除分配（检查适用对象、床位大小与类型、文化）。将角色分配到已满的床位时会像游戏中一样替换一名所有者；unassigned 会列出被移除的所有者。</RiMCP.Tool.assign_owner.Description>
+  <RiMCP.Tool.list_pawn_actions.Description>获取玩家角色在某个物件（targetId）或格子（x 和 z）上的右键菜单，按照游戏生成菜单的方式返回每个选项的 id、text、disabled、origin（模组内容的来源）以及 unsupported 和原因，例如无法由智能体使用的交易窗口。物件结果包含物件本身和所在格子的选项；格子结果包含其中所有内容的选项。使用游戏当前显示的地图。</RiMCP.Tool.list_pawn_actions.Description>
+  <RiMCP.Tool.choose_pawn_action.Description>从 list_pawn_actions 选择一个选项（提供该菜单的 revision、选项以及相同的目标），效果与点击相同；如果菜单已变化则会拒绝操作。模组选项若要求指定目标，则提供 aimId 或 aimX 和 aimZ，并按该模组自身规则检查；未提供目标时会取消目标选择。后续问题可通过 dialogs 获取，并用 answer_dialog 回答。</RiMCP.Tool.choose_pawn_action.Description>
+  <RiMCP.Tool.list_gizmos.Description>列出选中建筑或角色（thingId）时显示的指令按钮：包括 id、label、kind（toggle 带 on、action，或带参数要求的 target）、disabledReason、origin、unsupported 和原因，以及用于按下按钮的工具。detail=normal 会附加说明。</RiMCP.Tool.list_gizmos.Description>
+  <RiMCP.Tool.set_building_toggle.Description>将游戏内一个开关指令切换为开启或关闭（使用 list_gizmos 返回的 gizmo 和 revision），例如电源开关、保持门开启、医疗床或炮塔的停止射击。电源开关会在殖民者拨动后才发生变化；pending 会说明此事。</RiMCP.Tool.set_building_toggle.Description>
+  <RiMCP.Tool.use_gizmo.Description>按照点击操作按下 list_gizmos 返回的按钮（提供 gizmo 和 revision）：可以是 action、角色上的或模组提供的 toggle（on），或 target 按钮（提供 targetId 或 x 和 z）。对于两阶段能力，还需提供 destinationX 和 destinationZ；发出指令前会按按钮自身规则检查。后续问题可通过 dialogs 获取，并用 answer_dialog 回答。</RiMCP.Tool.use_gizmo.Description>
+  <RiMCP.Tool.get_events.Description>获取游戏向玩家显示的信息：警报（包含相关角色、物件或地点，最多 10 个，culpritCount 表示总数）、待处理信件（文本、过期时间、任务，以及选择类信件的选项），以及“历史”标签页中的信件和消息。不提供 since 时，历史记录返回最新条目；提供 since（上次调用的 history.cursor）时，按从旧到新的顺序返回其后的条目，并在有下一页时提示 more。repeated 会列出游戏自上次以来重复显示的消息；reset 表示 since 来自另一次加载；incomplete 表示部分条目可能已被丢弃。detail=normal 会为历史记录中的警报附加说明和信件文本。</RiMCP.Tool.get_events.Description>
+  <RiMCP.Tool.list_buildings.Description>列出殖民地建筑，默认使用精简信息；detail=normal 会附加大小、可通行性、电力、电池、燃料和 billGiver。category 可按生产、电力、床、储存或 defName 子字符串筛选；include=["contents"] 会附加储存内容。</RiMCP.Tool.list_buildings.Description>
+  <RiMCP.Tool.get_building.Description>通过 ThingID 或存档加载 ID 获取一个建筑：大小、可通行性、电力、燃料、工作清单和储存内容。</RiMCP.Tool.get_building.Description>
+  <RiMCP.Tool.list_world.Description>列出世界层级的上下文：派系和世界物件。</RiMCP.Tool.list_world.Description>
+  <RiMCP.Tool.search_defs.Description>按 kind（任意 Def 类型，不含 Def 后缀；也可用 research 等别名或 all）、query 和 category 搜索已加载的 def。sourceMod 表示定义该 def 的模组，不是后来对其打补丁的模组。</RiMCP.Tool.search_defs.Description>
+  <RiMCP.Tool.get_def.Description>通过 defName 获取一个 def，也可像 search_defs 一样按 kind 指定类型。sourceMod 表示定义该 def 的模组，不是后来对其打补丁的模组。</RiMCP.Tool.get_def.Description>
+  <RiMCP.Tool.set_pawn_drafted.Description>通过 ThingID 或存档加载 ID 征召或解除征召一名玩家控制的角色。</RiMCP.Tool.set_pawn_drafted.Description>
+  <RiMCP.Tool.set_pawn_work_priority.Description>设置玩家角色某项工作的优先级：0 表示禁用，1 最高，4 最低。</RiMCP.Tool.set_pawn_work_priority.Description>
+  <RiMCP.Tool.set_pawn_assignment.Description>设置一个“分配”式角色选项：日程、政策、医疗照护、自我治疗、敌对响应、允许区域、携带药品或囚犯互动。</RiMCP.Tool.set_pawn_assignment.Description>
+  <RiMCP.Tool.designate_animal.Description>设置或清除一只动物的狩猎、驯服或屠宰指定。</RiMCP.Tool.designate_animal.Description>
+  <RiMCP.Tool.set_animal_training.Description>按 TrainableDef defName 设置殖民地动物所需的训练标记。</RiMCP.Tool.set_animal_training.Description>
+  <RiMCP.Tool.set_research_project.Description>按 ResearchProjectDef defName 设置当前研究项目。返回可能阻止研究推进的因素，例如缺少研究台。</RiMCP.Tool.set_research_project.Description>
+  <RiMCP.Tool.designate.Description>按 thingIds 或单元格矩形为物件下达命令（可选提供一个 defName）：forbid、unforbid、haul、cut、harvest、chopWood、mine、deconstruct 或 cancel。使用游戏自身的检查；每个目标都会返回 applied、alreadySatisfied 或附带原因的 rejected。haul 会标记物件，避免它们被自动搬运；cut 会保留已长成的树木，chopWood 则会砍倒树木；harvest 会收获成熟作物和野生植物。绝不会挖掘未探索格。操作游戏当前显示的地图。</RiMCP.Tool.designate.Description>
+  <RiMCP.Tool.place_blueprint.Description>使用游戏建造工具放置最多 50 个蓝图（def、可选的 stuff 和 rotation，以及 x 和 z），因此会应用研究和放置规则。每项都会返回 applied、alreadySatisfied（说明当前位置已有蓝图、施工框架或已建成物件）或附带原因的 rejected；blockers 会列出缺少的材料或建造者。可用 check_placement 查找位置。操作游戏当前显示的地图。</RiMCP.Tool.place_blueprint.Description>
+  <RiMCP.Tool.set_zone.Description>创建（提供 kind 和 add，并带 requestId）、扩展、缩小、重命名或删除（通过 zoneId）储存区或种植区。单元格会按游戏区域工具的规则检查；被拒绝的格子会列出原因。区域只能扩展到相邻格；移除格子后会保留相连部分。set_storage 可更改储存区接收的物品。操作游戏当前显示的地图。</RiMCP.Tool.set_zone.Description>
+  <RiMCP.Tool.set_storage.Description>设置储存区或储存建筑的优先级和接收内容。allow 与 disallow 接受类别或物件名称（例如 FoodMeals 或 MealSimple），并在 allowAll 或 disallowAll 之后执行；每项都会返回 applied、alreadySatisfied 或 rejected。只有明确指定时才会更改特殊筛选器（例如 AllowRotten）；specialFiltersOff 会列出仍会拒绝部分已允许物品的筛选器，fixedSpecialFiltersOff 会列出无论设置如何建筑都会拒绝的筛选器。accepts 会按 list_zones 的方式汇总结果。</RiMCP.Tool.set_storage.Description>
+  <RiMCP.Tool.set_growing_zone.Description>设置种植区作物（须为游戏作物菜单提供的作物），以及是否播种和清除其他植物。返回其生长状态：sowableCells、sown、harvestable、averageGrowth、notGrowing 及原因（resting 是正常的夜间休息，约 19:00 到 6:00；还包括 tooDark、temperature 和 other），以及 noPlantableCells、outOfSeason 或 noGrower 等阻碍项。</RiMCP.Tool.set_growing_zone.Description>
+  <RiMCP.Tool.set_area.Description>将矩形绘制到 Home 区域（areaId home）或允许区域中，或从中移除；也可重命名或删除允许区域，或者省略 areaId 来创建区域（需提供 requestId）。</RiMCP.Tool.set_area.Description>
+  <RiMCP.Tool.order_pawn.Description>按照游戏的右键检查规则命令一名玩家角色：装备或穿戴（targetId 指向物品）、移动到 x 和 z（前往附近可站立格，返回 destination）、攻击（targetId；远程角色若超出射程会被拒绝，其他角色进行近战攻击）、救援倒地角色或治疗角色。move、attack 和 tend 要求角色已被征召。命令会替换当前工作；equip 和 wear 可排在当前工作之后执行，类似按住 Shift 点击。返回 jobIssued、alreadySatisfied、附带游戏原因的 rejected，或游戏向玩家提问时的 awaitingInput。操作游戏当前显示的地图。</RiMCP.Tool.order_pawn.Description>
+  <RiMCP.Tool.set_game_speed.Description>暂停游戏或设置游戏速度。也会结束任何正在运行的 advance_time。</RiMCP.Tool.set_game_speed.Description>
+  <RiMCP.Tool.advance_time.Description>让游戏最多运行 24 个游戏内小时，然后暂停；如果满足 stopOn 条件，会提前停止并暂停，并报告发生的情况和结束原因。同一时间只能运行一次；使用 requestId 重试会返回现有运行（保留最近 32 次）。waitSeconds 会等待结果；否则可继续调用 get_advance。取消该调用不会停止运行；set_game_speed 可以停止。</RiMCP.Tool.advance_time.Description>
+  <RiMCP.Tool.get_advance.Description>获取游戏的 tick 和速度，以及一次 advance_time 运行（最新一次或指定 runId）的状态、发生情况和结束原因。waitSeconds 会等待运行结束。</RiMCP.Tool.get_advance.Description>
+  <RiMCP.Tool.get_operation.Description>按 operationId 获取一项操作（例如存档、加载、生成世界、搜索地点等）：包括其状态（queued、running、awaitingConfirmation、succeeded、failed、unverified、declined、cancelled、revoked 或 interruptedByChange）、步骤、游戏待处理的问题和结果。RimWorld 加载期间及游戏状态切换后也可使用。保留正在运行的操作、最近 32 项已完成操作，以及最近 1,000 个请求的 requestId。waitSeconds 会等待操作完成。</RiMCP.Tool.get_operation.Description>
+  <RiMCP.Tool.cancel_operation.Description>在下一安全步骤停止一项操作，并保留已完成的更改；加载等不可中断的步骤会先完成。要求启动该操作的工具仍处于活动状态。RimWorld 加载期间也可使用。</RiMCP.Tool.cancel_operation.Description>
+  <RiMCP.Tool.list_saves.Description>按时间倒序列出存档文件：名称、时间、大小、游戏版本、模组是否与当前运行的模组一致，以及承诺模式状态。loadedColony 表示已加载的殖民地是否处于承诺模式。主菜单中也可使用。</RiMCP.Tool.list_saves.Description>
+  <RiMCP.Tool.list_scenarios.Description>列出新游戏场景（按场景界面的显示方式），以及 RimMCP 是否支持设置每个场景（supported）；manualScreens 列出需要在游戏内完成的界面。主菜单中也可使用。</RiMCP.Tool.list_scenarios.Description>
+  <RiMCP.Tool.get_setup.Description>获取正在设置的新游戏：当前界面（stage）、revision、选择项和选项。设置命令会将此 revision 作为 expectedRevision；若此后任何人（例如玩家）更改了设置，则命令会被拒绝，并显示 lastChangeExternal。handoff 会说明何时需在游戏内完成某个界面。在 customIdeoligion 阶段，会显示文化、每项戒律的 id 和复选框选项、meme 目录以及 blocksNext。</RiMCP.Tool.get_setup.Description>
+  <RiMCP.Tool.setup_back.Description>像点击“返回”按钮一样退回上一个设置界面。后续界面中做出的选择可能会丢失，与游戏中的行为相同。</RiMCP.Tool.setup_back.Description>
+  <RiMCP.Tool.set_setup_storyteller.Description>选择故事叙述者、难度和承诺模式，然后进入世界设置界面。自定义难度时，custom 用于设置面板控件：base 是起始预设（默认使用当前自定义值，或 Rough）；settings 按名称设置控件，并遵循各控件自身的取值范围和步进，与 get_setup 所列一致。</RiMCP.Tool.set_setup_storyteller.Description>
+  <RiMCP.Tool.set_setup_ideoligion.Description>选择文化（Ideology）。classic 和 preset（可选提供 structure meme）会进入下一界面；saved 会加载文件（这是一个操作，因为游戏可能询问版本或模组）；customFixed 和 customFluid 会按照 meme 对话框规则，使用 structure 和 memes 创建文化（一个 structure；1 到 4 个 memes；若为 fluid 则必须恰好 1 个；不得有互相排斥的 meme），之后可用 edit_setup_ideoligion 修改。</RiMCP.Tool.set_setup_ideoligion.Description>
+  <RiMCP.Tool.edit_setup_ideoligion.Description>按界面规则编辑自定义文化。各部分依次应用，每项返回 applied、alreadySatisfied 或附带游戏原因的 rejected：randomize；structure 和 memes（之后重新生成戒律、风格和描述，因此应先提供 memes；若某项被拒绝则停止后续处理）；culture；styles；precepts（添加 Add 按钮提供的选项，或按 id 执行 replaceWith、regenerate、rename 或 remove，具体依照对应复选框规则；新 id 会在请求内沿用）；names。done 会执行界面的“下一步”。对话框打开时会拒绝操作。尚无文化时，structure 和 memes 会创建一个。</RiMCP.Tool.edit_setup_ideoligion.Description>
+  <RiMCP.Tool.answer_confirmation.Description>根据 get_operation 返回的 confirmationId 回答操作期间游戏提出的问题，例如是否在某派系附近定居。仅当启用了无人值守设置时可用；否则由玩家在游戏中回答。问题已过期时会拒绝操作。</RiMCP.Tool.answer_confirmation.Description>
+  <RiMCP.Group.observe.Label>观察</RiMCP.Group.observe.Label>
+  <RiMCP.Group.observe.Description>读取殖民地、殖民者、地图、定义和时间状态。</RiMCP.Group.observe.Description>
+  <RiMCP.Group.diagnostics.Label>诊断</RiMCP.Group.diagnostics.Label>
+  <RiMCP.Group.diagnostics.Description>读取已加载模组、游戏日志和游戏选项。</RiMCP.Group.diagnostics.Description>
+  <RiMCP.Group.time.Label>时间</RiMCP.Group.time.Label>
+  <RiMCP.Group.time.Description>暂停、设置速度并推进时间。</RiMCP.Group.time.Description>
+  <RiMCP.Group.administration.Label>管理</RiMCP.Group.administration.Label>
+  <RiMCP.Group.administration.Description>更改工作优先级、分配、政策、账单、研究和动物训练。</RiMCP.Group.administration.Description>
+  <RiMCP.Group.orders.Label>指令</RiMCP.Group.orders.Label>
+  <RiMCP.Group.orders.Description>地图指令：禁止、搬运、砍伐、收获、采矿、拆除和取消；动物指定；以及蓝图。</RiMCP.Group.orders.Description>
+  <RiMCP.Group.pawnControl.Label>殖民者控制</RiMCP.Group.pawnControl.Label>
+  <RiMCP.Group.pawnControl.Description>起草殖民者并下达直接命令：装备、穿戴、移动、攻击、救援和治疗。</RiMCP.Group.pawnControl.Description>
+  <RiMCP.Group.decisions.Label>决策</RiMCP.Group.decisions.Label>
+  <RiMCP.Group.decisions.Description>答复信件和任务邀请：谁加入殖民地、殖民地接纳什么，以及选择哪些奖励。</RiMCP.Group.decisions.Description>
+  <RiMCP.Group.gameSettings.Label>游戏设置</RiMCP.Group.gameSettings.Label>
+  <RiMCP.Group.gameSettings.Description>更改叙述者、难度和全局游戏选项。</RiMCP.Group.gameSettings.Description>
+  <RiMCP.Group.gameSetup.Label>新游戏设置</RiMCP.Group.gameSetup.Label>
+  <RiMCP.Group.gameSetup.Description>保存、加载和离开游戏，并设置新游戏。可能放弃殖民地或覆盖存档，因此仅完全控制权限包含此组。</RiMCP.Group.gameSetup.Description>
+  <RiMCP.Preset.full.Label>完全控制</RiMCP.Preset.full.Label>
+  <RiMCP.Preset.full.Description>所有工具，包括游戏设置以及保存、加载和设置游戏。</RiMCP.Preset.full.Description>
+  <RiMCP.Preset.control.Label>控制</RiMCP.Preset.control.Label>
+  <RiMCP.Preset.control.Description>除游戏设置和新游戏设置外的所有内容。</RiMCP.Preset.control.Description>
+  <RiMCP.Preset.administration.Label>管理</RiMCP.Preset.administration.Label>
+  <RiMCP.Preset.administration.Description>读取信息、殖民地设置和时间，因此智能体可以通过推进时间检查更改。没有直接命令。</RiMCP.Preset.administration.Description>
+  <RiMCP.Preset.readOnly.Label>只读</RiMCP.Preset.readOnly.Label>
+  <RiMCP.Preset.readOnly.Description>仅可读取。智能体无法更改任何内容。</RiMCP.Preset.readOnly.Description>
+  <RiMCP.Tab.Connection>连接</RiMCP.Tab.Connection>
+  <RiMCP.Tab.Access>权限</RiMCP.Tab.Access>
+  <RiMCP.Tab.Activity>活动</RiMCP.Tab.Activity>
+  <RiMCP.Tab.Safety>安全</RiMCP.Tab.Safety>
+  <RiMCP.Tool.save_game.Description>将殖民地保存为指定名称（异步操作；参见 get_operation）。只有在验证成功后才算成功，因为游戏不会显示自身的保存错误：文件必须完整，且保存期间日志中没有错误。failed 或 unverified 表示不得依赖该存档。overwrite 会替换现有存档。承诺模式下不可用。</RiMCP.Tool.save_game.Description>
+  <RiMCP.Tool.load_game.Description>加载存档（异步操作；参见 get_operation）。已有殖民地时，提供 saveFirst（存档名称）或 discardUnsaved: true；先保存会暂停游戏并保持暂停，直到载入完成，若保存失败则停止载入。若存档版本或模组不同，游戏会询问玩家，操作将等待确认（awaitingConfirmation）。承诺模式游戏已加载时不可用。</RiMCP.Tool.load_game.Description>
+  <RiMCP.Tool.leave_game.Description>返回主菜单（异步操作；参见 get_operation）。提供 saveFirst（存档名称）或 discardUnsaved: true；先保存会在同一时刻暂停并离开，保存失败则停止操作。承诺模式游戏会像游戏内一样保存到专用槽位，且不接受这两个参数。</RiMCP.Tool.leave_game.Description>
+  <RiMCP.Tool.find_starting_sites.Description>搜索可定居的世界起始地块（异步操作；参见 get_operation），按生长期从长到短排列，并可按生物群系、地势、河流、道路、海岸、温度、降雨、生长天数及与其他派系定居点的距离筛选；也可排除会损害 goodwill 的地块。每个地点会列出最近的计数定居点及其侵占的定居点。需要处于起始地点界面。</RiMCP.Tool.find_starting_sites.Description>
+  <RiMCP.Tool.start_setup.Description>从某个情景开始设置新游戏（异步操作；参见 get_operation），并像“新殖民地”一样打开游戏设置界面。已有殖民地时，按 leave_game 的方式提供 saveFirst 或 discardUnsaved。随后依次调用：set_setup_storyteller、generate_world、choose_starting_site、set_setup_ideoligion（Ideology）、set_starting_pawns 和 start_game。</RiMCP.Tool.start_setup.Description>
+  <RiMCP.Tool.cancel_setup.Description>放弃正在设置的新游戏，丢弃其世界和殖民者，并返回主菜单（异步操作；参见 get_operation）。</RiMCP.Tool.cancel_setup.Description>
+  <RiMCP.Tool.generate_world.Description>设置世界界面选项并生成世界（异步操作；参见 get_operation），完成后进入起始地点界面。未提供的选项保持原值。生成期间其他请求会等待。</RiMCP.Tool.generate_world.Description>
+  <RiMCP.Tool.choose_starting_site.Description>选择起始地块，可选设置地图大小和季节，然后继续（异步操作；参见 get_operation）。游戏规则仍然适用；若在其他派系附近定居，游戏会询问玩家（awaitingConfirmation）；启用无人值守设置时则调用 answer_confirmation。</RiMCP.Tool.choose_starting_site.Description>
+  <RiMCP.Tool.set_starting_pawns.Description>按顺序安排、重抽并重命名起始殖民者（异步操作；参见 get_operation）：order（如拖动排序；前 startingCount 名开始游戏）、preferences（年龄及启用 Biotech 时的 xenotype，并重抽对应槽位）、rerolls（反复 Randomize，直到殖民者符合条件或达到 maxAttempts），最后设置 names。槽位按新顺序编号。结果会列出符合项、缺失项和名单。其他人更改设置时操作会停止。</RiMCP.Tool.set_starting_pawns.Description>
+  <RiMCP.Tool.start_game.Description>从最后一个设置界面开始殖民地（异步操作；参见 get_operation）；结果包含新的 loadId。除非启用无人值守设置，否则玩家必须先在游戏内批准此确切设置（awaitingConfirmation）；等待期间若设置发生变化，批准请求会撤销。如果没有殖民者能执行必需工作，游戏也会询问。</RiMCP.Tool.start_game.Description>
+  <RiMCP.Preset.custom.Label>自定义</RiMCP.Preset.custom.Label>
+  <RiMCP.Preset.custom.Description>自行选择权限组和工具。后续版本新增的工具会沿用所属权限组的设置。</RiMCP.Preset.custom.Description>
+</LanguageData>

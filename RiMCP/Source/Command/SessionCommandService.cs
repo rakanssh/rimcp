@@ -351,7 +351,7 @@ namespace RiMCP.Command
             RiMCP.UI.HeldGameNotice notice = null;
             if (saveFirst != null)
             {
-                notice = new RiMCP.UI.HeldGameNotice("RimMCP saved the colony as '" + saveFirst + "' and is loading '" + name + "'. The colony is held as saved until you answer.");
+                notice = new RiMCP.UI.HeldGameNotice("RiMCP.HeldSave".Translate(saveFirst, name));
                 Find.WindowStack.Add(notice);
             }
             try

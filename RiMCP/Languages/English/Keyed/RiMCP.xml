@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.RunningOne>Running · {0} client · last request {1}</RiMCP.RunningOne>
+  <RiMCP.RunningMany>Running · {0} clients · last request {1}</RiMCP.RunningMany>
+  <RiMCP.ToolsEnabled>{0} of {1} tools on. Agents see only the tools that are on, so the list they load stays short.</RiMCP.ToolsEnabled>
+  <RiMCP.MatchingOne>{0} matching tool</RiMCP.MatchingOne>
+  <RiMCP.MatchingMany>{0} matching tools</RiMCP.MatchingMany>
+  <RiMCP.ConnectedOne>Connected: {0} agent, last request {1}.</RiMCP.ConnectedOne>
+  <RiMCP.ConnectedMany>Connected: {0} agents, last request {1}.</RiMCP.ConnectedMany>
+  <RiMCP.LocalAddress>Local address: {0}</RiMCP.LocalAddress>
+  <RiMCP.ConfigFolder>RimWorld config folder: {0}</RiMCP.ConfigFolder>
+  <RiMCP.AgentsOff>Agents are off</RiMCP.AgentsOff>
+  <RiMCP.NotRunning>Not running; see Activity</RiMCP.NotRunning>
+  <RiMCP.AgentsOn>Agents on</RiMCP.AgentsOn>
+  <RiMCP.MasterTip>The master switch. Off stops the bridge, so no agent can read or change anything, and a running advance or operation stops. Your access choices are kept.</RiMCP.MasterTip>
+  <RiMCP.AccessLevel>Access level</RiMCP.AccessLevel>
+  <RiMCP.OffAccessTip>Agents are off. Nothing runs until you turn them back on; these choices apply then.</RiMCP.OffAccessTip>
+  <RiMCP.Search>Search</RiMCP.Search>
+  <RiMCP.Clear>Clear</RiMCP.Clear>
+  <RiMCP.AllOn>All on</RiMCP.AllOn>
+  <RiMCP.AllOff>All off</RiMCP.AllOff>
+  <RiMCP.Destructive>can undo player work</RiMCP.Destructive>
+  <RiMCP.OffConnection>Agents are off. Turn on Agents on, above, to connect one.</RiMCP.OffConnection>
+  <RiMCP.NotRunningConnection>RimMCP isn't running; the Activity tab shows why.</RiMCP.NotRunningConnection>
+  <RiMCP.Waiting>Waiting for an agent to connect.</RiMCP.Waiting>
+  <RiMCP.StepOne>1. Copy the MCP config.</RiMCP.StepOne>
+  <RiMCP.CopyConfig>Copy MCP config</RiMCP.CopyConfig>
+  <RiMCP.ConfigCopied>RimMCP config copied.</RiMCP.ConfigCopied>
+  <RiMCP.StepTwo>2. Add it to your agent's MCP servers, or paste it into the agent's chat and ask it to add it.</RiMCP.StepTwo>
+  <RiMCP.StepThree>3. The agent shows as connected here, and its tools follow the Access tab.</RiMCP.StepThree>
+  <RiMCP.ConfigPrivacy>The config includes the token, so keep it private. Agents connect through the RimMCP helper, which it starts.</RiMCP.ConfigPrivacy>
+  <RiMCP.Advanced>Advanced</RiMCP.Advanced>
+  <RiMCP.RegenerateToken>Regenerate token</RiMCP.RegenerateToken>
+  <RiMCP.TokenRegenerated>RimMCP token regenerated. Copy MCP config again.</RiMCP.TokenRegenerated>
+  <RiMCP.NewConfigRequired>Connected agents need the new config afterwards.</RiMCP.NewConfigRequired>
+  <RiMCP.ToolCalls>Tool calls</RiMCP.ToolCalls>
+  <RiMCP.RecentRequests>Recent requests</RiMCP.RecentRequests>
+  <RiMCP.NoCalls>No tool calls since RimWorld started.</RiMCP.NoCalls>
+  <RiMCP.UnattendedSetup>Unattended game setup</RiMCP.UnattendedSetup>
+  <RiMCP.UnattendedTip>Lets agents answer the game's questions while setting up a new game, and start the colony without asking you.</RiMCP.UnattendedTip>
+  <RiMCP.UnattendedOff>Off: you approve the start of a new colony and answer the game's questions on screen.</RiMCP.UnattendedOff>
+  <RiMCP.ModActions>Mods' menu options and buttons</RiMCP.ModActions>
+  <RiMCP.ModActionsTip>Lets agents use the right-click options and buttons that mods add. RimMCP cannot check them before they run: they run as your click would, and a target is checked against the mod's own rules before it is given.</RiMCP.ModActionsTip>
+  <RiMCP.ModActionsOff>Off: agents use only the game's own options and buttons, each checked before it runs.</RiMCP.ModActionsOff>
+  <RiMCP.QuickButton>RimMCP button in game</RiMCP.QuickButton>
+  <RiMCP.QuickButtonTip>The button on the bottom bar that shows whether agents are on and working, and pauses them or changes the access level in a click.</RiMCP.QuickButtonTip>
+  <RiMCP.QuickButtonHelp>Shows whether agents are on and working; click it to pause them or change the access level.</RiMCP.QuickButtonHelp>
+  <RiMCP.Multiplayer>During a Multiplayer session, agents can read but never change the game or control time.</RiMCP.Multiplayer>
+  <RiMCP.AccessCurrent>Access: {0} (current)</RiMCP.AccessCurrent>
+  <RiMCP.AccessChoice>Access: {0}</RiMCP.AccessChoice>
+  <RiMCP.PauseAgents>Pause agents</RiMCP.PauseAgents>
+  <RiMCP.ResumeAgents>Resume agents</RiMCP.ResumeAgents>
+  <RiMCP.OpenSettings>RimMCP settings...</RiMCP.OpenSettings>
+  <RiMCP.PausedStatus>RimMCP: agents are paused. Click to resume them.</RiMCP.PausedStatus>
+  <RiMCP.StoppedStatus>RimMCP: the bridge is not running; see RimMCP settings.</RiMCP.StoppedStatus>
+  <RiMCP.QuickStatus>RimMCP: {0}. {1}
+{2}, last request {3}.</RiMCP.QuickStatus>
+  <RiMCP.AgentWorking>An agent is working.</RiMCP.AgentWorking>
+  <RiMCP.AgentsIdle>Agents are idle.</RiMCP.AgentsIdle>
+  <RiMCP.ClientOne>{0} client</RiMCP.ClientOne>
+  <RiMCP.ClientMany>{0} clients</RiMCP.ClientMany>
+  <RiMCP.Never>never</RiMCP.Never>
+  <RiMCP.JustNow>just now</RiMCP.JustNow>
+  <RiMCP.SecondsAgo>{0}s ago</RiMCP.SecondsAgo>
+  <RiMCP.StartColony>Start colony</RiMCP.StartColony>
+  <RiMCP.NotYet>Not yet</RiMCP.NotYet>
+  <RiMCP.StartTitle>RimMCP is ready to start this colony</RiMCP.StartTitle>
+  <RiMCP.SetupScenario>Scenario: {0}</RiMCP.SetupScenario>
+  <RiMCP.SetupStoryteller>Storyteller: {0}</RiMCP.SetupStoryteller>
+  <RiMCP.SetupSite>Site: tile {0}{1}, map {2}</RiMCP.SetupSite>
+  <RiMCP.SetupColonists>Colonists: {0}</RiMCP.SetupColonists>
+  <RiMCP.HeldSave>RimMCP saved the colony as '{0}' and is loading '{1}'. The colony is held as saved until you answer.</RiMCP.HeldSave>
+  <RiMCP.LetterDismissed>dismissed the letter '{0}'.</RiMCP.LetterDismissed>
+  <RiMCP.LetterChosen>chose "{0}" for '{1}'.</RiMCP.LetterChosen>
+  <RiMCP.QuestDismissed>dismissed the quest '{0}'.</RiMCP.QuestDismissed>
+  <RiMCP.QuestRestored>restored the quest '{0}'.</RiMCP.QuestRestored>
+  <RiMCP.QuestAccepted>accepted the quest '{0}'.</RiMCP.QuestAccepted>
+  <RiMCP.QuestAcceptedBy>accepted the quest '{0}' with {1}.</RiMCP.QuestAcceptedBy>
+  <RiMCP.SetupStorytellerCommitment>Storyteller: {0} (commitment mode)</RiMCP.SetupStorytellerCommitment>
+  <RiMCP.Tool.get_game_context.Description>Game-wide context: the current map and map ids, time, pause and speed, storyteller and difficulty, and loaded mods.</RiMCP.Tool.get_game_context.Description>
+  <RiMCP.Tool.list_mods.Description>Loaded mods in load order (positions from 0), or scope=installed for every installed mod, with the game version, pending changes, and the game's warnings about the mod list.</RiMCP.Tool.list_mods.Description>
+  <RiMCP.Tool.get_mod.Description>One mod's metadata, dependencies, compatibility, assemblies, and settings panel names (not its settings values).</RiMCP.Tool.get_mod.Description>
+  <RiMCP.Tool.get_game_log.Description>Recent in-game log entries, newest first (not the full Player.log). include=["stackTrace"] or detail=full adds stack traces. The cursor is an offset into the current history.</RiMCP.Tool.get_game_log.Description>
+  <RiMCP.Tool.get_game_settings.Description>Global game options and the colony's storyteller and difficulty, with the choices. Global options work without a colony.</RiMCP.Tool.get_game_settings.Description>
+  <RiMCP.Tool.set_game_settings.Description>Change global options or the colony's storyteller or difficulty preset; only the fields given change. Changing only the storyteller keeps a custom difficulty.</RiMCP.Tool.set_game_settings.Description>
+  <RiMCP.Tool.get_colony_status.Description>Colony dashboard: top risks with drill-down hints, and food: stored meals and raw nutrition, daily use, days left, and the daily trend over up to three days. Only stored food counts.</RiMCP.Tool.get_colony_status.Description>
+  <RiMCP.Tool.list_pawns.Description>Pawns by filter. include=["assignments"] adds Assign-tab settings, and include=["assignmentOptions"] the valid choices for them.</RiMCP.Tool.list_pawns.Description>
+  <RiMCP.Tool.get_pawn.Description>Everything about one pawn, by ThingID or load id.</RiMCP.Tool.get_pawn.Description>
+  <RiMCP.Tool.list_resources.Description>Map resources grouped by def, with food, medicine, stack, forbidden, roof, and rot details. Fogged items are hidden.</RiMCP.Tool.list_resources.Description>
+  <RiMCP.Tool.find_things.Description>Find haulable items (resources, food, medicine, weapons, apparel, chunks, corpses, minified buildings) with id, position, count, forbidden, and storage. Filter by def, category, excludeCategory, label, forbidden, inStorage, or distance from x and z, which sorts by distance. Unexplored areas are not searched.</RiMCP.Tool.find_things.Description>
+  <RiMCP.Tool.get_map_view.Description>A character map of an area, one character per cell: rows[0] is the north edge (z = origin.z + height - 1), each row running west to east from origin.x. Each cell shows its top feature: pawn, building or blueprint, tree, item, zone, water, or fertility. Capital letters are colonists, named in the legend, which lists only symbols shown; unexplored cells are blank. Defaults to 32x32 around the colonists, at most 40x40. layers adds roof or designation grids.</RiMCP.Tool.get_map_view.Description>
+  <RiMCP.Tool.check_placement.Description>Check whether a building fits at x and z, or find where it fits in an area up to 20x20, with the game's build checks. Returns fitting positions (nearest the middle first) with footprint and interaction cell offsets, rejections grouped by reason, the cost, and blockers such as missingMaterial or noConstructor. Changes nothing; uses the map shown in game.</RiMCP.Tool.check_placement.Description>
+  <RiMCP.Tool.list_work.Description>List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.</RiMCP.Tool.list_work.Description>
+  <RiMCP.Tool.list_production.Description>Production bills, each with a state (active, suspended, done, paused, or targetReached) and, when active, what blocks it: missingIngredients, noWorker, needsFuel, or workbenchUnusable. detail=normal adds the usable ingredients needed and available. Reserved ingredients still count.</RiMCP.Tool.list_production.Description>
+  <RiMCP.Tool.get_bill.Description>One bill by id: state, blockers, and the usable ingredients it needs and has (allowed, unforbidden, in its radius, reachable).</RiMCP.Tool.get_bill.Description>
+  <RiMCP.Tool.set_bill.Description>Update (mode=update) or delete (mode=delete) a bill by id. search_defs lists bill mode defs; list_zones gives stockpile ids for SpecificStockpile.</RiMCP.Tool.set_bill.Description>
+  <RiMCP.Tool.list_workshops.Description>Workbenches that take bills, with bill and recipe counts. include=["recipes"] or detail=full adds the recipes that can be added.</RiMCP.Tool.list_workshops.Description>
+  <RiMCP.Tool.get_workshop.Description>Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.</RiMCP.Tool.get_workshop.Description>
+  <RiMCP.Tool.add_bill_to_workshop.Description>Add a bill for a recipe; duplicates are allowed. As in game, it does the recipe once unless repeatModeDefName is Forever, or TargetCount with targetCount. search_defs lists bill mode defs; list_zones gives stockpile ids for SpecificStockpile.</RiMCP.Tool.add_bill_to_workshop.Description>
+  <RiMCP.Tool.list_zones.Description>Stockpiles, growing zones, and allowed areas. Stockpiles show priority and accepts: the top-level categories taken fully (all), partly (some), or not at all (none), counting special filters that are off, and hit point and quality ranges when narrowed.</RiMCP.Tool.list_zones.Description>
+  <RiMCP.Tool.get_zone.Description>Get full details for one zone or area by id.</RiMCP.Tool.get_zone.Description>
+  <RiMCP.Tool.get_environment.Description>Weather, season, conditions, hazards, and enclosed rooms with role, size, unroofed cells, and temperature. Rooms open to the outdoors or under fog are not listed.</RiMCP.Tool.get_environment.Description>
+  <RiMCP.Tool.get_power.Description>Get power grid, stored energy, generation/consumption, and powered component context.</RiMCP.Tool.get_power.Description>
+  <RiMCP.Tool.list_threats.Description>Active threats: hostiles, manhunters, predators, and fires. Fogged ones are hidden.</RiMCP.Tool.list_threats.Description>
+  <RiMCP.Tool.get_research.Description>Current research, what stops it (noProject, missingResearchBench, or noResearcher), and paged projects; availableOnly lists those that can start now.</RiMCP.Tool.get_research.Description>
+  <RiMCP.Tool.list_ideoligions.Description>Ideoligions with identity, memes, culture, and mode flags; active=false and an empty list without Ideology.</RiMCP.Tool.list_ideoligions.Description>
+  <RiMCP.Tool.get_ideoligion.Description>Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.</RiMCP.Tool.get_ideoligion.Description>
+  <RiMCP.Tool.list_quests.Description>Quests as the Quests tab lists them, hidden ones left out; tab picks available, active, or historical (with dismissed ones). An available quest shows canAccept (else reason and unmetRequirements), expiresInTicks, rewardChoices (each with index, value, and needsAccepter), and accepters: the colonists who can accept it. An accepted quest shows its accepter and the reward chosen. detail=normal adds the description and parts.</RiMCP.Tool.list_quests.Description>
+  <RiMCP.Tool.answer_letter.Description>Answer a letter waiting (letterId) as its dialog does, by option and revision from get_events; refused if its options changed since. dismiss: true dismisses it where the game allows. Shown in game. If the answer leads to another question, dialogs has it for answer_dialog.</RiMCP.Tool.answer_letter.Description>
+  <RiMCP.Tool.respond_to_quest.Description>Accept a quest offer as the Quests tab does, or dismiss or restore a quest. An offer with rewardChoices is accepted for one (reward, its index), and one that needs an accepter takes accepter, one of its accepters in list_quests. If the game asks first, as before giving royal favor, dialogs has the question for answer_dialog. Shown in game.</RiMCP.Tool.respond_to_quest.Description>
+  <RiMCP.Tool.answer_dialog.Description>Answer a dialog an agent's call opened (interactionId) by page and option id, as clicking it does, under the same rules as the call that opened it; cancel: true closes it as Escape does, where allowed. Refused once that page is no longer showing: the player answered or closed it, or it moved on or changed, which makes a new page to read. Needs the tool that opened it to be on.</RiMCP.Tool.answer_dialog.Description>
+  <RiMCP.Tool.assign_owner.Description>Assign a pawn to a bed, throne, or other building with owners, or unassign one, with the Assign dialog's checks (who it takes, bed size and kind, ideoligion). Assigning to a full bed replaces an owner, as in game; unassigned lists who lost it.</RiMCP.Tool.assign_owner.Description>
+  <RiMCP.Tool.list_pawn_actions.Description>The right-click menu a player pawn gets on a thing (targetId) or a cell (x and z), as the game builds it: each option's id, text, disabled, origin (the mod, for mod content), and unsupported with why, such as trading, which opens a window agents cannot use. A thing gives its own options and its cell's; a cell gives everything there. Uses the map shown in game.</RiMCP.Tool.list_pawn_actions.Description>
+  <RiMCP.Tool.choose_pawn_action.Description>Choose an option from list_pawn_actions (its revision and option, with the same target) as clicking it does; refused if the menu changed since. A mod's option that asks for a target takes aimId, or aimX and aimZ, checked against the mod's own rules; without one its targeting is cancelled. dialogs has any question that follows, for answer_dialog.</RiMCP.Tool.choose_pawn_action.Description>
+  <RiMCP.Tool.list_gizmos.Description>The buttons a building or pawn (thingId) shows when selected: id, label, kind (toggle with on, action, or target with what it takes), disabledReason, origin, unsupported with why, and the tool that presses it. detail=normal adds descriptions.</RiMCP.Tool.list_gizmos.Description>
+  <RiMCP.Tool.set_building_toggle.Description>Turn one of the game's building toggles on or off (gizmo and revision from list_gizmos), such as a power switch, a door held open, a medical bed, or a turret's hold fire. A power switch changes once a colonist flicks it; pending says so.</RiMCP.Tool.set_building_toggle.Description>
+  <RiMCP.Tool.use_gizmo.Description>Press a button from list_gizmos (gizmo and revision) as a click does: an action, a toggle on a pawn or from a mod (on), or a target button with targetId or x and z, and destinationX and destinationZ for a two-step ability, checked with the button's own rules before it is given. dialogs has any question that follows, for answer_dialog.</RiMCP.Tool.use_gizmo.Description>
+  <RiMCP.Tool.get_events.Description>What the game is telling the player: alerts (with culprits: the pawns, things, or places they concern, up to 10 of culpritCount), letters waiting (text, expiry, quest, and a choice letter's options), and the History tab's letters and messages. Without since, history has the latest entries; with since (history.cursor from the last call), the entries after it, oldest first, with more if another page follows. repeated lists messages the game repeated since; reset means since was from another load, and incomplete that some entries may have been dropped. detail=normal adds alert explanations and letter texts in history.</RiMCP.Tool.get_events.Description>
+  <RiMCP.Tool.list_buildings.Description>Colony buildings, compact by default; detail=normal adds size, passability, power, battery, fuel, and billGiver. category filters by production, power, bed, storage, or a defName substring; include=["contents"] adds storage contents.</RiMCP.Tool.list_buildings.Description>
+  <RiMCP.Tool.get_building.Description>One building by ThingID or load id: size, passability, power, fuel, bills, and storage contents.</RiMCP.Tool.get_building.Description>
+  <RiMCP.Tool.list_world.Description>List world-level context: factions and world objects.</RiMCP.Tool.list_world.Description>
+  <RiMCP.Tool.search_defs.Description>Search loaded defs by kind (any Def type without the Def suffix, aliases such as research, or all), query, and category. sourceMod is the defining mod, not later patchers.</RiMCP.Tool.search_defs.Description>
+  <RiMCP.Tool.get_def.Description>One def by defName, optionally of a kind as in search_defs. sourceMod is the defining mod, not later patchers.</RiMCP.Tool.get_def.Description>
+  <RiMCP.Tool.set_pawn_drafted.Description>Draft or undraft one player-controlled pawn by ThingID or load id.</RiMCP.Tool.set_pawn_drafted.Description>
+  <RiMCP.Tool.set_pawn_work_priority.Description>Set a player pawn's priority for a work type: 0 disables it, 1 is highest, 4 lowest.</RiMCP.Tool.set_pawn_work_priority.Description>
+  <RiMCP.Tool.set_pawn_assignment.Description>Set one Assign-style pawn setting: schedule, policy, medical care, self-tend, hostility response, allowed area, carried medicine, or prisoner interaction.</RiMCP.Tool.set_pawn_assignment.Description>
+  <RiMCP.Tool.designate_animal.Description>Set or clear one animal's hunt, tame, or slaughter designation.</RiMCP.Tool.designate_animal.Description>
+  <RiMCP.Tool.set_animal_training.Description>Set desired training flags for one colony animal by TrainableDef defName.</RiMCP.Tool.set_animal_training.Description>
+  <RiMCP.Tool.set_research_project.Description>Set the current research project by ResearchProjectDef defName. Returns blockers that would stop it progressing, such as a missing research bench.</RiMCP.Tool.set_research_project.Description>
+  <RiMCP.Tool.designate.Description>Order things by thingIds or by cell rectangles (optionally one defName): forbid, unforbid, haul, cut, harvest, chopWood, mine, deconstruct, or cancel. Uses the game's checks; each target is applied, alreadySatisfied, or rejected with the reason. haul marks things not hauled automatically; cut leaves grown trees, which chopWood fells; harvest takes ripe crops and wild plants. Unexplored cells are never mined. Acts on the map shown in game.</RiMCP.Tool.designate.Description>
+  <RiMCP.Tool.place_blueprint.Description>Place up to 50 blueprints (def, optional stuff and rotation, at x and z) with the game's build tool, so research and placement rules apply. Each is applied, alreadySatisfied (with what is there: blueprint, frame, or built), or rejected with the reason; blockers lists missing materials or builders. check_placement finds spots. Acts on the map shown in game.</RiMCP.Tool.place_blueprint.Description>
+  <RiMCP.Tool.set_zone.Description>Create (kind and add, with requestId), grow, shrink, rename, or delete (by zoneId) a stockpile or growing zone. Cells are checked as the game's zone tools do; rejected cells are listed with reasons. A zone grows only into touching cells and keeps its connected part after removals. set_storage changes what a stockpile takes. Acts on the map shown in game.</RiMCP.Tool.set_zone.Description>
+  <RiMCP.Tool.set_storage.Description>Set a stockpile's or storage building's priority and what it accepts. allow and disallow take category or thing names (such as FoodMeals or MealSimple), after allowAll or disallowAll; each entry is applied, alreadySatisfied, or rejected. Special filters (such as AllowRotten) change only when named; specialFiltersOff lists those still refusing part of an allowed entry, and fixedSpecialFiltersOff those the building refuses whatever its settings. accepts summarises the result as list_zones does.</RiMCP.Tool.set_storage.Description>
+  <RiMCP.Tool.set_growing_zone.Description>Set a growing zone's crop (one the game's crop menu offers) and whether to sow it and cut other plants. Returns its growing state: sowableCells, sown, harvestable, averageGrowth, notGrowing with reasons (resting is the normal night rest, about 19:00 to 6:00; tooDark; temperature; other), and blockers such as noPlantableCells, outOfSeason, or noGrower.</RiMCP.Tool.set_growing_zone.Description>
+  <RiMCP.Tool.set_area.Description>Paint rectangles into or out of the Home area (areaId home) or an allowed area, rename or delete an allowed area, or create one by leaving out areaId (with requestId).</RiMCP.Tool.set_area.Description>
+  <RiMCP.Tool.order_pawn.Description>Order one player pawn with the game's right-click checks: equip or wear (targetId of an item), move to x and z (to a standable cell nearby, given as destination), attack (targetId; ranged pawns are refused out of range, others melee), rescue a downed pawn, or tend a pawn. move, attack, and tend need a drafted pawn. The order replaces the current job; equip and wear can queue behind it instead, like shift-click. Returns jobIssued, alreadySatisfied, rejected with the game's reason, or awaitingInput when the game asks the player. Acts on the map shown in game.</RiMCP.Tool.order_pawn.Description>
+  <RiMCP.Tool.set_game_speed.Description>Pause the game or set its speed. Also ends any running advance_time.</RiMCP.Tool.set_game_speed.Description>
+  <RiMCP.Tool.advance_time.Description>Run the game up to 24 in-game hours, then pause; it stops and pauses early on a stopOn condition, and reports what happened and why it ended. One run at a time; a requestId retry returns the existing run (the last 32 are kept). waitSeconds waits for the result; otherwise follow with get_advance. Cancelling the call does not stop the run; set_game_speed does.</RiMCP.Tool.advance_time.Description>
+  <RiMCP.Tool.get_advance.Description>The game's tick and speed, and an advance_time run (the latest, or runId): its status, what happened, and why it ended. waitSeconds waits for it to end.</RiMCP.Tool.get_advance.Description>
+  <RiMCP.Tool.get_operation.Description>An operation by operationId (a save, load, world generation, site search, and so on): its state (queued, running, awaitingConfirmation, succeeded, failed, unverified, declined, cancelled, revoked, or interruptedByChange), step, the game's pending question, and result. Works while RimWorld loads and across game changes. Running operations and the last 32 finished are kept, and requestIds of the last 1,000 requests. waitSeconds waits for it to finish.</RiMCP.Tool.get_operation.Description>
+  <RiMCP.Tool.cancel_operation.Description>Stop an operation at its next safe step, keeping what it did; an uninterruptible step such as loading finishes first. Needs the tool that started it to be on. Works while RimWorld loads.</RiMCP.Tool.cancel_operation.Description>
+  <RiMCP.Tool.list_saves.Description>Save files, newest first: name, time, size, game version, whether its mods match the running ones, and commitment mode. loadedColony says whether the loaded colony is in commitment mode. Works at the main menu.</RiMCP.Tool.list_saves.Description>
+  <RiMCP.Tool.save_game.Description>Save the colony under a name (an operation; see get_operation). It succeeds only when verified, since the game hides its own save errors: the file is complete and nothing was logged as an error while saving. failed or unverified means don't rely on it. overwrite replaces an existing save. Not in commitment mode.</RiMCP.Tool.save_game.Description>
+  <RiMCP.Tool.load_game.Description>Load a save (an operation; see get_operation). With a colony loaded, give saveFirst (a save name) or discardUnsaved: true; saving first pauses and holds the game until it is replaced, and a failed save stops the load. If the save's version or mods differ, the game asks the player and the operation waits (awaitingConfirmation). Not while a commitment-mode game is loaded.</RiMCP.Tool.load_game.Description>
+  <RiMCP.Tool.leave_game.Description>Return to the main menu (an operation; see get_operation). Give saveFirst (a save name) or discardUnsaved: true; saving first pauses and leaves in the same moment, and a failed save stops it. Commitment-mode games save to their own slot, as in game, and take neither.</RiMCP.Tool.leave_game.Description>
+  <RiMCP.Tool.list_scenarios.Description>Scenarios for a new game, as the scenario screen lists them, and whether RimMCP can set each up (supported); manualScreens lists screens to finish in game. Works at the main menu.</RiMCP.Tool.list_scenarios.Description>
+  <RiMCP.Tool.get_setup.Description>The new game being set up: its screen (stage), revision, choices, and options. Setup commands take this revision as expectedRevision and are refused if anyone, such as the player, changed the setup since (lastChangeExternal); handoff says when to finish a screen in game. At the customIdeoligion stage it shows the ideoligion, each precept's id and box options, the meme catalog, and blocksNext.</RiMCP.Tool.get_setup.Description>
+  <RiMCP.Tool.find_starting_sites.Description>Search the world for settleable starting tiles (an operation; see get_operation), longest growing period first, by biome, hilliness, river, road, coast, temperature, rainfall, growing days, and distance to other factions' settlements, optionally leaving out tiles that would cost goodwill. Each site names its nearest counted settlement and any it encroaches on. Needs the starting site screen.</RiMCP.Tool.find_starting_sites.Description>
+  <RiMCP.Tool.start_setup.Description>Start setting up a new game from a scenario (an operation; see get_operation), opening the game's setup screens as New colony does. With a colony loaded, give saveFirst or discardUnsaved, as for leave_game. Then: set_setup_storyteller, generate_world, choose_starting_site, set_setup_ideoligion (Ideology), set_starting_pawns, and start_game.</RiMCP.Tool.start_setup.Description>
+  <RiMCP.Tool.cancel_setup.Description>Abandon the new game being set up, dropping its world and colonists, and return to the main menu (an operation; see get_operation).</RiMCP.Tool.cancel_setup.Description>
+  <RiMCP.Tool.setup_back.Description>Go back one setup screen, as its Back button does. Choices made on later screens may be lost, as in game.</RiMCP.Tool.setup_back.Description>
+  <RiMCP.Tool.set_setup_storyteller.Description>Choose the storyteller, difficulty, and commitment mode, then go on to the world screen. For the custom difficulty, custom sets the panel's controls: base is the preset to start from (default: the current custom values, or Rough), and settings sets controls by name, within their own ranges and steps, as get_setup lists them.</RiMCP.Tool.set_setup_storyteller.Description>
+  <RiMCP.Tool.generate_world.Description>Set the world screen's options and generate the world (an operation; see get_operation), ending at the starting site screen. Options left out keep their values. Other requests wait while it generates.</RiMCP.Tool.generate_world.Description>
+  <RiMCP.Tool.choose_starting_site.Description>Choose the starting tile, and optionally map size and season, then go on (an operation; see get_operation). The game's checks apply; settling near another faction makes the game ask (awaitingConfirmation), for the player or, with unattended setup, answer_confirmation.</RiMCP.Tool.choose_starting_site.Description>
+  <RiMCP.Tool.set_setup_ideoligion.Description>Choose the ideoligion (Ideology). classic and preset (with an optional structure meme) go on to the next screen; saved loads a file (an operation, since the game may ask about its version or mods); customFixed and customFluid create one from structure and memes under the meme dialogs' rules (one structure; 1 to 4 memes, exactly 1 if fluid; none excluding another), for edit_setup_ideoligion to change.</RiMCP.Tool.set_setup_ideoligion.Description>
+  <RiMCP.Tool.edit_setup_ideoligion.Description>Edit the custom ideoligion with the screen's rules. Parts apply in order, each applied, alreadySatisfied, or rejected with the game's reason: randomize; structure and memes (precepts, styles, and description then regenerate, so give memes first; a rejection stops the rest); culture; styles; precepts (add an option an Add button offers, or by id replaceWith, regenerate, rename, or remove, as its box allows; new ids carry through the request); names. done runs the screen's Next. Refused while a dialog is open. With no ideoligion yet, structure and memes create one.</RiMCP.Tool.edit_setup_ideoligion.Description>
+  <RiMCP.Tool.set_starting_pawns.Description>Arrange, reroll, and rename starting colonists (an operation; see get_operation), in order: order (as dragging does; the first startingCount start), preferences (age and xenotype with Biotech, rerolling the slot), rerolls (Randomize until a colonist meets its criteria or maxAttempts runs out), then names. Slots refer to the new order. The result says what matched and what is missing, with the roster. Stops if anyone else changes the setup.</RiMCP.Tool.set_starting_pawns.Description>
+  <RiMCP.Tool.start_game.Description>Start the colony from the last setup screen (an operation; see get_operation); the result has the new loadId. The player approves this exact setup in game first (awaitingConfirmation) unless unattended setup is on, and a change while asking withdraws it. The game also asks if no colonist can do a required job.</RiMCP.Tool.start_game.Description>
+  <RiMCP.Tool.answer_confirmation.Description>Answer the game's question during an operation, by confirmationId from get_operation, such as settling near a faction. Only with unattended setup on; otherwise the player answers in game. Refused once the question is stale.</RiMCP.Tool.answer_confirmation.Description>
+  <RiMCP.Group.observe.Label>Observe</RiMCP.Group.observe.Label>
+  <RiMCP.Group.observe.Description>Read the colony, pawns, map, defs, and time status.</RiMCP.Group.observe.Description>
+  <RiMCP.Group.diagnostics.Label>Diagnostics</RiMCP.Group.diagnostics.Label>
+  <RiMCP.Group.diagnostics.Description>Read loaded mods, the game log, and game options.</RiMCP.Group.diagnostics.Description>
+  <RiMCP.Group.time.Label>Time</RiMCP.Group.time.Label>
+  <RiMCP.Group.time.Description>Pause, set the speed, and advance time.</RiMCP.Group.time.Description>
+  <RiMCP.Group.administration.Label>Administration</RiMCP.Group.administration.Label>
+  <RiMCP.Group.administration.Description>Change work priorities, assignments, policies, bills, research, and animal training.</RiMCP.Group.administration.Description>
+  <RiMCP.Group.orders.Label>Orders</RiMCP.Group.orders.Label>
+  <RiMCP.Group.orders.Description>Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.</RiMCP.Group.orders.Description>
+  <RiMCP.Group.pawnControl.Label>Pawn control</RiMCP.Group.pawnControl.Label>
+  <RiMCP.Group.pawnControl.Description>Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.</RiMCP.Group.pawnControl.Description>
+  <RiMCP.Group.decisions.Label>Decisions</RiMCP.Group.decisions.Label>
+  <RiMCP.Group.decisions.Description>Answer letters and quest offers: who joins the colony, what comes to it, and which rewards.</RiMCP.Group.decisions.Description>
+  <RiMCP.Group.gameSettings.Label>Game settings</RiMCP.Group.gameSettings.Label>
+  <RiMCP.Group.gameSettings.Description>Change the storyteller, difficulty, and global game options.</RiMCP.Group.gameSettings.Description>
+  <RiMCP.Group.gameSetup.Label>Game setup</RiMCP.Group.gameSetup.Label>
+  <RiMCP.Group.gameSetup.Description>Save, load, and leave games, and set up new ones. It can abandon a colony or overwrite a save, so only Full control includes it.</RiMCP.Group.gameSetup.Description>
+  <RiMCP.Preset.full.Label>Full control</RiMCP.Preset.full.Label>
+  <RiMCP.Preset.full.Description>Every tool, including game settings, and saving, loading, and setting up games.</RiMCP.Preset.full.Description>
+  <RiMCP.Preset.control.Label>Control</RiMCP.Preset.control.Label>
+  <RiMCP.Preset.control.Description>Everything except game settings and game setup.</RiMCP.Preset.control.Description>
+  <RiMCP.Preset.administration.Label>Administration</RiMCP.Preset.administration.Label>
+  <RiMCP.Preset.administration.Description>Reads, colony settings, and time, so an agent can check its changes by advancing time. No direct orders.</RiMCP.Preset.administration.Description>
+  <RiMCP.Preset.readOnly.Label>Read only</RiMCP.Preset.readOnly.Label>
+  <RiMCP.Preset.readOnly.Description>Reads only. Agents can't change anything.</RiMCP.Preset.readOnly.Description>
+  <RiMCP.Tab.Connection>Connection</RiMCP.Tab.Connection>
+  <RiMCP.Tab.Access>Access</RiMCP.Tab.Access>
+  <RiMCP.Tab.Activity>Activity</RiMCP.Tab.Activity>
+  <RiMCP.Tab.Safety>Safety</RiMCP.Tab.Safety>
+  <RiMCP.Preset.custom.Label>Custom</RiMCP.Preset.custom.Label>
+  <RiMCP.Preset.custom.Description>Your own choice of groups and tools. Tools added in later versions follow their group.</RiMCP.Preset.custom.Description>
+</LanguageData>
