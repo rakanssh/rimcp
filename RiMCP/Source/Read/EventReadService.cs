@@ -110,6 +110,7 @@ namespace RiMCP.Read
                     Dto.Field("quest", quest == null ? null : Dto.Obj(Dto.Field("id", quest.id), Dto.Field("name", Clean(quest.name)))),
                     Dto.Field("expiresInTicks", timed != null && timed.TimeoutActive ? (object)Math.Max(0, timed.disappearAtTick - tick) : null),
                     Dto.Field("canDismiss", letter.CanDismissWithRightClick),
+                    Dto.Field("postedBy", AgentLog.PostedBy(letter.GetUniqueLoadID())),
                     Dto.Field("targets", Targets(letter.lookTargets)),
                     // A letter with its own window, which cannot be dismissed, is answered by the player.
                     Dto.Field("answeredBy", choice == null && !letter.CanDismissWithRightClick ? "player" : null),
@@ -151,6 +152,7 @@ namespace RiMCP.Read
                 Dto.Field("label", label),
                 Dto.Field("text", text == label ? null : text),
                 Dto.Field("waiting", letter != null && Find.LetterStack != null && Find.LetterStack.LettersListForReading.Contains(letter) ? (object)true : null),
+                Dto.Field("postedBy", AgentLog.PostedBy(entry.LoadId)),
                 Dto.Field("targets", Targets(archivable.LookTargets)));
         }
 

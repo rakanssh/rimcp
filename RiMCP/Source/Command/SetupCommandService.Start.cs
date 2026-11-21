@@ -18,6 +18,7 @@ namespace RiMCP.Command
         {
             RevisionBody body = CommandUtil.ReadBody<RevisionBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
+            AgentLog.Expect("Start the colony", "Started the colony");
             return SessionCommandService.Begin(request, "start_game", requestId, () =>
             {
                 Page page = SetupController.OpenPage;

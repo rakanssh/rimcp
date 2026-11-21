@@ -28,8 +28,12 @@ namespace RiMCP.Bridge
             queue.Enqueue(item);
             if (!item.Done.Wait(timeoutMs))
             {
-                item.Cancel();
-                return BridgeResponse.Error(504, "Timed out waiting for RimWorld main thread.");
+                // Work the main thread has started runs to the end, so its reply is the one to return.
+                if (item.TryCancel())
+                {
+                    return BridgeResponse.Error(504, "Timed out waiting for the RimWorld main thread; the request did not run.");
+                }
+                item.Done.Wait();
             }
             return item.Response;
         }
@@ -52,7 +56,7 @@ namespace RiMCP.Bridge
                     return;
                 }
 
-                if (item.IsCancelled)
+                if (!item.TryStart())
                 {
                     Complete(item);
                     continue;
@@ -66,6 +70,7 @@ namespace RiMCP.Bridge
                 catch (Exception ex)
                 {
                     item.Response = BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
+                    BridgeRouter.LogFailure(ex);
                 }
                 finally
                 {
@@ -103,8 +108,11 @@ namespace RiMCP.Bridge
         private sealed class WorkItem
         {
             public readonly Func<BridgeResponse> Action;
+            private const int Queued = 0;
+            private const int Started = 1;
+            private const int Cancelled = 2;
             public readonly ManualResetEventSlim Done = new ManualResetEventSlim(false);
-            private int cancelled;
+            private int state;
             public BridgeResponse Response;
 
             public WorkItem(Func<BridgeResponse> action)
@@ -112,14 +120,15 @@ namespace RiMCP.Bridge
                 Action = action;
             }
 
-            public bool IsCancelled
+            // Starting and cancelling race; only one of them wins.
+            public bool TryStart()
             {
-                get { return Interlocked.CompareExchange(ref cancelled, 0, 0) == 1; }
+                return Interlocked.CompareExchange(ref state, Started, Queued) == Queued;
             }
 
-            public void Cancel()
+            public bool TryCancel()
             {
-                Interlocked.Exchange(ref cancelled, 1);
+                return Interlocked.CompareExchange(ref state, Cancelled, Queued) == Queued;
             }
         }
     }

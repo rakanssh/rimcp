@@ -66,10 +66,12 @@ namespace RiMCP.Command
                 {
                     throw new CommandException(403, "Answering this dialog needs " + interaction.Tool + " to be on in RimMCP settings.");
                 }
+                AgentLog.About("Answer '" + interaction.Subject + "'", interaction.Selected);
                 Dictionary<string, object> data = Dto.Obj(Dto.Field("interactionId", interaction.Id));
                 if (cancel)
                 {
                     Interactions.Cancel(interaction, page);
+                    AgentLog.Done("Closed '" + interaction.Subject + "' without an answer", interaction.Selected);
                     data["cancelled"] = true;
                     return new CommandResult(true, data);
                 }
@@ -81,6 +83,7 @@ namespace RiMCP.Command
                 data["answered"] = chosen.Text;
                 data["origin"] = origin.Mod;
                 Press.Execute(data, origin, interaction.Tool, interaction.Subject, interaction.Selected, map, aim, choose, () => Interactions.Settle(interaction), interaction);
+                Press.Report(data, "Answered \"" + chosen.Text + "\" (" + interaction.Subject + ")", interaction.Selected);
                 return new CommandResult(true, data);
             });
         }
@@ -93,6 +96,8 @@ namespace RiMCP.Command
                 throw new CommandException(404, "Letter " + letterId + " is not waiting: it was answered, dismissed, or expired. get_events lists the letters waiting.");
             }
             string label = letter.Label.ToString().StripTags();
+            AgentLog.About((body.Dismiss == true ? "Dismiss" : "Answer") + " the letter '" + label + "'", letter.lookTargets);
+            AgentLog.Decision();
             if (body.Dismiss == true)
             {
                 if (!string.IsNullOrEmpty(body.Option))
@@ -104,7 +109,7 @@ namespace RiMCP.Command
                     throw new CommandException(409, "'" + label + "' cannot be dismissed; it needs one of its options.");
                 }
                 Find.LetterStack.RemoveLetter(letter);
-                FollowUps.Announce("dismissed the letter '" + label + "'.", letter.lookTargets);
+                AgentLog.Done("Dismissed the letter '" + label + "'", letter.lookTargets);
                 return new CommandResult(true, Dto.Obj(Dto.Field("letterId", letterId), Dto.Field("dismissed", true)));
             }
             if (string.IsNullOrEmpty(body.Option))
@@ -176,8 +181,8 @@ namespace RiMCP.Command
                 Dto.Field("answered", chosen.Text),
                 Dto.Field("origin", origin.Mod));
             Press.Execute(data, origin, "answer_letter", label, null, Find.CurrentMap, LocalTargetInfo.Invalid, choose, () => Interactions.Settle(interaction), interaction);
+            Press.Report(data, "Chose \"" + chosen.Text + "\" for '" + label + "'", letter.lookTargets);
             data["letterWaiting"] = Find.LetterStack.LettersListForReading.Contains(letter);
-            FollowUps.Announce("chose \"" + chosen.Text + "\" for '" + label + "'.", letter.lookTargets);
             return new CommandResult(true, data);
         }
 
@@ -197,12 +202,15 @@ namespace RiMCP.Command
                 throw new CommandException(400, "reward and accepter are only for accepting a quest.");
             }
             bool dismiss = action == "dismiss";
+            AgentLog.About((dismiss ? "Dismiss" : "Restore") + " the quest '" + quest.name + "'");
+            AgentLog.Decision();
             if (quest.Historical)
             {
                 throw new CommandException(409, "'" + quest.name + "' has ended; only quests on offer or active can be dismissed or restored.");
             }
             if (quest.dismissed == dismiss)
             {
+                AgentLog.NoChange("The quest '" + quest.name + "' was already " + (dismiss ? "dismissed" : "in the Quests tab"));
                 return new CommandResult(false, Dto.Obj(Dto.Field("questId", quest.id), Dto.Field("dismissed", dismiss), Dto.Field("alreadySatisfied", true)));
             }
             // Subquests too, as the Quests tab does.
@@ -211,13 +219,15 @@ namespace RiMCP.Command
             {
                 subquest.dismissed = dismiss;
             }
-            FollowUps.Announce((dismiss ? "dismissed" : "restored") + " the quest '" + quest.name + "'.");
+            AgentLog.Done((dismiss ? "Dismissed" : "Restored") + " the quest '" + quest.name + "'");
             return new CommandResult(true, Dto.Obj(Dto.Field("questId", quest.id), Dto.Field("dismissed", dismiss)));
         }
 
         // The reward is chosen only once the quest is accepted.
         private static CommandResult AcceptQuest(Quest quest, RespondToQuestBody body)
         {
+            AgentLog.About("Accept the quest '" + quest.name + "'");
+            AgentLog.Decision();
             if (quest.State != QuestState.NotYetAccepted)
             {
                 throw new CommandException(409, "'" + quest.name + "' is not on offer: it is " + quest.State + ".");
@@ -293,7 +303,7 @@ namespace RiMCP.Command
                 {
                     Messages.Message("MessageQuestAccepted".Translate(by, quest.name), by, MessageTypeDefOf.TaskCompletion, false);
                 }
-                FollowUps.Announce("accepted the quest '" + quest.name + "'" + (by == null ? "" : " with " + ReadUtil.PawnName(by)) + ".");
+                AgentLog.Done("Accepted the quest '" + quest.name + "'" + (by == null ? "" : " with " + ReadUtil.PawnName(by)), by);
                 return true;
             };
             Dictionary<string, object> data = Dto.Obj(Dto.Field("questId", quest.id));
@@ -304,6 +314,7 @@ namespace RiMCP.Command
                 Find.WindowStack.Add(new Dialog_MessageBox(warning, "Confirm".Translate(), () => accept(), "GoBack".Translate()));
                 data["accepted"] = false;
                 data["asking"] = "The game asks before giving royal favor to " + ReadUtil.PawnName(accepter) + "; answer with answer_dialog.";
+                AgentLog.Done("Asked to confirm accepting the quest '" + quest.name + "'", accepter);
                 FollowUps.Report(data, "respond_to_quest", quest.name, FollowUps.OpenedSince(before));
                 return new CommandResult(false, data);
             }

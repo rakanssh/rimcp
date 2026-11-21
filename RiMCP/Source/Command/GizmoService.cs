@@ -56,10 +56,20 @@ namespace RiMCP.Command
                 {
                     throw new CommandException(409, "'" + Label(entry) + "' is not one of the game's building toggles; press it with use_gizmo.");
                 }
+                string onOff = body.On.Value ? "on" : "off";
+                AgentLog.About("Turn " + Label(entry) + " " + onOff + " on " + AgentLog.Name(building), building);
                 Dictionary<string, object> data = Dto.Obj(Dto.Field("building", SummaryDto.Thing(building)), Dto.Field("gizmo", Label(entry)));
                 bool changed = false;
                 Press.Execute(data, entry.Origin, "set_building_toggle", Label(entry), building, context.Map, LocalTargetInfo.Invalid, () => changed = SetToggle((Command_Toggle)entry.Command, body.On.Value, data));
                 Pending(building, data);
+                if (changed)
+                {
+                    Press.Report(data, "Turned " + Label(entry) + " " + onOff + " on " + AgentLog.Name(building) + (data.ContainsKey("pending") ? " (waiting for a colonist to flick it)" : ""), building);
+                }
+                else
+                {
+                    AgentLog.NoChange(Label(entry) + " on " + AgentLog.Name(building) + " was already " + onOff, building);
+                }
                 return new CommandResult(changed, data);
             });
         }
@@ -85,6 +95,8 @@ namespace RiMCP.Command
             }
             LocalTargetInfo target = Targets.Parse(map, body.TargetId, body.X, body.Z, "target");
             LocalTargetInfo destination = Targets.Parse(map, null, body.DestinationX, body.DestinationZ, "destination");
+            string pressed = AgentLog.Name(thing) + ": " + Label(entry);
+            AgentLog.About(pressed, thing, target);
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("thing", SummaryDto.Thing(thing)),
                 Dto.Field("gizmo", Label(entry)),
@@ -115,6 +127,22 @@ namespace RiMCP.Command
             }
             Press.Execute(data, entry.Origin, "use_gizmo", Label(entry), thing, map, aim, press);
             Pending(thing, data);
+            if (entry.Kind == "toggle" && standard)
+            {
+                pressed += " " + (body.On.Value ? "on" : "off");
+            }
+            else if (entry.Kind == "target" && standard)
+            {
+                pressed += " at " + (target.HasThing ? AgentLog.Name(target.Thing) : "(" + target.Cell.x + ", " + target.Cell.z + ")");
+            }
+            if (changed)
+            {
+                Press.Report(data, pressed + (data.ContainsKey("pending") ? " (waiting for a colonist to flick it)" : ""), thing, target);
+            }
+            else
+            {
+                AgentLog.NoChange(pressed + ": already so", thing);
+            }
             Pawn pawn = thing as Pawn;
             if (pawn != null)
             {

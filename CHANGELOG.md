@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- An agent log: every change an agent makes, in plain words, with whether it was done, partly done, refused and why, or is still in progress, when it happened, and which client made it. It opens from the RimMCP button on the bottom bar, whose tooltip shows the latest lines, and clicking an entry jumps to what it acted on.
+- Agent changes in game: a cursor named for the agent glides over the map to where it acts, and a short pulse marks the spot. What agents say and decide shows in speech bubbles above the RimMCP button; click one to jump to what it is about, or open the agent log from it. A setting chooses which changes show: off, decisions and notes (the default), or every change, with bursts folded into one bubble that counts up. Only decisions and agent letters are kept in the History tab.
+- `tell_player`: an agent can tell you what it is doing or flag something, in a bubble labelled as its own words, or as an "Agent message" letter when it needs your attention. One note every 10 seconds and 3 letters per in-game day; in the Decisions group.
+
+### Changed
+
+- Smaller tool list and replies. Each read tool offers only the controls it uses and lists its own `include` sections; an unknown section is refused with the ones it has, instead of being ignored. `get_pawn` reads at normal detail by default (needs, mood, health, skills and traits), with thoughts, work, assignments, training, gear and relations by `include` or `detail=full`. `get_game_context` names the expansions and counts the other mods; `include=["mods"]` lists them all.
+- Decisions in game name the client that made them, such as "Codex: Accepted the quest...". In `get_events`, letters and History entries RimMCP posted carry `postedBy`.
+- A confirmation that `order_pawn` raises, such as bonding a persona weapon, can be answered with `answer_dialog`.
+- The helper answers with the MCP protocol version the client asks for, and gives clients short instructions on how to start.
+
+### Fixed
+
+- `answer_letter` and `respond_to_quest` refused letter and quest ids sent as numbers, as their schemas ask, with "Missing required argument".
+- Slaves were listed as colonists, so `list_pawns` with `filter=slave` found none.
+- A long call, such as a save with `waitSeconds`, could reply with an error after its work ran, if RimWorld lost focus during the wait.
+- A call that timed out after the game had started it could be done twice by a retry without `requestId`. A timeout now only happens before the work starts, and says so.
+- `advance_time` missed colonists who were carried, in a container or on a caravan, so their downing or death went unreported.
+- Retrying a delete of a zone, an allowed area or a bill with the same `requestId` said it was not found; it now returns the first result. `set_bill` takes a `requestId` for this.
+- After another game was loaded, the old one stayed in memory until later calls cleared it.
+- Days of food left now count what prisoners eat, and only predators hunting the colony's people or animals count as threats.
+- A wrong `mapId` said no map was loaded; it now lists the maps.
+- The connected count counted every caller since startup; it now counts the agents active in the last minute.
+- The RimMCP button's status tooltip flickered while it updated.
+- Reading a pawn's medicine to carry no longer adds a setting to the pawn.
+- A request that fails with an error is written to the game's log once, with its stack trace, for bug reports.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added

@@ -32,6 +32,16 @@ namespace RiMCP.Command
             List<IntVec3> addCells = CommandCells.FromRects(body.Add, map, "add", out addOutside);
             List<IntVec3> removeCells = CommandCells.FromRects(body.Remove, map, "remove", out removeOutside);
 
+            // Through a receipt, so a retried delete gets its first result back, not "Zone not found".
+            if (body.Delete == true && !string.IsNullOrWhiteSpace(body.ZoneId))
+            {
+                if (body.Add != null || body.Remove != null)
+                {
+                    throw new CommandException(400, "Delete cannot be combined with add or remove.");
+                }
+                return CommandReceipts.Once(context, RequestKey.For("set_zone", requestId, map, "delete", body.ZoneId), () => DeleteZone(map, body.ZoneId, kind));
+            }
+
             Zone zone = null;
             RequestKey key = null;
             if (!string.IsNullOrWhiteSpace(body.ZoneId))
@@ -50,16 +60,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "Zone " + body.ZoneId + " is a " + KindOf(zone) + " zone, not " + kind + ".");
                 }
                 kind = KindOf(zone);
-                if (body.Delete == true)
-                {
-                    if (body.Add != null || body.Remove != null)
-                    {
-                        throw new CommandException(400, "Delete cannot be combined with add or remove.");
-                    }
-                    object deleted = SerializeZone(map, zone);
-                    zone.Delete(false);
-                    return CommandEnvelope.Ok(context, true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("zone", deleted)));
-                }
+                AgentLog.About("Change '" + zone.label + "'", AgentLog.Cells(map, zone.Cells));
             }
             else
             {
@@ -76,6 +77,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "A new zone has no cells to remove.");
                 }
                 key = RequestKey.For("set_zone", requestId, map, kind, body.Label, body.Add);
+                AgentLog.About("Create a " + kind + " zone", AgentLog.Cells(map, addCells));
             }
 
             return CommandReceipts.Once(context, key, () =>
@@ -162,6 +164,8 @@ namespace RiMCP.Command
                     stockpile.slotGroup.RemoveHaulDesignationOnStoredThings();
                 }
 
+                ReportCells(zone == null ? null : "'" + zone.label + "'", kind + " zone", created, added, removed, dropped, labelChanged,
+                    zone == null ? AgentLog.Cells(map, addCells) : AgentLog.Cells(map, zone.Cells));
                 Dictionary<string, object> data = Dto.Obj(
                     Dto.Field("zone", zone == null || zone.Cells.Count == 0 ? null : SerializeZone(map, zone)),
                     Dto.Field("created", created),
@@ -194,6 +198,7 @@ namespace RiMCP.Command
                 }
                 parent = stockpile;
                 owner = SerializeZone(map, stockpile);
+                AgentLog.About("Change the storage of '" + stockpile.label + "'", AgentLog.Cells(map, stockpile.Cells));
             }
             else
             {
@@ -205,6 +210,7 @@ namespace RiMCP.Command
                 }
                 parent = (IStoreSettingsParent)building;
                 owner = SummaryDto.ThingWithPosition(building);
+                AgentLog.About("Change the storage of " + AgentLog.Name(building), building);
             }
             if (body.AllowAll == true && body.DisallowAll == true)
             {
@@ -247,6 +253,7 @@ namespace RiMCP.Command
                 entryChanged |= ApplyEntry(settings.filter, limit, name, false, entries);
             }
 
+            ReportStorage(previous != settings.Priority ? settings.Priority.ToString() : null, body.AllowAll == true && bulkChanged, body.DisallowAll == true && bulkChanged, entries);
             return CommandEnvelope.Ok(context, previous != settings.Priority || bulkChanged || entryChanged, Dto.Obj(
                 Dto.Field("storage", owner),
                 Dto.Field("previousPriority", previous.ToString()),
@@ -378,6 +385,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Growing zone not found.");
             }
+            AgentLog.About("Change '" + zone.label + "'", AgentLog.Cells(map, zone.Cells));
 
             ThingDef crop = null;
             if (!string.IsNullOrWhiteSpace(body.Plant))
@@ -412,6 +420,27 @@ namespace RiMCP.Command
                 changed = true;
             }
 
+            List<string> growing = new List<string>();
+            if (crop != null && crop != previous)
+            {
+                growing.Add("grow " + crop.label);
+            }
+            if (body.AllowSow.HasValue)
+            {
+                growing.Add("sowing " + (zone.allowSow ? "on" : "off"));
+            }
+            if (body.AllowCut.HasValue)
+            {
+                growing.Add("cutting " + (zone.allowCut ? "on" : "off"));
+            }
+            if (changed)
+            {
+                AgentLog.Done("Set '" + zone.label + "' to " + string.Join(", ", growing.ToArray()), AgentLog.Cells(map, zone.Cells));
+            }
+            else
+            {
+                AgentLog.NoChange("'" + zone.label + "' was already set so", AgentLog.Cells(map, zone.Cells));
+            }
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("zone", SerializeZone(map, zone)),
                 Dto.Field("previousPlant", ReadUtil.Def(previous)),
@@ -453,6 +482,17 @@ namespace RiMCP.Command
             int addOutside, removeOutside;
             List<IntVec3> addCells = CommandCells.FromRects(body.Add, map, "add", out addOutside);
             List<IntVec3> removeCells = CommandCells.FromRects(body.Remove, map, "remove", out removeOutside);
+            // Through a receipt, so a retried delete gets its first result back, not "Area not found".
+            if (body.Delete == true && !string.IsNullOrWhiteSpace(body.AreaId))
+            {
+                if (body.Add != null || body.Remove != null || label != null)
+                {
+                    throw new CommandException(400, "Delete cannot be combined with other changes.");
+                }
+                string deleteId = body.AreaId.Trim();
+                return CommandReceipts.Once(context, RequestKey.For("set_area", requestId, map, "delete", deleteId), () => DeleteArea(map, deleteId));
+            }
+
             Area area = null;
             RequestKey key = null;
             if (string.IsNullOrWhiteSpace(body.AreaId))
@@ -462,33 +502,16 @@ namespace RiMCP.Command
                     throw new CommandException(400, "Field 'areaId' is required to delete an area or remove cells.");
                 }
                 key = RequestKey.For("set_area", requestId, map, label, body.Add);
+                AgentLog.About("Create an allowed area", AgentLog.Cells(map, addCells));
             }
             else
             {
-                string areaId = body.AreaId.Trim();
-                area = string.Equals(areaId, "home", StringComparison.OrdinalIgnoreCase)
-                    ? map.areaManager.Home
-                    : map.areaManager.AllAreas.FirstOrDefault(candidate => PawnReadService.AllowedAreaId(candidate, map) == areaId || candidate.ID.ToString() == areaId);
-                if (area == null)
-                {
-                    throw new CommandException(404, "Area not found. Use \"home\" or an area id from list_zones.");
-                }
-                if (!(area is Area_Home) && !(area is Area_Allowed))
-                {
-                    throw new CommandException(409, area.Label + " cannot be edited here: set_area edits only the Home area and allowed areas.");
-                }
-                if (body.Delete == true && (body.Add != null || body.Remove != null || label != null))
-                {
-                    throw new CommandException(400, "Delete cannot be combined with other changes.");
-                }
-                if (body.Delete == true && !(area is Area_Allowed))
-                {
-                    throw new CommandException(409, "Only allowed areas can be deleted.");
-                }
+                area = FindArea(map, body.AreaId.Trim());
                 if (label != null && !(area is Area_Allowed))
                 {
                     throw new CommandException(409, "Only allowed areas can be renamed.");
                 }
+                AgentLog.About("Change " + AreaName(area), AgentLog.Cells(map, area.ActiveCells));
             }
             return CommandReceipts.Once(context, key, () =>
             {
@@ -502,12 +525,6 @@ namespace RiMCP.Command
                     throw new CommandException(409, "Another area is already called '" + label + "'.");
                 }
 
-                if (body.Delete == true)
-                {
-                    object deleted = SerializeArea(map, area);
-                    area.Delete();
-                    return new CommandResult(true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("area", deleted)));
-                }
                 bool created = false;
                 if (area == null)
                 {
@@ -525,6 +542,7 @@ namespace RiMCP.Command
 
                 CellOutcomes added = SetCells(area, addCells, addOutside, true);
                 CellOutcomes removed = SetCells(area, removeCells, removeOutside, false);
+                ReportCells(AreaName(area), "allowed area", created, added, removed, 0, labelChanged && !created, AgentLog.Cells(map, area.ActiveCells));
                 Dictionary<string, object> data = Dto.Obj(
                     Dto.Field("area", SerializeArea(map, area)),
                     Dto.Field("created", created),
@@ -532,6 +550,126 @@ namespace RiMCP.Command
                     Dto.Field("removed", body.Remove == null ? null : removed.ToDto()));
                 return new CommandResult(created || labelChanged || added.Applied > 0 || removed.Applied > 0, data);
             });
+        }
+
+        private static Area FindArea(Map map, string areaId)
+        {
+            Area area = string.Equals(areaId, "home", StringComparison.OrdinalIgnoreCase)
+                ? map.areaManager.Home
+                : map.areaManager.AllAreas.FirstOrDefault(candidate => PawnReadService.AllowedAreaId(candidate, map) == areaId || candidate.ID.ToString() == areaId);
+            if (area == null)
+            {
+                throw new CommandException(404, "Area not found. Use \"home\" or an area id from list_zones.");
+            }
+            if (!(area is Area_Home) && !(area is Area_Allowed))
+            {
+                throw new CommandException(409, area.Label + " cannot be edited here: set_area edits only the Home area and allowed areas.");
+            }
+            return area;
+        }
+
+        private static CommandResult DeleteArea(Map map, string areaId)
+        {
+            Area area = FindArea(map, areaId);
+            AgentLog.About("Delete " + AreaName(area), AgentLog.Cells(map, area.ActiveCells));
+            if (!(area is Area_Allowed))
+            {
+                throw new CommandException(409, "Only allowed areas can be deleted.");
+            }
+            object deleted = SerializeArea(map, area);
+            List<AgentTarget> where = AgentLog.Cells(map, area.ActiveCells);
+            string name = AreaName(area);
+            area.Delete();
+            AgentLog.Done("Deleted " + name, where);
+            return new CommandResult(true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("area", deleted)));
+        }
+
+        private static CommandResult DeleteZone(Map map, string zoneId, string kind)
+        {
+            Zone zone = ZoneReadService.FindZone(map, zoneId);
+            if (zone == null)
+            {
+                throw new CommandException(404, "Zone not found.");
+            }
+            if (KindOf(zone) == null)
+            {
+                throw new CommandException(409, "Only stockpile and growing zones can be edited.");
+            }
+            if (kind != null && kind != KindOf(zone))
+            {
+                throw new CommandException(400, "Zone " + zoneId + " is a " + KindOf(zone) + " zone, not " + kind + ".");
+            }
+            List<AgentTarget> where = AgentLog.Cells(map, zone.Cells);
+            AgentLog.About("Delete '" + zone.label + "'", where);
+            object deleted = SerializeZone(map, zone);
+            string name = zone.label;
+            zone.Delete(false);
+            AgentLog.Done("Deleted '" + name + "'", where);
+            return new CommandResult(true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("zone", deleted)));
+        }
+
+        private static string AreaName(Area area)
+        {
+            return area is Area_Home ? "the Home area" : "'" + area.Label + "'";
+        }
+
+        // name is how the zone or area is called, such as 'Stockpile 1' or the Home area; null when
+        // it was not created.
+        private static void ReportCells(string name, string kind, bool created, CellOutcomes added, CellOutcomes removed, int dropped, bool renamed, List<AgentTarget> where)
+        {
+            List<string> parts = new List<string>();
+            if (added.Applied > 0)
+            {
+                parts.Add("added " + AgentLog.Count(added.Applied, "cell"));
+            }
+            if (removed.Applied > 0)
+            {
+                parts.Add("removed " + AgentLog.Count(removed.Applied, "cell"));
+            }
+            if (dropped > 0)
+            {
+                parts.Add("dropped " + AgentLog.Count(dropped, "cell") + " cut off from it");
+            }
+            if (renamed)
+            {
+                parts.Add("renamed it");
+            }
+            string done = created
+                ? "Created " + kind + " " + name + " with " + AgentLog.Count(added.Applied, "cell")
+                : "Changed " + name + ": " + string.Join(", ", parts.ToArray());
+            string asked = name == null ? "Create a " + kind : "Change " + name;
+            int applied = (created ? 1 : 0) + (renamed ? 1 : 0) + added.Applied + removed.Applied;
+            AgentLog.Counted(done, asked, applied, added.AlreadySatisfied + removed.AlreadySatisfied, added.RejectedCount, added.Reasons, where);
+        }
+
+        private static void ReportStorage(string priority, bool allowedAll, bool disallowedAll, List<object> entries)
+        {
+            List<Dictionary<string, object>> results = entries.OfType<Dictionary<string, object>>().ToList();
+            Func<string, bool, int> count = (outcome, allow) => results.Count(entry => (string)entry["outcome"] == outcome && (bool)entry["allow"] == allow);
+            List<string> parts = new List<string>();
+            if (priority != null)
+            {
+                parts.Add("priority " + priority);
+            }
+            if (allowedAll)
+            {
+                parts.Add("allowed everything");
+            }
+            if (disallowedAll)
+            {
+                parts.Add("disallowed everything");
+            }
+            if (count("applied", true) > 0)
+            {
+                parts.Add("allowed " + string.Join(", ", results.Where(entry => (string)entry["outcome"] == "applied" && (bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray()));
+            }
+            if (count("applied", false) > 0)
+            {
+                parts.Add("disallowed " + string.Join(", ", results.Where(entry => (string)entry["outcome"] == "applied" && !(bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray()));
+            }
+            int rejected = results.Count(entry => (string)entry["outcome"] == "rejected");
+            string reasons = string.Join("; ", results.Where(entry => (string)entry["outcome"] == "rejected" && entry.ContainsKey("reason")).Select(entry => (string)entry["name"] + ": " + (string)entry["reason"]).Take(3).ToArray());
+            AgentLog.Counted("Changed the storage: " + string.Join(", ", parts.ToArray()), "Change the storage", parts.Count, results.Count(entry => (string)entry["outcome"] == "alreadySatisfied"), rejected, reasons);
         }
 
         private static CellOutcomes SetCells(Area area, List<IntVec3> cells, int outside, bool value)

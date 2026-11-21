@@ -24,6 +24,7 @@ What can it do?
 • Push the buttons. Power switches, doors held open, medical beds, hold fire, mortar targets and psycasts. Supported buttons and right-click orders from your mods work too.
 • Start from scratch. Pick a scenario, storyteller and difficulty, generate a world, find a starting site, build an ideoligion, and roll colonists to your criteria. All through the game's setup screens while you watch. You approve the start unless you enable unattended setup.
 • Save your place. Save, load, or head back to the main menu. Check a save's game version and mods before loading it.
+• Watch it work. A cursor with your agent's name glides to wherever it acts. Its notes and decisions pop up in bubbles by the RimMCP button, and it can send you a letter when something needs a look. The agent log lists everything it did, and what it was refused and why; click a line to jump there.
 
 Access
   Full control (default): do everything, including storyteller, difficulty, saves and new games.
@@ -31,7 +32,7 @@ Access
   Administration: read, manage colony settings and run time, but not give direct orders.
   Read only: look, but no actions.
 
-Fine-tune access by switching individual tools on or off. The RimMCP button on the bottom bar lets you pause agents or change their access in a click, and the Activity tab shows what they've been doing.
+Fine-tune access by switching individual tools on or off. The RimMCP button on the bottom bar opens the agent log, and lets you pause agents or change their access in a click.
 
 Things to try
 • "Anyone worth trying to recruit from the injured raiders?"
@@ -54,7 +55,7 @@ Setup
 4. Turn on RimWorld's Run in background option so requests work while you're alt-tabbed.
 
 Frequently asked
-Mid-save compatible? Yes. RimMCP does not save anything on your colony. Feel free to add or remove at will.
+Mid-save compatible? Yes. Nothing RimMCP leaves in a save needs RimMCP to load: its letters and History entries use the game's own types. Feel free to add or remove at will.
 Performance? Near 0 impact when idling. When your agent calls tools, most requests are handled in milliseconds.
 Multiplayer Mod? Your agent can look, but anything that changes the game or the clock is refused during a Multiplayer session.
 Privacy? If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?

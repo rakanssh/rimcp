@@ -20,6 +20,7 @@ namespace RiMCP.Command
         {
             WorldBody body = CommandUtil.ReadBody<WorldBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
+            AgentLog.Expect("Generate a world", "Generated a world");
             return SessionCommandService.Begin(request, "generate_world", requestId, () =>
             {
                 Page_CreateWorldParams page = SetupController.Require<Page_CreateWorldParams>(SetupController.World);
@@ -153,6 +154,7 @@ namespace RiMCP.Command
         {
             SiteBody body = CommandUtil.ReadBody<SiteBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
+            AgentLog.Expect("Choose the starting site", "Chose the starting site");
             return SessionCommandService.Begin(request, "choose_starting_site", requestId, () =>
             {
                 Page_SelectStartingSite page = SetupController.Require<Page_SelectStartingSite>(SetupController.Site);

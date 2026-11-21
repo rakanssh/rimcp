@@ -42,7 +42,12 @@ namespace RiMCP.Bridge
             }
             if (!string.IsNullOrWhiteSpace(mapId))
             {
-                return Find.Maps.FirstOrDefault(map => map.uniqueID.ToString() == mapId);
+                Map found = Find.Maps.FirstOrDefault(map => map.uniqueID.ToString() == mapId);
+                if (found == null)
+                {
+                    throw new BridgeException(404, "No map '" + mapId + "'; the maps are " + string.Join(", ", Find.Maps.Select(map => map.uniqueID.ToString()).ToArray()) + ".");
+                }
+                return found;
             }
             return Find.CurrentMap ?? Find.Maps.FirstOrDefault();
         }

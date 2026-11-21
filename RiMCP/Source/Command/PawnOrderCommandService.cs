@@ -131,16 +131,31 @@ namespace RiMCP.Command
         {
             Map map = context.Map;
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
+            AgentLog.About("Order " + AgentLog.Name(pawn) + " to " + order.Name, pawn);
             LocalTargetInfo target = ResolveTarget(order, body, map, pawn);
+            string ordered = AgentLog.Name(pawn) + " to " + OrderText(order.Name, target) + (queue ? " (queued)" : "");
             string outcome;
             string reason = null;
+            List<Window> opened = new List<Window>();
             if (order.IsDone(pawn, target) || HasJob(pawn, order, target, queue))
             {
                 outcome = "alreadySatisfied";
             }
             else
             {
-                outcome = Issue(order, pawn, target, map, queue, out reason);
+                outcome = Issue(order, pawn, target, map, queue, out reason, out opened);
+            }
+            if (outcome == "jobIssued")
+            {
+                AgentLog.Done("Ordered " + ordered, pawn, target);
+            }
+            else if (outcome == "alreadySatisfied")
+            {
+                AgentLog.NoChange(AgentLog.Name(pawn) + " was already set to " + OrderText(order.Name, target), pawn, target);
+            }
+            else if (outcome != "awaitingInput")
+            {
+                AgentLog.Refused("Order " + ordered, reason, pawn, target);
             }
 
             Job current = pawn.CurJob;
@@ -154,7 +169,25 @@ namespace RiMCP.Command
                 Dto.Field("destination", order.Target == TargetKind.Cell && current != null && current.def == JobDefOf.Goto ? Dto.Obj(Dto.Field("x", current.targetA.Cell.x), Dto.Field("z", current.targetA.Cell.z)) : null),
                 Dto.Field("currentJob", PawnReadService.SerializeCurrentJob(pawn)),
                 Dto.Field("queuedJobs", PawnReadService.SerializeQueuedJobs(pawn)));
+            if (outcome == "awaitingInput")
+            {
+                FollowUps.Report(data, "order_pawn", "Order " + ordered, opened, selected: pawn);
+                if (data.ContainsKey("dialogs"))
+                {
+                    AgentLog.WhenDone("Ordered " + ordered);
+                }
+                else
+                {
+                    AgentLog.Refused("Order " + ordered, reason, pawn, target);
+                }
+            }
             return new CommandResult(outcome == "jobIssued", data);
+        }
+
+        private static string OrderText(string order, LocalTargetInfo target)
+        {
+            string what = target.HasThing ? AgentLog.Name(target.Thing) : "(" + target.Cell.x + ", " + target.Cell.z + ")";
+            return order == "move" ? "go to " + what : order + " " + what;
         }
 
         private static LocalTargetInfo ResolveTarget(PawnOrder order, OrderPawnBody body, Map map, Pawn pawn)
@@ -201,9 +234,10 @@ namespace RiMCP.Command
             return target;
         }
 
-        private static string Issue(PawnOrder order, Pawn pawn, LocalTargetInfo target, Map map, bool queue, out string reason)
+        private static string Issue(PawnOrder order, Pawn pawn, LocalTargetInfo target, Map map, bool queue, out string reason, out List<Window> opened)
         {
             reason = null;
+            opened = new List<Window>();
             AcceptanceReport gate = FloatMenuMakerMap.ShouldGenerateFloatMenuForPawn(pawn);
             if (!gate.Accepted)
             {
@@ -255,12 +289,13 @@ namespace RiMCP.Command
             }
             else
             {
-                // Questions are left on screen for the player rather than answered.
-                int windows = Find.WindowStack.Count;
+                // A question it raises is answered with answer_dialog, as after choose_pawn_action.
+                List<Window> before = FollowUps.Snapshot();
                 option.Chosen(true, null);
-                if (Find.WindowStack.Count > windows)
+                opened = FollowUps.OpenedSince(before);
+                if (opened.Count > 0)
                 {
-                    reason = question ?? "The game is asking the player to confirm this order.";
+                    reason = question ?? "The game is asking to confirm this order.";
                     return "awaitingInput";
                 }
             }

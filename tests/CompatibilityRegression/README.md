@@ -27,7 +27,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The seventy-seven checks cover:
+The eighty-four checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -56,6 +56,19 @@ The seventy-seven checks cover:
   refused while mods' content is off.
 - An answer to a page whose options shrank before it arrived refused with a controlled 409
   before the answer's code is looked up, choosing nothing.
+- The agent log: one entry per change with the client that made it; a refusal named by what was
+  asked, with the reason; a failure kept apart from a refusal, as it may have partly run; a partial
+  batch saying what was applied and what was rejected, and a batch that applied nothing refused;
+  a retry answered from its receipt and a busy game adding nothing; and only the newest entries kept.
+- Entries waiting on an operation, an advance, or a dialog finishing in place when it ends, without
+  polling: a save done, a cancelled load cancelled, an advance ending with what stopped it, work that
+  ends before its call is recorded still finishing the entry, and a dialog answered or closed.
+- Dialog answers through the router logged once with their client, a retry adding nothing, a
+  refused answer logged with what was asked, and a listener of the log that fails never failing
+  the call; the log reads back newest first from `/v1/agent-log`.
+- Notes limited to one every 10 seconds of real time across loads, and 3 letters per in-game day
+  per loaded game, a plain note still allowed when letters are used up; notes logged as the agent's
+  words apart from actions; and notes refused without a game or over 280 characters.
 - A press that fails after starting targeting: the targeting cancelled, the failure reaching the
   caller, and the dialog settled on a new page so the answer is not taken for the player's; and
   no press run, or targeting touched, while the player is choosing a target. Targeting is
@@ -79,7 +92,12 @@ The seventy-seven checks cover:
   subsequent pages and termination on the last page.
 - Def search by a def subclass kind, whose defs live in the ancestor's database.
 - A main-thread dispatcher that spreads a burst of requests across frames and
-  records each request's main-thread time.
+  records each request's main-thread time; a request that times out while queued
+  never runs and says so, and one already started returns its own reply.
+- Receipts and ended dialogs of another game dropped once it is gone, so the old
+  game is not kept in memory.
+- An `include` section a read tool does not list refused with the sections it has,
+  in any case, and any section refused by a tool that has none.
 - The `advance_time` run lifecycle, driven by synthetic observations: completion at
   the target tick, interruption by an outside pause or another game, stops on
   changes during the run but not on the starting state, and severity order when

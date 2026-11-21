@@ -19,6 +19,7 @@ namespace RiMCP.Command
         public static BridgeResponse SetStartingPawns(BridgeRequest request, RouteMatch route)
         {
             PawnsBody body = CommandUtil.ReadBody<PawnsBody>(request);
+            AgentLog.Expect("Set the starting colonists", "Set the starting colonists");
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             return SessionCommandService.Begin(request, "set_starting_pawns", requestId, () =>
             {

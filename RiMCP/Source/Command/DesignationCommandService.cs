@@ -128,12 +128,28 @@ namespace RiMCP.Command
             Designator designator = kind.Designator();
             ThingDef defFilter = string.IsNullOrWhiteSpace(body.DefName) ? null : CommandUtil.ResolveDef<ThingDef>(body.DefName, "defName", "Thing");
 
+            AgentLog.About(Designated(kind.Name, null, false));
             List<object> results = new List<object>();
+            List<Thing> considered = new List<Thing>();
+            List<Thing> designated = new List<Thing>();
+            List<string> refusals = new List<string>();
             int applied = 0, satisfied = 0, rejected = 0, outside = 0, skipped = 0;
             Action<string, Thing> record = (id, thing) =>
             {
                 string reason = thing == null ? "No such " + (kind.Targets == ThingRequestGroup.Plant ? "plant" : kind.Targets == ThingRequestGroup.HaulableEver ? "item" : "thing") + " on this map." : null;
                 string outcome = thing == null ? "rejected" : Apply(designator, kind, thing, out reason);
+                if (thing != null)
+                {
+                    considered.Add(thing);
+                }
+                if (outcome == "applied")
+                {
+                    designated.Add(thing);
+                }
+                else if (outcome == "rejected" && reason != null && refusals.Count < 3 && !refusals.Contains(reason))
+                {
+                    refusals.Add(reason);
+                }
                 applied += outcome == "applied" ? 1 : 0;
                 satisfied += outcome == "alreadySatisfied" ? 1 : 0;
                 rejected += outcome == "rejected" ? 1 : 0;
@@ -188,6 +204,8 @@ namespace RiMCP.Command
                 }
             }
 
+            string what = kind.Targets == ThingRequestGroup.Plant ? "plant" : kind.Targets == ThingRequestGroup.HaulableEver ? "item" : "thing";
+            AgentLog.Counted(Designated(kind.Name, AgentLog.Count(designated, what), true), Designated(kind.Name, considered.Count == 0 ? null : AgentLog.Count(considered, what), false), applied, satisfied, rejected, string.Join("; ", refusals.ToArray()), designated);
             return CommandEnvelope.Ok(context, applied > 0, Dto.Obj(
                 Dto.Field("kind", kind.Name),
                 Dto.Field("applied", applied),
@@ -247,6 +265,33 @@ namespace RiMCP.Command
         // by id, which things in a rectangle it applies to, when it already holds, and what to say
         // when the designator refuses without a reason. The checks get the request's designator for
         // orders, like cancel, that only the designator can judge.
+        // "Forbade the steel", or what was asked, "Mark 3 trees for chopping"; things is null when
+        // none were found.
+        private static string Designated(string kind, string things, bool done)
+        {
+            switch (kind)
+            {
+                case "forbid": return (done ? "Forbade " : "Forbid ") + (things ?? "things");
+                case "unforbid": return (done ? "Allowed " : "Allow ") + (things ?? "things");
+                case "cancel": return things == null ? "Cancel orders" : (done ? "Cancelled" : "Cancel") + " the orders on " + things;
+                default: return (done ? "Marked " : "Mark ") + (things ?? "things") + " for " + Purpose(kind);
+            }
+        }
+
+        private static string Purpose(string kind)
+        {
+            switch (kind)
+            {
+                case "haul": return "hauling";
+                case "cut": return "cutting";
+                case "harvest": return "harvesting";
+                case "chopWood": return "chopping";
+                case "mine": return "mining";
+                case "deconstruct": return "deconstruction";
+                default: return kind;
+            }
+        }
+
         private sealed class DesignationKind
         {
             public string Name;

@@ -170,6 +170,44 @@ namespace RiMCP.Command
             Status = status;
             EndReason = reason;
             EndTick = tick;
+            int elapsed = Math.Max(0, tick - StartTick);
+            string line = "Advanced " + Duration(elapsed) + (status == "stopped" ? "; stopped for " + Reason(reason) : status == "completed" ? "" : "; " + Reason(reason));
+            AgentLog.Finish(LogKey(Id), elapsed == 0 && status != "completed" ? Outcomes.Cancelled : Outcomes.Done, line);
+        }
+
+        public static string LogKey(int id)
+        {
+            return "advance-" + id;
+        }
+
+        public static string Duration(int ticks)
+        {
+            float hours = ticks / (float)GenDate.TicksPerHour;
+            if (hours < 1f)
+            {
+                int minutes = (int)Math.Round(hours * 60f);
+                return minutes == 1 ? "1 minute" : minutes + " minutes";
+            }
+            return hours == 1f ? "1 hour" : hours.ToString("0.#") + " hours";
+        }
+
+        private static string Reason(string reason)
+        {
+            switch (reason)
+            {
+                case "death": return "a death";
+                case "downed": return "a colonist down";
+                case "injured": return "an injury";
+                case "mentalBreak": return "a mental break";
+                case "hostiles": return "hostiles";
+                case "lowFood": return "low food";
+                case "threatLetter": return "a threat letter";
+                case "letter": return "a letter";
+                case "paused": return "the game was paused";
+                case "speedChanged": return "the speed was changed";
+                case "gameUnloaded": return "the game was unloaded";
+                default: return reason ?? "interrupted";
+            }
         }
 
         private bool StopsRun(AdvanceEvent change)
@@ -253,11 +291,12 @@ namespace RiMCP.Command
         private static AdvanceRun latest;
         private static int nextId;
         private static List<Pawn> tracked = new List<Pawn>();
-        // Summing stored food costs too much for every frame, so it is checked every 250 ticks and
-        // carried between checks.
+        // Summing stored food, and finding colonists carried or in a container, cost too much for
+        // every frame, so both are checked every 250 ticks and carried between checks.
         private const int FoodCheckInterval = GenTicks.TickRareInterval;
         private static int foodCheckedTick = int.MinValue;
         private static string lowFood;
+        private static List<Pawn> held = new List<Pawn>();
 
         // Replaceable so tests can simulate an observation failure.
         internal static Func<AdvanceObservation> Observer = Observe;
@@ -299,6 +338,7 @@ namespace RiMCP.Command
 
             // Take the starting snapshot before unpausing, so a failure here leaves the game as it was.
             tracked = new List<Pawn>();
+            held = new List<Pawn>();
             foodCheckedTick = int.MinValue;
             AdvanceObservation baseline = Observe();
             TickManager ticks = Find.TickManager;
@@ -376,6 +416,18 @@ namespace RiMCP.Command
             return run;
         }
 
+        // Finished runs of other games, and the colonists they watched.
+        public static void ForgetOtherGames()
+        {
+            history.RemoveAll(run => !ReferenceEquals(run.Game, Current.Game) && run.Status != AdvanceRun.Running);
+            if (latest != null && !ReferenceEquals(latest.Game, Current.Game) && latest.Status != AdvanceRun.Running)
+            {
+                latest = null;
+                tracked = new List<Pawn>();
+                held = new List<Pawn>();
+            }
+        }
+
         public static void Update()
         {
             AdvanceRun run = latest;
@@ -435,10 +487,13 @@ namespace RiMCP.Command
                 foodCheckedTick = observation.Tick;
                 Map low = Find.Maps.FirstOrDefault(FoodSummary.IsLow);
                 lowFood = low == null ? null : "stored food on " + (low.Parent == null ? "map " + low.uniqueID : low.Parent.LabelCap) + " is below " + FoodSummary.LowPerColonist + " nutrition per colonist";
+                held = Find.Maps.SelectMany(map => map.mapPawns.FreeColonists).Where(pawn => !pawn.Spawned).ToList();
             }
             observation.LowFood = lowFood;
-            // Colonists who died since the last frame are no longer spawned colonists.
-            pawns.AddRange(tracked.Where(pawn => pawn.Dead && !pawns.Contains(pawn)));
+            // Colonists who are not spawned: carried or in a container, on a caravan, watched since
+            // they were spawned, and those who died since the last frame.
+            IEnumerable<Pawn> caravans = Find.WorldObjects.Caravans.Where(caravan => caravan.IsPlayerControlled).SelectMany(caravan => caravan.PawnsListForReading).Where(pawn => pawn.IsFreeColonist);
+            pawns.AddRange(held.Concat(caravans).Concat(tracked.Where(pawn => pawn.Dead || pawn.MapHeld != null)).Distinct().Where(pawn => !pawns.Contains(pawn)).ToList());
             tracked = pawns.Where(pawn => !pawn.Dead).ToList();
 
             foreach (Pawn pawn in pawns)

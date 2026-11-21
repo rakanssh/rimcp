@@ -429,6 +429,18 @@ namespace RiMCP
 
         private static void DoActivityTab(Rect rect)
         {
+            Rect shown = new Rect(rect.x, rect.y, rect.width, 64f);
+            Widgets.Label(new Rect(shown.x, shown.y, 260f, 30f), "Show agent changes in game:");
+            if (Button(new Rect(shown.x + 264f, shown.y, 200f, 28f), AgentMessagesLabel(Settings.AgentMessages)))
+            {
+                Find.WindowStack.Add(new FloatMenu(new[] { UI.AgentActivity.MessagesOff, UI.AgentActivity.DecisionsAndNotes, UI.AgentActivity.EveryChange }
+                    .Select(mode => new FloatMenuOption(AgentMessagesLabel(mode), () => Settings.AgentMessages = mode)).ToList()));
+            }
+            Listing_Standard where = new Listing_Standard();
+            where.Begin(new Rect(shown.x, shown.y + 34f, 464f, 30f));
+            where.CheckboxLabeled("Show where agents act", ref Settings.ShowWhereAgentsAct, "An agent cursor glides to where an agent just changed something, and a short pulse marks it on the map.");
+            where.End();
+            rect = new Rect(rect.x, rect.y + 72f, rect.width, rect.height - 72f);
             float half = (rect.width - 12f) / 2f;
             Rect calls = new Rect(rect.x, rect.y, half, rect.height);
             Rect recent = new Rect(calls.xMax + 12f, rect.y, half, rect.height);
@@ -459,6 +471,11 @@ namespace RiMCP
                 listing.Label(entry);
             }
             listing.End();
+        }
+
+        private static string AgentMessagesLabel(int mode)
+        {
+            return mode == UI.AgentActivity.MessagesOff ? "Off" : mode == UI.AgentActivity.EveryChange ? "Every change" : "Decisions and notes";
         }
 
         private static void DoSafetyTab(Rect rect)

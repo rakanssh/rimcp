@@ -37,6 +37,7 @@ namespace RiMCP.Command
                     continue;
                 }
                 Interaction interaction = Interactions.Start(tool, subject, dialog, selected ?? (continuing == null ? null : continuing.Selected), origin ?? (continuing == null ? null : continuing.Origin));
+                AgentLog.WaitFor(interaction.Id);
                 dialogs.Add(Interactions.Describe(interaction));
             }
             if (dialogs.Count > 0)
@@ -51,19 +52,6 @@ namespace RiMCP.Command
             if (left.Count > 0)
             {
                 data["windowsLeftForPlayer"] = left.ToArray();
-            }
-        }
-
-        // So the player sees what was decided for them, in game and in the History tab.
-        public static void Announce(string text, LookTargets targets = null)
-        {
-            if (targets != null && targets.IsValid)
-            {
-                Messages.Message("RimMCP " + text, targets, MessageTypeDefOf.NeutralEvent);
-            }
-            else
-            {
-                Messages.Message("RimMCP " + text, MessageTypeDefOf.NeutralEvent);
             }
         }
     }

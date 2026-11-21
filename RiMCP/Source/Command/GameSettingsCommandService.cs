@@ -80,6 +80,27 @@ namespace RiMCP.Command
             {
                 Prefs.Save();
             }
+            List<string> settingChanges = new List<string>();
+            if (storytellerChanged)
+            {
+                settingChanges.Add("storyteller " + storytellerDef.label);
+            }
+            if (difficultyChanged)
+            {
+                settingChanges.Add("difficulty " + difficultyDef.label);
+            }
+            if (preferencesChanged)
+            {
+                settingChanges.Add("game options");
+            }
+            if (settingChanges.Count > 0)
+            {
+                AgentLog.Done("Changed " + string.Join(", ", settingChanges.ToArray()));
+            }
+            else
+            {
+                AgentLog.NoChange("The game settings were already so");
+            }
             return CommandEnvelope.Ok(context, storytellerChanged || difficultyChanged || preferencesChanged, Dto.Obj(
                 Dto.Field("previous", previous),
                 Dto.Field("current", GameSettingsReadService.Snapshot())));

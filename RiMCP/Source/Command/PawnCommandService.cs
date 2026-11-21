@@ -22,6 +22,7 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
+            AgentLog.About((body.Drafted.Value ? "Draft " : "Undraft ") + AgentLog.Name(pawn), pawn);
             if (pawn.drafter == null)
             {
                 throw new CommandException(409, "Pawn cannot be drafted.");
@@ -38,6 +39,11 @@ namespace RiMCP.Command
                     throw new CommandException(409, string.IsNullOrWhiteSpace(allowed.Reason) ? "Pawn cannot be drafted or undrafted right now." : allowed.Reason.StripTags());
                 }
                 pawn.drafter.Drafted = current;
+                AgentLog.Done((current ? "Drafted " : "Undrafted ") + AgentLog.Name(pawn), pawn);
+            }
+            else
+            {
+                AgentLog.NoChange(AgentLog.Name(pawn) + " was already " + (current ? "drafted" : "undrafted"), pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
@@ -70,6 +76,8 @@ namespace RiMCP.Command
             }
 
             WorkTypeDef workType = CommandUtil.ResolveDef<WorkTypeDef>(workTypeDefName, "workTypeDefName", "Work type");
+            string work = AgentLog.Name(pawn) + "'s " + ReadUtil.DefLabel(workType);
+            AgentLog.About(body.Priority.Value == 0 ? "Turn off " + work : "Set " + work + " to " + body.Priority.Value, pawn);
             if (pawn.WorkTypeIsDisabled(workType))
             {
                 throw new CommandException(409, "Pawn cannot do this work type.");
@@ -97,6 +105,14 @@ namespace RiMCP.Command
             if (stored != current)
             {
                 pawn.workSettings.SetPriority(workType, current);
+            }
+            if (changed)
+            {
+                AgentLog.Done((current == 0 ? "Turned off " + work : "Set " + work + " to " + current) + (manualPrioritiesChanged ? " (the colony now uses manual priorities)" : ""), pawn);
+            }
+            else
+            {
+                AgentLog.NoChange(work + " was already " + (current == 0 ? "off" : current.ToString()), pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(

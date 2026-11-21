@@ -25,6 +25,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Research project not found.");
             }
+            AgentLog.About("Research " + ReadUtil.DefLabel(project));
             if (project.IsFinished)
             {
                 throw new CommandException(409, "Research project is already finished.");
@@ -44,6 +45,11 @@ namespace RiMCP.Command
             if (changed)
             {
                 manager.SetCurrentProject(project);
+                AgentLog.Done("Set research to " + ReadUtil.DefLabel(project));
+            }
+            else
+            {
+                AgentLog.NoChange("Already researching " + ReadUtil.DefLabel(project));
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(

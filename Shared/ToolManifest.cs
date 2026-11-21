@@ -209,36 +209,37 @@ namespace RiMCP.Shared
         {
             return new[]
             {
-                Get(ToolGroups.Observe, "game-context", "get_game_context", "Game-wide context: the current map and map ids, time, pause and speed, storyteller and difficulty, and loaded mods.", "/v1/game-context", Input()),
-                Get(ToolGroups.Diagnostics, "mods", "list_mods", "Loaded mods in load order (positions from 0), or scope=installed for every installed mod, with the game version, pending changes, and the game's warnings about the mod list.", "/v1/mods", Input(IdsOnly(), Prop("scope", EnumString("Mod inventory to inspect. Defaults to loaded.", "loaded", "installed")), Prop("query", Str("Optional search text for mod name or package id."))), "scope", "query"),
+                Get(ToolGroups.Observe, "game-context", "get_game_context", "Game-wide context: the current map and map ids, time, pause and speed, storyteller and difficulty, and the expansions loaded with a count of other mods; include=[\"mods\"] lists every mod, and list_mods has more.", "/v1/game-context", Input(MapId(), Include("mods"))),
+                Get(ToolGroups.Diagnostics, "mods", "list_mods", "Loaded mods in load order (positions from 0), or scope=installed for every installed mod, with the game version, pending changes, and the game's warnings about the mod list.", "/v1/mods", Input(Limit(), Cursor(), IdsOnly(),Prop("scope", EnumString("Mod inventory to inspect. Defaults to loaded.", "loaded", "installed")), Prop("query", Str("Optional search text for mod name or package id."))), "scope", "query"),
                 Get(ToolGroups.Diagnostics, "mod", "get_mod", "One mod's metadata, dependencies, compatibility, assemblies, and settings panel names (not its settings values).", "/v1/mods/{packageId}", RequiredOnly(Prop("packageId", Str("Exact package id from list_mods, preserving any suffix distinguishing local and Workshop copies.")))),
-                Get(ToolGroups.Diagnostics, "game-log", "get_game_log", "Recent in-game log entries, newest first (not the full Player.log). include=[\"stackTrace\"] or detail=full adds stack traces. The cursor is an offset into the current history.", "/v1/debug/log", Input(Prop("level", EnumString("Severity filter. Defaults to all.", "all", "message", "warning", "error")), Prop("query", Str("Optional case-insensitive search in messages and stack traces."))), "level", "query"),
+                Get(ToolGroups.Diagnostics, "game-log", "get_game_log", "Recent in-game log entries, newest first (not the full Player.log). include=[\"stackTrace\"] or detail=full adds stack traces. The cursor is an offset into the current history.", "/v1/debug/log", Input(Detail(), Include("stackTrace"), Limit(), Cursor(), Prop("level",EnumString("Severity filter. Defaults to all.", "all", "message", "warning", "error")), Prop("query", Str("Optional case-insensitive search in messages and stack traces."))), "level", "query"),
                 Get(ToolGroups.Diagnostics, "game-settings", "get_game_settings", "Global game options and the colony's storyteller and difficulty, with the choices. Global options work without a colony.", "/v1/settings", RequiredOnly()),
                 Put(ToolGroups.GameSettings, "set-game-settings", "set_game_settings", "Change global options or the colony's storyteller or difficulty preset; only the fields given change. Changing only the storyteller keeps a custom difficulty.", "/v1/settings", GameSettingsInput(), IdempotentMutation(), Body("storytellerDefName", "difficultyDefName", "runInBackground", "pauseOnLoad", "automaticPauseMode", "autosaveIntervalDays", "volumeMaster", "volumeMusic")),
-                Get(ToolGroups.Observe, "colony-status", "get_colony_status", "Colony dashboard: top risks with drill-down hints, and food: stored meals and raw nutrition, daily use, days left, and the daily trend over up to three days. Only stored food counts.", "/v1/colony-status", Input()),
-                Get(ToolGroups.Observe, "pawns", "list_pawns", "Pawns by filter. include=[\"assignments\"] adds Assign-tab settings, and include=[\"assignmentOptions\"] the valid choices for them.", "/v1/pawns", Input(IdsOnly(), Prop("filter", PawnFilter())), "filter"),
-                Get(ToolGroups.Observe, "pawn", "get_pawn", "Everything about one pawn, by ThingID or load id.", "/v1/pawns/{id}", Required(Prop("id", Str("Pawn ThingID or load id.")))),
-                Get(ToolGroups.Observe, "resources", "list_resources", "Map resources grouped by def, with food, medicine, stack, forbidden, roof, and rot details. Fogged items are hidden.", "/v1/resources", Input(IdsOnly())),
-                Get(ToolGroups.Observe, "things", "find_things", "Find haulable items (resources, food, medicine, weapons, apparel, chunks, corpses, minified buildings) with id, position, count, forbidden, and storage. Filter by def, category, excludeCategory, label, forbidden, inStorage, or distance from x and z, which sorts by distance. Unexplored areas are not searched.", "/v1/things", Input(IdsOnly(), Prop("def", Str("Exact ThingDef defName, such as Steel or MealSimple.")), Prop("category", Str("ThingCategoryDef defName, such as Foods, Medicine, Weapons, or ResourcesRaw.")), Prop("excludeCategory", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "ThingCategoryDef defNames to leave out, subcategories included."))), Prop("query", Str("Text to find in the item label or defName.")), Prop("forbidden", Bool("Only forbidden (true) or only allowed (false) items.")), Prop("inStorage", Bool("Only items in storage that accepts them (true), or only items outside it (false).")), Prop("x", Int("Search centre x.", 0, 1000)), Prop("z", Int("Search centre z.", 0, 1000)), Prop("radius", Int("Search radius in cells around x and z.", 1, 500))), "def", "category", "excludeCategory", "query", "forbidden", "inStorage", "x", "z", "radius"),
+                Get(ToolGroups.Observe, "colony-status", "get_colony_status", "Colony dashboard: top risks with drill-down hints, and food: stored meals and raw nutrition, daily use, days left, and the daily trend over up to three days. Only stored food counts.", "/v1/colony-status", Input(MapId())),
+                Get(ToolGroups.Observe, "pawns", "list_pawns", "Pawns by filter. include=[\"assignments\"] adds Assign-tab settings, and include=[\"assignmentOptions\"] the valid choices for them.", "/v1/pawns", Input(MapId(), Detail(), Include(PawnSections.Concat(new[] { "assignmentOptions" }).ToArray()), Limit(), Cursor(), IdsOnly(), Prop("filter", PawnFilter())), "filter"),
+                Get(ToolGroups.Observe, "pawn", "get_pawn", "One pawn by ThingID or load id: needs, mood, health, skills and traits; include adds thoughts, work, assignments, training, gear, or relations, and detail=full adds them all.", "/v1/pawns/{id}", Required(Prop("id", Str("Pawn ThingID or load id.")), MapId(), Detail(), Include(PawnSections))),
+                Get(ToolGroups.Observe, "resources", "list_resources", "Map resources grouped by def, with food, medicine, stack, forbidden, roof, and rot details. Fogged items are hidden.", "/v1/resources", Input(MapId(), Detail(), Limit(), Cursor(), IdsOnly())),
+                Get(ToolGroups.Observe, "things", "find_things", "Find haulable items (resources, food, medicine, weapons, apparel, chunks, corpses, minified buildings) with id, position, count, forbidden, and storage. Filter by def, category, excludeCategory, label, forbidden, inStorage, or distance from x and z, which sorts by distance. Unexplored areas are not searched.", "/v1/things", Input(MapId(), Detail(), Limit(), Cursor(), IdsOnly(),Prop("def", Str("Exact ThingDef defName, such as Steel or MealSimple.")), Prop("category", Str("ThingCategoryDef defName, such as Foods, Medicine, Weapons, or ResourcesRaw.")), Prop("excludeCategory", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "ThingCategoryDef defNames to leave out, subcategories included."))), Prop("query", Str("Text to find in the item label or defName.")), Prop("forbidden", Bool("Only forbidden (true) or only allowed (false) items.")), Prop("inStorage", Bool("Only items in storage that accepts them (true), or only items outside it (false).")), Prop("x", Int("Search centre x.", 0, 1000)), Prop("z", Int("Search centre z.", 0, 1000)), Prop("radius", Int("Search radius in cells around x and z.", 1, 500))), "def", "category", "excludeCategory", "query", "forbidden", "inStorage", "x", "z", "radius"),
                 Get(ToolGroups.Observe, "map-view", "get_map_view", "A character map of an area, one character per cell: rows[0] is the north edge (z = origin.z + height - 1), each row running west to east from origin.x. Each cell shows its top feature: pawn, building or blueprint, tree, item, zone, water, or fertility. Capital letters are colonists, named in the legend, which lists only symbols shown; unexplored cells are blank. Defaults to 32x32 around the colonists, at most 40x40. layers adds roof or designation grids.", "/v1/map/view", InputWithOptionalMap(true, new string[0], Prop("x", Int("West edge of the view.", 0, 1000)), Prop("z", Int("South edge of the view.", 0, 1000)), Prop("width", Int("Columns, 1 to 40. Defaults to 32.", 1, 40)), Prop("height", Int("Rows, 1 to 40. Defaults to 32.", 1, 40)), Prop("layers", J(F("type", "array"), F("items", EnumString("Extra layer.", "roof", "designations")), F("description", "Extra grids to include.")))), "x", "z", "width", "height", "layers"),
                 Get(ToolGroups.Observe, "check-placement", "check_placement", "Check whether a building fits at x and z, or find where it fits in an area up to 20x20, with the game's build checks. Returns fitting positions (nearest the middle first) with footprint and interaction cell offsets, rejections grouped by reason, the cost, and blockers such as missingMaterial or noConstructor. Changes nothing; uses the map shown in game.", "/v1/placement", InputWithOptionalMap(true, new[] { "def", "x", "z" }, Prop("def", Str("Building defName, such as Campfire, FueledStove, ButcherSpot, or Wall.")), Prop("stuff", Str("Material defName for buildings made from one, such as WoodLog or Steel. Defaults to the game's choice.")), Prop("rotation", EnumString("Facing. Defaults to the building's usual facing.", "north", "east", "south", "west")), Prop("x", Int("Position x, or the west edge of the positions to check.", 0, 1000)), Prop("z", Int("Position z, or the south edge of the positions to check.", 0, 1000)), Prop("width", Int("Positions to check west to east, 1 to 20. Defaults to 1.", 1, 20)), Prop("height", Int("Positions to check south to north, 1 to 20. Defaults to 1.", 1, 20))), "def", "stuff", "rotation", "x", "z", "width", "height"),
-                Get(ToolGroups.Observe, "work", "list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", "/v1/work", Input()),
-                Get(ToolGroups.Observe, "production", "list_production", "Production bills, each with a state (active, suspended, done, paused, or targetReached) and, when active, what blocks it: missingIngredients, noWorker, needsFuel, or workbenchUnusable. detail=normal adds the usable ingredients needed and available. Reserved ingredients still count.", "/v1/production", Input()),
-                Get(ToolGroups.Observe, "bill", "get_bill", "One bill by id: state, blockers, and the usable ingredients it needs and has (allowed, unforbidden, in its radius, reachable).", "/v1/bills/{id}", Required(Prop("id", Str("Bill id returned by list_production.")))),
-                Put(ToolGroups.Administration, "set-bill", "set_bill", "Update (mode=update) or delete (mode=delete) a bill by id. search_defs lists bill mode defs; list_zones gives stockpile ids for SpecificStockpile.", "/v1/bills/{id}", SetBillInput(), IdempotentDestructiveMutation(), Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId")),
-                Get(ToolGroups.Observe, "workshops", "list_workshops", "Workbenches that take bills, with bill and recipe counts. include=[\"recipes\"] or detail=full adds the recipes that can be added.", "/v1/workshops", Input()),
-                Get(ToolGroups.Observe, "workshop", "get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", "/v1/workshops/{id}", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops.")))),
+                Get(ToolGroups.Observe, "work", "list_work", "List work priorities, current jobs, draft state, schedules, and allowed-area context for core pawns.", "/v1/work", Input(MapId(), Detail(), Include("schedule"), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "production", "list_production", "Production bills, each with a state (active, suspended, done, paused, or targetReached) and, when active, what blocks it: missingIngredients, noWorker, needsFuel, or workbenchUnusable. detail=normal adds the usable ingredients needed and available. Reserved ingredients still count.", "/v1/production", Input(MapId(), Detail(), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "bill", "get_bill", "One bill by id: state, blockers, and the usable ingredients it needs and has (allowed, unforbidden, in its radius, reachable).", "/v1/bills/{id}", Required(Prop("id", Str("Bill id returned by list_production.")), MapId())),
+                Put(ToolGroups.Administration, "set-bill", "set_bill", "Update (mode=update) or delete (mode=delete) a bill by id. search_defs lists bill mode defs; list_zones gives stockpile ids for SpecificStockpile.", "/v1/bills/{id}", SetBillInput(), IdempotentDestructiveMutation(), Body("mapId", "mode", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId", "requestId")),
+                Get(ToolGroups.Observe, "workshops", "list_workshops", "Workbenches that take bills, with bill and recipe counts. include=[\"recipes\"] or detail=full adds the recipes that can be added.", "/v1/workshops", Input(MapId(), Detail(), Include("recipes"), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "workshop", "get_workshop", "Get one workshop by ThingID or load id, including current bills and available recipes that can be added at that bench.", "/v1/workshops/{id}", Required(Prop("id", Str("Workshop ThingID or load id from list_workshops.")), MapId())),
                 Post(ToolGroups.Administration, "add-bill-to-workshop", "add_bill_to_workshop", "Add a bill for a recipe; duplicates are allowed. As in game, it does the recipe once unless repeatModeDefName is Forever, or TargetCount with targetCount. search_defs lists bill mode defs; list_zones gives stockpile ids for SpecificStockpile.", "/v1/workshops/{workshopId}/bills", AddBillToWorkshopInput(), AdditiveMutation(), Body("mapId", "recipeDefName", "suspended", "repeatModeDefName", "repeatCount", "targetCount", "pauseWhenSatisfied", "unpauseWhenYouHave", "ingredientSearchRadius", "allowedSkillMin", "allowedSkillMax", "storeModeDefName", "storeZoneId", "requestId")),
-                Get(ToolGroups.Observe, "zones", "list_zones", "Stockpiles, growing zones, and allowed areas. Stockpiles show priority and accepts: the top-level categories taken fully (all), partly (some), or not at all (none), counting special filters that are off, and hit point and quality ranges when narrowed.", "/v1/zones", Input()),
-                Get(ToolGroups.Observe, "zone", "get_zone", "Get full details for one zone or area by id.", "/v1/zones/{id}", Required(Prop("id", Str("Zone id returned by list_zones.")))),
-                Get(ToolGroups.Observe, "environment", "get_environment", "Weather, season, conditions, hazards, and enclosed rooms with role, size, unroofed cells, and temperature. Rooms open to the outdoors or under fog are not listed.", "/v1/environment", Input()),
-                Get(ToolGroups.Observe, "power", "get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", "/v1/power", Input()),
-                Get(ToolGroups.Observe, "threats", "list_threats", "Active threats: hostiles, manhunters, predators, and fires. Fogged ones are hidden.", "/v1/threats", Input()),
-                Get(ToolGroups.Observe, "research", "get_research", "Current research, what stops it (noProject, missingResearchBench, or noResearcher), and paged projects; availableOnly lists those that can start now.", "/v1/research", Input(Prop("availableOnly", Bool("Only projects that can be started now. Needs a loaded colony."))), "availableOnly"),
+                Get(ToolGroups.Observe, "zones", "list_zones", "Stockpiles, growing zones, and allowed areas. Stockpiles show priority and accepts: the top-level categories taken fully (all), partly (some), or not at all (none), counting special filters that are off, and hit point and quality ranges when narrowed.", "/v1/zones", Input(MapId(), Detail(), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "zone", "get_zone", "Get full details for one zone or area by id.", "/v1/zones/{id}", Required(Prop("id", Str("Zone id returned by list_zones.")), MapId())),
+                Get(ToolGroups.Observe, "environment", "get_environment", "Weather, season, conditions, hazards, and enclosed rooms with role, size, unroofed cells, and temperature. Rooms open to the outdoors or under fog are not listed.", "/v1/environment", Input(MapId(), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "power", "get_power", "Get power grid, stored energy, generation/consumption, and powered component context.", "/v1/power", Input(MapId(), Detail(), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "threats", "list_threats", "Active threats: hostiles, manhunters, predators hunting the colony's people or animals, and fires. Fogged ones are hidden.", "/v1/threats", Input(MapId(), Detail(), Limit(), Cursor())),
+                Get(ToolGroups.Observe, "research", "get_research", "Current research, what stops it (noProject, missingResearchBench, or noResearcher), and paged projects; availableOnly lists those that can start now.", "/v1/research", Input(Detail(), Limit(), Cursor(), Prop("availableOnly",Bool("Only projects that can be started now. Needs a loaded colony."))), "availableOnly"),
                 Get(ToolGroups.Observe, "ideoligions", "list_ideoligions", "Ideoligions with identity, memes, culture, and mode flags; active=false and an empty list without Ideology.", "/v1/ideoligions", Input()),
                 Get(ToolGroups.Observe, "ideoligion", "get_ideoligion", "Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.", "/v1/ideoligions/{id}", Required(Prop("id", Str("Ideoligion id returned by list_ideoligions.")))),
-                Get(ToolGroups.Observe, "quests", "list_quests", "Quests as the Quests tab lists them, hidden ones left out; tab picks available, active, or historical (with dismissed ones). An available quest shows canAccept (else reason and unmetRequirements), expiresInTicks, rewardChoices (each with index, value, and needsAccepter), and accepters: the colonists who can accept it. An accepted quest shows its accepter and the reward chosen. detail=normal adds the description and parts.", "/v1/quests", Input(Prop("tab", EnumString("Quests tab. Defaults to all three.", "available", "active", "historical"))), "tab"),
+                Get(ToolGroups.Observe, "quests", "list_quests", "Quests as the Quests tab lists them, hidden ones left out; tab picks available, active, or historical (with dismissed ones). An available quest shows canAccept (else reason and unmetRequirements), expiresInTicks, rewardChoices (each with index, value, and needsAccepter), and accepters: the colonists who can accept it. An accepted quest shows its accepter and the reward chosen. detail=normal adds the description and parts.", "/v1/quests", Input(Detail(), Limit(), Cursor(), Prop("tab",EnumString("Quests tab. Defaults to all three.", "available", "active", "historical"))), "tab"),
                 Post(ToolGroups.Decisions, "answer-letter", "answer_letter", "Answer a letter waiting (letterId) as its dialog does, by option and revision from get_events; refused if its options changed since. dismiss: true dismisses it where the game allows. Shown in game. If the answer leads to another question, dialogs has it for answer_dialog.", "/v1/letters/{letterId}/answer", AnswerLetterInput(), Mutation(false, true), Body("option", "revision", "dismiss", "requestId")),
+                Post(ToolGroups.Decisions, "tell-player", "tell_player", "Tell the player something in game, in your own words: a plan, a warning, or something to look at. It shows as a message labelled as yours; attention: true sends a letter instead, which pauses the game if the player's options say so. Up to 280 characters; one note every 10 seconds, and 3 letters per in-game day. The agent log shows notes apart from what agents did.", "/v1/notes", TellPlayerInput(), Mutation(false, false), Body("text", "about", "x", "z", "attention", "requestId")),
                 Post(ToolGroups.Decisions, "respond-to-quest", "respond_to_quest", "Accept a quest offer as the Quests tab does, or dismiss or restore a quest. An offer with rewardChoices is accepted for one (reward, its index), and one that needs an accepter takes accepter, one of its accepters in list_quests. If the game asks first, as before giving royal favor, dialogs has the question for answer_dialog. Shown in game.", "/v1/quests/{questId}/response", RespondToQuestInput(), Mutation(false, true), Body("action", "reward", "accepter", "requestId")),
                 Post(ToolGroups.Observe, "answer-dialog", "answer_dialog", "Answer a dialog an agent's call opened (interactionId) by page and option id, as clicking it does, under the same rules as the call that opened it; cancel: true closes it as Escape does, where allowed. Refused once that page is no longer showing: the player answered or closed it, or it moved on or changed, which makes a new page to read. Needs the tool that opened it to be on.", "/v1/interactions/{interactionId}/answer", AnswerDialogInput(), Mutation(false, true), Body("page", "option", "value", "cancel", "aimId", "aimX", "aimZ", "requestId")),
                 Post(ToolGroups.Administration, "assign-owner", "assign_owner", "Assign a pawn to a bed, throne, or other building with owners, or unassign one, with the Assign dialog's checks (who it takes, bed size and kind, ideoligion). Assigning to a full bed replaces an owner, as in game; unassigned lists who lost it.", "/v1/buildings/{buildingId}/owners", AssignOwnerInput(), Mutation(false, true), Body("mapId", "pawnId", "action", "requestId")),
@@ -248,10 +249,10 @@ namespace RiMCP.Shared
                 Post(ToolGroups.Administration, "set-building-toggle", "set_building_toggle", "Turn one of the game's building toggles on or off (gizmo and revision from list_gizmos), such as a power switch, a door held open, a medical bed, or a turret's hold fire. A power switch changes once a colonist flicks it; pending says so.", "/v1/buildings/{buildingId}/toggles", SetBuildingToggleInput(), IdempotentMutation(), Body("mapId", "gizmo", "revision", "on", "requestId")),
                 Post(ToolGroups.PawnControl, "use-gizmo", "use_gizmo", "Press a button from list_gizmos (gizmo and revision) as a click does: an action, a toggle on a pawn or from a mod (on), or a target button with targetId or x and z, and destinationX and destinationZ for a two-step ability, checked with the button's own rules before it is given. dialogs has any question that follows, for answer_dialog.", "/v1/things/{thingId}/gizmos", UseGizmoInput(), Mutation(false, true), Body("mapId", "gizmo", "revision", "on", "targetId", "x", "z", "destinationX", "destinationZ", "requestId")),
                 Get(ToolGroups.Observe, "events", "get_events", "What the game is telling the player: alerts (with culprits: the pawns, things, or places they concern, up to 10 of culpritCount), letters waiting (text, expiry, quest, and a choice letter's options), and the History tab's letters and messages. Without since, history has the latest entries; with since (history.cursor from the last call), the entries after it, oldest first, with more if another page follows. repeated lists messages the game repeated since; reset means since was from another load, and incomplete that some entries may have been dropped. detail=normal adds alert explanations and letter texts in history.", "/v1/events", ObjectSchema(J(F("since", Str("history.cursor from the previous call.")), F("limit", Int("History entries; defaults to 20.", 1, 100)), F("detail", EnumString("Defaults to summary.", "summary", "normal", "full")))), "since"),
-                Get(ToolGroups.Observe, "buildings", "list_buildings", "Colony buildings, compact by default; detail=normal adds size, passability, power, battery, fuel, and billGiver. category filters by production, power, bed, storage, or a defName substring; include=[\"contents\"] adds storage contents.", "/v1/buildings", Input(Prop("category", BuildingCategory())), "category"),
-                Get(ToolGroups.Observe, "building", "get_building", "One building by ThingID or load id: size, passability, power, fuel, bills, and storage contents.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")))),
-                Get(ToolGroups.Observe, "world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input()),
-                Get(ToolGroups.Observe, "defs-search", "search_defs", "Search loaded defs by kind (any Def type without the Def suffix, aliases such as research, or all), query, and category. sourceMod is the defining mod, not later patchers.", "/v1/defs/search", Input(Prop("kind", DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
+                Get(ToolGroups.Observe, "buildings", "list_buildings", "Colony buildings, compact by default; detail=normal adds size, passability, power, battery, fuel, and billGiver. category filters by production, power, bed, storage, or a defName substring; include=[\"contents\"] adds storage contents.", "/v1/buildings", Input(MapId(), Detail(), Include("contents"), Limit(), Cursor(), Prop("category", BuildingCategory())), "category"),
+                Get(ToolGroups.Observe, "building", "get_building", "One building by ThingID or load id: size, passability, power, fuel, bills, and storage contents.", "/v1/buildings/{id}", Required(Prop("id", Str("Building ThingID or load id from list_buildings.")), MapId())),
+                Get(ToolGroups.Observe, "world", "list_world", "List world-level context: factions and world objects.", "/v1/world", Input(Limit(), Cursor())),
+                Get(ToolGroups.Observe, "defs-search", "search_defs", "Search loaded defs by kind (any Def type without the Def suffix, aliases such as research, or all), query, and category. sourceMod is the defining mod, not later patchers.", "/v1/defs/search", Input(Limit(), Cursor(), Prop("kind",DefKind()), Prop("query", Str("Search text for defName, label, or description.")), Prop("category", Str("Optional category filter."))), "kind", "query", "category"),
                 Get(ToolGroups.Observe, "def", "get_def", "One def by defName, optionally of a kind as in search_defs. sourceMod is the defining mod, not later patchers.", "/v1/defs/{defName}", Required(Prop("defName", Str("Def name to retrieve.")), Prop("kind", DefKind())), "kind"),
                 Put(ToolGroups.PawnControl, "set-pawn-drafted", "set_pawn_drafted", "Draft or undraft one player-controlled pawn by ThingID or load id.", "/v1/pawns/{pawnId}/drafted", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("drafted", Bool("Whether the pawn should be drafted."))), IdempotentMutation(), Body("mapId", "drafted")),
                 Put(ToolGroups.Administration, "set-pawn-work-priority", "set_pawn_work_priority", "Set a player pawn's priority for a work type: 0 disables it, 1 is highest, 4 lowest.", "/v1/pawns/{pawnId}/work/{workTypeDefName}", RequiredWithMap(Prop("pawnId", Str("Pawn ThingID or load id.")), Prop("workTypeDefName", Str("WorkTypeDef defName.")), Prop("priority", Int("Priority from 0 to 4.", 0, 4))), IdempotentMutation(), Body("mapId", "priority")),
@@ -265,7 +266,7 @@ namespace RiMCP.Shared
                 Put(ToolGroups.Administration, "set-storage", "set_storage", "Set a stockpile's or storage building's priority and what it accepts. allow and disallow take category or thing names (such as FoodMeals or MealSimple), after allowAll or disallowAll; each entry is applied, alreadySatisfied, or rejected. Special filters (such as AllowRotten) change only when named; specialFiltersOff lists those still refusing part of an allowed entry, and fixedSpecialFiltersOff those the building refuses whatever its settings. accepts summarises the result as list_zones does.", "/v1/storage", SetStorageInput(), IdempotentMutation(), Body("mapId", "zoneId", "buildingId", "priority", "allowAll", "disallowAll", "allow", "disallow")),
                 Put(ToolGroups.Administration, "set-growing-zone", "set_growing_zone", "Set a growing zone's crop (one the game's crop menu offers) and whether to sow it and cut other plants. Returns its growing state: sowableCells, sown, harvestable, averageGrowth, notGrowing with reasons (resting is the normal night rest, about 19:00 to 6:00; tooDark; temperature; other), and blockers such as noPlantableCells, outOfSeason, or noGrower.", "/v1/growing", SetGrowingZoneInput(), IdempotentMutation(), Body("mapId", "zoneId", "plant", "allowSow", "allowCut")),
                 Put(ToolGroups.Administration, "set-area", "set_area", "Paint rectangles into or out of the Home area (areaId home) or an allowed area, rename or delete an allowed area, or create one by leaving out areaId (with requestId).", "/v1/areas", SetAreaInput(), Mutation(false, true), Body("mapId", "areaId", "label", "add", "remove", "delete", "requestId")),
-                Post(ToolGroups.PawnControl, "order-pawn", "order_pawn", "Order one player pawn with the game's right-click checks: equip or wear (targetId of an item), move to x and z (to a standable cell nearby, given as destination), attack (targetId; ranged pawns are refused out of range, others melee), rescue a downed pawn, or tend a pawn. move, attack, and tend need a drafted pawn. The order replaces the current job; equip and wear can queue behind it instead, like shift-click. Returns jobIssued, alreadySatisfied, rejected with the game's reason, or awaitingInput when the game asks the player. Acts on the map shown in game.", "/v1/pawns/{pawnId}/orders", OrderPawnInput(), Mutation(true, true), Body("mapId", "order", "targetId", "x", "z", "queue", "requestId")),
+                Post(ToolGroups.PawnControl, "order-pawn", "order_pawn", "Order one player pawn with the game's right-click checks: equip or wear (targetId of an item), move to x and z (to a standable cell nearby, given as destination), attack (targetId; ranged pawns are refused out of range, others melee), rescue a downed pawn, or tend a pawn. move, attack, and tend need a drafted pawn. The order replaces the current job; equip and wear can queue behind it instead, like shift-click. Returns jobIssued, alreadySatisfied, rejected with the game's reason, or awaitingInput when the game asks to confirm, with the question in dialogs for answer_dialog. Acts on the map shown in game.", "/v1/pawns/{pawnId}/orders", OrderPawnInput(), Mutation(true, true), Body("mapId", "order", "targetId", "x", "z", "queue", "requestId")),
                 Put(ToolGroups.Time, "set-game-speed", "set_game_speed", "Pause the game or set its speed. Also ends any running advance_time.", "/v1/time/speed", RequiredOnly(Prop("speed", EnumString("Game speed. Ultrafast needs development mode.", "Paused", "Normal", "Fast", "Superfast", "Ultrafast"))), IdempotentMutation(), Body("speed")),
                 Post(ToolGroups.Time, "advance-time", "advance_time", "Run the game up to 24 in-game hours, then pause; it stops and pauses early on a stopOn condition, and reports what happened and why it ended. One run at a time; a requestId retry returns the existing run (the last 32 are kept). waitSeconds waits for the result; otherwise follow with get_advance. Cancelling the call does not stop the run; set_game_speed does.", "/v1/time/advance", AdvanceTimeInput(), Mutation(false, false), Body("hours", "speed", "stopOn", "requestId"), "waitSeconds"),
                 Get(ToolGroups.Observe, "get-advance", "get_advance", "The game's tick and speed, and an advance_time run (the latest, or runId): its status, what happened, and why it ended. waitSeconds waits for it to end.", "/v1/time/advance", InputWithOptionalMap(false, new string[0], Prop("runId", J(F("type", "integer"), F("minimum", 1), F("description", "Run id returned by advance_time. Defaults to the most recent run."))), Prop("waitSeconds", WaitSeconds())), "runId", "waitSeconds"),
@@ -290,7 +291,8 @@ namespace RiMCP.Shared
                 PostAnyGame(ToolGroups.GameSetup, "start-game", "start_game", "Start the colony from the last setup screen (an operation; see get_operation); the result has the new loadId. The player approves this exact setup in game first (awaitingConfirmation) unless unattended setup is on, and a change while asking withdraws it. The game also asks if no colonist can do a required job." + OperationRetries, "/v1/setup/start", RevisionInput(true), Mutation(false, false), Body("expectedRevision", "requestId"), "waitSeconds"),
                 PostAnyGame(ToolGroups.GameSetup, "answer-confirmation", "answer_confirmation", "Answer the game's question during an operation, by confirmationId from get_operation, such as settling near a faction. Only with unattended setup on; otherwise the player answers in game. Refused once the question is stale.", "/v1/operations/{operationId}/answer", AnswerInput(), Mutation(false, false), Body("confirmationId", "accept")),
                 RouteOnly("tools", "GET", "/v1/tools"),
-                RouteOnly("access", "GET", "/v1/access")
+                RouteOnly("access", "GET", "/v1/access"),
+                RouteOnly("agent-log", "GET", "/v1/agent-log")
             };
         }
 
@@ -555,6 +557,18 @@ namespace RiMCP.Shared
             return J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries: a repeat returns the first result without acting again." + RetryWindow));
         }
 
+        private static Dictionary<string, object> TellPlayerInput()
+        {
+            Dictionary<string, object> props = new Dictionary<string, object>();
+            props["text"] = J(F("type", "string"), F("maxLength", 280), F("description", "What to say."));
+            props["about"] = StrArray("Ids of things the note is about, on the map shown; the player can jump to them.");
+            props["x"] = Int("A cell the note is about, x.", 0, 1000);
+            props["z"] = Int("A cell the note is about, z.", 0, 1000);
+            props["attention"] = Bool("Send a letter, for something the player should look at.");
+            props["requestId"] = SafeRetry();
+            return ObjectSchema(props, "text");
+        }
+
         private static Dictionary<string, object> AnswerLetterInput()
         {
             Dictionary<string, object> props = new Dictionary<string, object>();
@@ -741,7 +755,7 @@ namespace RiMCP.Shared
             props["remove"] = CellRects("Cells to remove from the zone.");
             props["delete"] = Bool("Delete the whole zone given by zoneId.");
             props["label"] = Str("New name for the zone.");
-            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating." + RetryWindow));
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating or deleting: a repeat returns the first result." + RetryWindow));
             return ObjectSchema(props);
         }
 
@@ -798,7 +812,7 @@ namespace RiMCP.Shared
             props["add"] = CellRects("Cells to add to the area.");
             props["remove"] = CellRects("Cells to remove from the area.");
             props["delete"] = Bool("Delete the allowed area given by areaId.");
-            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating." + RetryWindow));
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries when creating or deleting: a repeat returns the first result." + RetryWindow));
             return ObjectSchema(props);
         }
 
@@ -908,6 +922,7 @@ namespace RiMCP.Shared
             props["id"] = Str("Bill id returned by list_production or get_workshop.");
             props["mode"] = EnumString("Whether to update fields on the bill or delete it.", "update", "delete");
             AddBillSettingProperties(props);
+            props["requestId"] = J(F("type", "string"), F("maxLength", 100), F("description", "Optional id for safe retries of a delete: a repeat returns the first result." + RetryWindow));
             return ObjectSchema(props, "id", "mode");
         }
 
@@ -968,7 +983,7 @@ namespace RiMCP.Shared
 
         private static Dictionary<string, object> Input(string[] required, params ToolProperty[] properties)
         {
-            Dictionary<string, object> props = SharedProperties();
+            Dictionary<string, object> props = new Dictionary<string, object>();
             foreach (ToolProperty property in properties)
             {
                 props[property.Name] = property.Schema;
@@ -990,19 +1005,43 @@ namespace RiMCP.Shared
             return new ToolProperty(name, schema);
         }
 
-        private static Dictionary<string, object> SharedProperties()
+        // The read controls. Each tool offers only those its handler reads, so none sits unused in
+        // the tool list.
+        private static ToolProperty MapId()
         {
-            return J(
-                F("mapId", Str("Defaults to the current map.")),
-                F("detail", EnumString("Defaults to summary.", "summary", "normal", "full")),
-                F("include", J(F("type", "array"), F("items", J(F("type", "string"))), F("description", "Extra sections, such as skills, gear, or stackTrace."))),
-                F("limit", Int("Page size; defaults to 50.", 1, 200)),
-                F("cursor", J(F("type", "integer"), F("minimum", 0), F("description", "nextCursor from the previous page."))));
+            return Prop("mapId", Str("Defaults to the current map."));
+        }
+
+        private static ToolProperty Detail()
+        {
+            return Prop("detail", EnumString("Defaults to summary; full adds every include section.", "summary", "normal", "full"));
+        }
+
+        // The bridge refuses a section not listed here.
+        private static ToolProperty Include(params string[] sections)
+        {
+            return Prop("include", J(F("type", "array"), F("items", J(F("type", "string"), F("enum", sections))), F("description", "Extra sections to add.")));
+        }
+
+        private static ToolProperty Limit()
+        {
+            return Prop("limit", Int("Page size; defaults to 50.", 1, 200));
+        }
+
+        private static ToolProperty Cursor()
+        {
+            return Prop("cursor", J(F("type", "integer"), F("minimum", 0), F("description", "nextCursor from the previous page.")));
         }
 
         private static Dictionary<string, object> MapProperty()
         {
             return J(F("mapId", Str("Defaults to the current map.")));
+        }
+
+        // A property, so the tool list built in a field initializer above never finds it unset.
+        private static string[] PawnSections
+        {
+            get { return new[] { "needs", "thoughts", "health", "skills", "work", "assignments", "training", "gear", "relations" }; }
         }
 
         // Only the four list tools that can answer with ids alone take idsOnly.
@@ -1014,9 +1053,7 @@ namespace RiMCP.Shared
         // Tools that page but read no map, detail, or sections.
         private static Dictionary<string, object> PagedInput()
         {
-            return ObjectSchema(J(
-                F("limit", Int("Page size; defaults to 50.", 1, 200)),
-                F("cursor", J(F("type", "integer"), F("minimum", 0), F("description", "nextCursor from the previous page.")))));
+            return Input(Limit(), Cursor());
         }
 
         private static Dictionary<string, object> Str(string description)

@@ -40,7 +40,9 @@ namespace RiMCP.Command
                 Dto.Field("mapId", context.Map == null ? null : context.Map.uniqueID.ToString()),
                 Dto.Field("changed", changed),
                 Dto.Field("data", data));
-            return BridgeResponse.Json(200, Json.Serialize(envelope));
+            BridgeResponse response = BridgeResponse.Json(200, Json.Serialize(envelope));
+            response.Changed = changed;
+            return response;
         }
     }
 

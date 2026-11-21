@@ -9,7 +9,7 @@ namespace RiMCP.Read
 {
     // A home map's food in nutrition: the food the game counts for the Low food alert (fresh,
     // explored, human-edible food in storage), split into meals and raw food, with how long it
-    // lasts at the colonists' current rate of eating, how much of it will rot soon at the current
+    // lasts at the colonists' and prisoners' current rate of eating, how much of it will rot soon at the current
     // temperature, and how it has changed lately.
     internal sealed class FoodSummary
     {
@@ -26,7 +26,8 @@ namespace RiMCP.Read
             FoodSummary food = new FoodSummary
             {
                 Stored = FoodSample.Take(map),
-                EatenPerDay = map.mapPawns.FreeColonistsSpawned
+                // Prisoners eat from the same food, as the Low food alert's estimate counts.
+                EatenPerDay = map.mapPawns.FreeColonistsSpawned.Concat(map.mapPawns.PrisonersOfColonySpawned)
                     .Where(pawn => pawn.needs != null && pawn.needs.food != null)
                     .Sum(pawn => pawn.needs.food.FoodFallPerTick) * GenDate.TicksPerDay
             };

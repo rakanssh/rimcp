@@ -139,6 +139,12 @@ namespace RiMCP.Command
             List<object> results = new List<object>();
             List<BuildPlacement> placed = new List<BuildPlacement>();
             int applied = 0, satisfied = 0, rejectedCount = 0;
+            List<Thing> placedThings = new List<Thing>();
+            List<ThingDef> placedKinds = new List<ThingDef>();
+            List<string> refusals = new List<string>();
+            List<ThingDef> kinds = buildings.Select(building => building.Def).Distinct().ToList();
+            string asked = "Place " + (kinds.Count == 1 ? kinds[0].label : "buildings");
+            AgentLog.About(asked);
             for (int i = 0; i < buildings.Length; i++)
             {
                 BuildPlacement building = buildings[i];
@@ -173,6 +179,15 @@ namespace RiMCP.Command
                     outcome = "rejected";
                     reason = "The game did not place it.";
                 }
+                if (outcome == "applied")
+                {
+                    placedThings.Add(thing);
+                    placedKinds.Add(building.Def);
+                }
+                else if (outcome == "rejected" && reason != null && refusals.Count < 3 && !refusals.Contains(reason))
+                {
+                    refusals.Add(reason);
+                }
                 applied += outcome == "applied" ? 1 : 0;
                 satisfied += outcome == "alreadySatisfied" ? 1 : 0;
                 rejectedCount += outcome == "rejected" ? 1 : 0;
@@ -189,6 +204,11 @@ namespace RiMCP.Command
                     Dto.Field("occupies", outcome == "rejected" ? null : building.Occupies(cell))));
             }
 
+            bool built = placedThings.Count > 0 && placedThings.All(thing => BuildPlacement.StateOf(thing) == "built");
+            string made = kinds.Count == 1
+                ? AgentLog.Count(applied, kinds[0].label + (built ? "" : " blueprint"))
+                : AgentLog.Count(applied, built ? "building" : "blueprint") + (applied > 0 ? " (" + Kinds(placedKinds) + ")" : "");
+            AgentLog.Counted((built ? "Built " : "Placed ") + made, asked, applied, satisfied, rejectedCount, string.Join("; ", refusals.ToArray()), placedThings);
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("applied", applied),
                 Dto.Field("alreadySatisfied", satisfied),
@@ -196,6 +216,13 @@ namespace RiMCP.Command
                 Dto.Field("results", results.ToArray()),
                 Dto.Field("blockers", Blockers.ToArray(BuildPlacement.BuildBlockers(map, placed))));
             return new CommandResult(applied > 0, data);
+        }
+
+        // "3 beds, 1 door"
+        private static string Kinds(List<ThingDef> defs)
+        {
+            return string.Join(", ", defs.GroupBy(def => def).OrderByDescending(group => group.Count())
+                .Select(group => AgentLog.Count(group.Count(), group.Key.label, Find.ActiveLanguageWorker.Pluralize(group.Key.label, group.Count()))).ToArray());
         }
 
         private static int Side(ReadRequest query, string field)

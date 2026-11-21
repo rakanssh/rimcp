@@ -103,6 +103,10 @@ internal static class Program
         Test("dialog answers follow the press rules and keep their receipts after the dialog is forgotten", CheckDialogPressRules);
         Test("an answer to options that shrank since they were read is refused before its option's code is looked up", CheckLateAnswer);
         Test("a press that fails cancels the targeting it started and settles its dialog, and none runs while the player targets", CheckPressFailure);
+        Test("the agent log keeps one entry per change with its outcome: refusals, failures, partial batches, replays, and busy calls", CheckAgentLogEntries);
+        Test("agent log entries waiting on an operation, an advance, or a dialog finish in place when it ends", CheckAgentLogPending);
+        Test("dialog answers through the router are logged once with their client, and a failing listener never fails the call", CheckAgentLogRouter);
+        Test("notes are limited to one every 10 seconds and 3 letters per in-game day per loaded game, and are logged apart from actions", CheckNotes);
         Test("letter revisions belong to one loaded game", CheckLetterRevision);
         Test("every right-click menu provider and button type in the game is classified", CheckGameActionTables);
         Test("options and buttons are the game's only when their code is, and the audited ones are refused", CheckActionOrigins);
@@ -152,6 +156,9 @@ internal static class Program
             Data(Call("DefReadService", "GetDef", "/v1/defs/SubclassProbe?kind=probeWorkType", "defName", "SubclassProbe"));
         });
         Test("dispatcher spreads a burst across frames within its time budget", CheckDispatcherBudget);
+        Test("a request timed out while queued never runs, and one already started returns its reply", CheckDispatcherTimeouts);
+        Test("receipts and ended dialogs of another game are dropped, so it is not kept in memory", CheckOtherGamesForgotten);
+        Test("an include section a tool does not list is refused with the ones it has", CheckIncludeRefusals);
         Test("advance runs complete at the target and end on outside changes", () =>
         {
             object game = new object();
@@ -219,7 +226,7 @@ internal static class Program
         {
             IEnumerable tools = (IEnumerable)mod.GetType("RiMCP.Shared.ToolManifest", true).GetProperty("McpTools", Static).GetValue(null);
             Dictionary<string, int> counts = tools.Cast<object>().GroupBy(tool => Field<string>(tool, "Group") ?? "(none)").ToDictionary(group => group.Key, group => group.Count());
-            var expected = new Dictionary<string, int> { { "observe", 38 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 12 }, { "orders", 3 }, { "pawnControl", 4 }, { "decisions", 2 }, { "gameSettings", 1 }, { "gameSetup", 14 } };
+            var expected = new Dictionary<string, int> { { "observe", 38 }, { "diagnostics", 4 }, { "time", 2 }, { "administration", 12 }, { "orders", 3 }, { "pawnControl", 4 }, { "decisions", 3 }, { "gameSettings", 1 }, { "gameSetup", 14 } };
             int count;
             Check(counts.Count == expected.Count && expected.All(pair => counts.TryGetValue(pair.Key, out count) && count == pair.Value),
                 "group sizes: " + string.Join(", ", counts.Select(pair => pair.Key + "=" + pair.Value).ToArray()));
@@ -473,6 +480,91 @@ internal static class Program
             object ms = responseType.GetField("MainThreadMs").GetValue(caller.Result);
             Check(ms != null && (double)ms >= 9, "response must record main-thread time");
         }
+    }
+
+    private static int dispatcherRuns;
+
+    private static object CountedRun(int sleepMs)
+    {
+        Interlocked.Increment(ref dispatcherRuns);
+        Thread.Sleep(sleepMs);
+        return mod.GetType("RiMCP.Bridge.BridgeResponse", true).GetMethod("Json", Static).Invoke(null, new object[] { 200, "{}" });
+    }
+
+    private static void CheckDispatcherTimeouts()
+    {
+        Type dispatcherType = mod.GetType("RiMCP.Bridge.MainThreadDispatcher", true);
+        Type responseType = mod.GetType("RiMCP.Bridge.BridgeResponse", true);
+        Func<int, Delegate> handler = sleepMs => Expression.Lambda(typeof(Func<>).MakeGenericType(responseType),
+            Expression.Convert(Expression.Call(typeof(Program).GetMethod("CountedRun", Static), Expression.Constant(sleepMs)), responseType)).Compile();
+        object dispatcher = Activator.CreateInstance(dispatcherType, true);
+        MethodInfo invoke = dispatcherType.GetMethod("Invoke");
+        MethodInfo process = dispatcherType.GetMethod("ProcessQueued");
+        Func<int> queued = () => (int)dispatcherType.GetProperty("QueuedCount").GetValue(dispatcher);
+        dispatcherRuns = 0;
+
+        object timedOut = invoke.Invoke(dispatcher, new object[] { handler(0), 50 });
+        process.Invoke(dispatcher, new object[] { 16, 4.0 });
+        Check(Field<int>(timedOut, "StatusCode") == 504 && Field<string>(timedOut, "Body").Contains("did not run") && dispatcherRuns == 0,
+            "a request timed out in the queue must say it did not run, and never run: runs " + dispatcherRuns);
+
+        Task<object> caller = Task.Run(() => invoke.Invoke(dispatcher, new object[] { handler(300), 50 }));
+        for (int wait = 0; queued() < 1 && wait < 500; wait++) Thread.Sleep(5);
+        process.Invoke(dispatcher, new object[] { 16, 4.0 });
+        Check(caller.Wait(5000) && Field<int>(caller.Result, "StatusCode") == 200 && dispatcherRuns == 1,
+            "a request started before its timeout must return its own reply: runs " + dispatcherRuns);
+    }
+
+    private static void CheckIncludeRefusals()
+    {
+        SetAccess("full", AllGroups());
+        MethodInfo handle = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static);
+        Func<string, object> read = path => handle.Invoke(null, new[] { Request(path) });
+        object unknown = read("/v1/pawns?include=skills,mood");
+        Check(Field<int>(unknown, "StatusCode") == 400 && Field<string>(unknown, "Body").Contains("no include section mood") && Field<string>(unknown, "Body").Contains("thoughts"),
+            "an unknown section is refused with the tool's sections: " + Field<string>(unknown, "Body"));
+        object none = read("/v1/bills/Bill_1?include=skills");
+        Check(Field<int>(none, "StatusCode") == 400 && Field<string>(none, "Body").Contains("get_bill takes no include"), "a tool without sections refuses any: " + Field<string>(none, "Body"));
+        object known = read("/v1/pawns?include=Skills");
+        Check(Field<int>(known, "StatusCode") != 400, "a listed section passes, in any case: " + Field<int>(known, "StatusCode"));
+    }
+
+    private static void CheckOtherGamesForgotten()
+    {
+        // The harness has no game loaded, so a null game is the current one.
+        Type receiptsType = mod.GetType("RiMCP.Command.CommandReceipts", true);
+        IList receipts = (IList)receiptsType.GetField("receipts", Static).GetValue(null);
+        Type receiptType = receiptsType.GetNestedType("Receipt", BindingFlags.NonPublic);
+        Func<object, object> receipt = game =>
+        {
+            object made = Activator.CreateInstance(receiptType, true);
+            receiptType.GetField("Game").SetValue(made, game);
+            return made;
+        };
+        receipts.Clear();
+        receipts.Add(receipt(new object()));
+        receipts.Add(receipt(null));
+        receiptsType.GetMethod("ForgetOtherGames", Static).Invoke(null, null);
+        Check(receipts.Count == 1 && receiptType.GetField("Game").GetValue(receipts[0]) == null, "only the loaded game's receipts must be kept: " + receipts.Count);
+        receipts.Clear();
+
+        Type interactionsType = mod.GetType("RiMCP.Command.Interactions", true);
+        Type interactionType = mod.GetType("RiMCP.Command.Interaction", true);
+        IList kept = (IList)interactionsType.GetField("kept", Static).GetValue(null);
+        Func<object, string, object> interaction = (game, state) =>
+        {
+            object made = Activator.CreateInstance(interactionType, true);
+            interactionType.GetField("Game").SetValue(made, game);
+            interactionType.GetField("State").SetValue(made, state);
+            return made;
+        };
+        kept.Clear();
+        kept.Add(interaction(new object(), "ended"));
+        kept.Add(interaction(new object(), "open"));
+        kept.Add(interaction(null, "answered"));
+        interactionsType.GetMethod("ForgetOtherGames", Static).Invoke(null, null);
+        Check(kept.Count == 2, "an ended dialog of another game must be dropped, and one still open kept until it is ended: " + kept.Count);
+        kept.Clear();
     }
 
     private static object AdvanceRun(object game, object baseline, string[] stopOn = null, string requestId = null, int id = 1)
@@ -1077,6 +1169,271 @@ internal static class Program
         Check(Field<string>(comms, "Mod") == null && Field<string>(comms, "Unsupported") != null, "a thing's option running a faction's code, a comms call, is refused");
 
         Check(Field<string>(forButton(new Command_Action { action = Log.Clear }), "Unsupported") == null, "an ordinary game button is not refused");
+    }
+
+    private static Type AgentLogType()
+    {
+        return mod.GetType("RiMCP.Command.AgentLog", true);
+    }
+
+    private static object LogCall(string method, params object[] args)
+    {
+        MethodInfo found = AgentLogType().GetMethods(Static).First(each => each.Name == method && each.GetParameters().Length == args.Length);
+        try { return found.Invoke(null, args); }
+        catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+    }
+
+    private static List<object> LogEntries()
+    {
+        return ((IEnumerable)AgentLogType().GetProperty("Entries", Static).GetValue(null)).Cast<object>().ToList();
+    }
+
+    private static string Describe(object entry)
+    {
+        return Field<string>(entry, "Outcome") + ": " + Field<string>(entry, "Line") + " [" + Field<string>(entry, "Detail") + "]";
+    }
+
+    private static void CheckAgentLogEntries()
+    {
+        object[] none = new object[0];
+        LogCall("Reset");
+        try
+        {
+            LogCall("Begin", "set_pawn_drafted", "Codex 3f2a");
+            LogCall("About", "Draft Big", none);
+            LogCall("Done", "Drafted Big", none);
+            LogCall("End", 200, null, (bool?)true);
+            object drafted = LogEntries().Last();
+            Check(Field<string>(drafted, "Outcome") == "done" && Field<string>(drafted, "Line") == "Drafted Big" && Field<string>(drafted, "Client") == "Codex 3f2a", "a change is one entry with its client: " + Describe(drafted));
+
+            LogCall("Begin", "set_pawn_drafted", null);
+            LogCall("Replayed");
+            LogCall("End", 200, null, (bool?)false);
+            Check(LogEntries().Count == 1, "a retry answered from its receipt adds nothing");
+
+            LogCall("Begin", "set_pawn_work_priority", null);
+            LogCall("About", "Set Big's Mining to 1", none);
+            LogCall("End", 409, "Pawn cannot do this work type.", null);
+            object refused = LogEntries().Last();
+            Check(Field<string>(refused, "Outcome") == "refused" && Field<string>(refused, "Line") == "Set Big's Mining to 1" && Field<string>(refused, "Detail") == "Pawn cannot do this work type.", "a refusal names what was asked and why: " + Describe(refused));
+
+            LogCall("Begin", "use_gizmo", null);
+            LogCall("About", "Big: Fire", none);
+            LogCall("Done", "Big: Fire", none);
+            LogCall("End", 500, "NullReferenceException: broken", null);
+            object failed = LogEntries().Last();
+            Check(Field<string>(failed, "Outcome") == "failed" && Field<string>(failed, "Line") == "Big: Fire" && Field<string>(failed, "Detail").Contains("may have partly run"), "a failure is not a refusal, and may have partly run: " + Describe(failed));
+
+            int before = LogEntries().Count;
+            LogCall("Begin", "designate", null);
+            LogCall("End", 503, "RimWorld is loading.", null);
+            Check(LogEntries().Count == before, "a busy game adds nothing");
+
+            LogCall("Begin", "place_blueprint", null);
+            LogCall("Counted", "Placed 9 wall blueprints", "Place wall", 9, 0, 3, "Blocked by a wall.", none);
+            LogCall("End", 200, null, (bool?)true);
+            object partly = LogEntries().Last();
+            Check(Field<string>(partly, "Outcome") == "partlyDone" && Field<string>(partly, "Line") == "Placed 9 wall blueprints; 3 rejected" && Field<string>(partly, "Detail").Contains("Blocked by a wall."), "a partial batch says what was applied and what was rejected: " + Describe(partly));
+
+            LogCall("Begin", "place_blueprint", null);
+            LogCall("Counted", "Placed 0 wall blueprints", "Place wall", 0, 0, 2, "Blocked.", none);
+            LogCall("End", 200, null, (bool?)false);
+            object allRejected = LogEntries().Last();
+            Check(Field<string>(allRejected, "Outcome") == "refused" && Field<string>(allRejected, "Line") == "Place wall", "a batch that answered normally but applied nothing is refused: " + Describe(allRejected));
+
+            LogCall("Begin", "set_game_speed", null);
+            LogCall("End", 200, null, (bool?)false);
+            object quiet = LogEntries().Last();
+            Check(Field<string>(quiet, "Outcome") == "noChange", "a call that changed nothing says so: " + Describe(quiet));
+
+            for (int i = 0; i < 210; i++)
+            {
+                LogCall("Begin", "set_game_speed", null);
+                LogCall("Done", "Set the speed " + i, none);
+                LogCall("End", 200, null, (bool?)true);
+            }
+            Check(LogEntries().Count == (int)AgentLogType().GetField("MaxEntries").GetValue(null), "the log keeps only its newest entries");
+
+            Check((string)Invoke("RiMCP.Bridge.AgentClients", "Describe", "codex-mcp-client", "3f2a") == "Codex 3f2a" && (string)Invoke("RiMCP.Bridge.AgentClients", "Describe", "my\nclient", null) == "myclient", "clients are named plainly");
+        }
+        finally
+        {
+            LogCall("Reset");
+        }
+    }
+
+    private static void CheckAgentLogPending()
+    {
+        object[] none = new object[0];
+        LogCall("Reset");
+        Runner().GetMethod("Reset", Static).Invoke(null, null);
+        Type interactions = mod.GetType("RiMCP.Command.Interactions", true);
+        interactions.GetMethod("Reset", Static).Invoke(null, null);
+        try
+        {
+            List<string> steps = new List<string>();
+            LogCall("Begin", "save_game", null);
+            LogCall("Expect", "Save as 'Colony 3'", "Saved as 'Colony 3'", none);
+            object saving = StartOperation("save_game", "gameSetup", null, null, _ => TwoSteps(steps));
+            LogCall("WaitFor", OperationId(saving), null);
+            LogCall("End", 200, null, (bool?)true);
+            object save = LogEntries().Last();
+            Check(Field<string>(save, "Outcome") == "pending" && Field<string>(save, "Line") == "Save as 'Colony 3'", "an operation's entry waits: " + Describe(save));
+            for (int i = 0; i < 5 && OperationState(saving) != "succeeded"; i++)
+            {
+                RunnerUpdate();
+            }
+            Check(Field<string>(save, "Outcome") == "done" && Field<string>(save, "Line") == "Saved as 'Colony 3'", "it finishes in place when the operation does, without polling: " + Describe(save));
+
+            LogCall("Begin", "load_game", null);
+            LogCall("Expect", "Load 'Colony 3'", "Loaded 'Colony 3'", none);
+            object loading = StartOperation("load_game", "gameSetup", null, null, _ => TwoSteps(steps));
+            LogCall("WaitFor", OperationId(loading), null);
+            LogCall("End", 200, null, (bool?)true);
+            Runner().GetMethod("Cancel", Static).Invoke(null, new object[] { loading, "Stopped by the agent." });
+            object load = LogEntries().Last();
+            Check(Field<string>(load, "Outcome") == "cancelled" && Field<string>(load, "Line") == "Load 'Colony 3'" && Field<string>(load, "Detail") == "Stopped by the agent.", "a cancelled operation's entry says so: " + Describe(load));
+
+            object game = new object();
+            object run = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), id: 7);
+            LogCall("Begin", "advance_time", null);
+            LogCall("Done", "Running time for 1 hour", none);
+            LogCall("WaitFor", "advance-7", null);
+            LogCall("End", 200, null, (bool?)true);
+            object advance = LogEntries().Last();
+            run.GetType().GetMethod("End").Invoke(run, new object[] { "stopped", "hostiles", 100 + 575 });
+            Check(Field<string>(advance, "Outcome") == "done" && Field<string>(advance, "Line") == "Advanced 14 minutes; stopped for hostiles", "an advance's entry ends with what happened: " + Describe(advance));
+
+            object finishedEarly = AdvanceRun(game, Observation(game, 200, TimeSpeed.Superfast), id: 8);
+            LogCall("Begin", "advance_time", null);
+            LogCall("Done", "Running time for 1 hour", none);
+            LogCall("WaitFor", "advance-8", null);
+            finishedEarly.GetType().GetMethod("End").Invoke(finishedEarly, new object[] { "completed", "completed", 200 + 2500 });
+            LogCall("End", 200, null, (bool?)true);
+            object early = LogEntries().Last();
+            Check(Field<string>(early, "Outcome") == "done" && Field<string>(early, "Line") == "Advanced 1 hour", "work that ends before its call is recorded still finishes the entry: " + Describe(early));
+
+            var fake = new FakeDialog();
+            fake.OnChoose = id => fake.Open = false;
+            object dialog = interactions.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "For colonists", FakeAdapter(fake), null, null });
+            LogCall("Begin", "use_gizmo", null);
+            LogCall("Done", "Bed: For colonists", none);
+            LogCall("WaitFor", Field<string>(dialog, "Id"), null);
+            LogCall("End", 200, null, (bool?)true);
+            object press = LogEntries().Last();
+            Check(Field<string>(press, "Outcome") == "pending", "a press that opened a dialog waits for it: " + Describe(press));
+            AnswerPage(dialog, Field<int>(dialog, "Page"), "1", null);
+            Check(Field<string>(press, "Outcome") == "done" && Field<string>(press, "Detail") == "Answered.", "it finishes when the dialog is answered: " + Describe(press));
+
+            var other = new FakeDialog { CanCancel = true };
+            object closing = interactions.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "For colonists", FakeAdapter(other), null, null });
+            LogCall("Begin", "use_gizmo", null);
+            LogCall("Done", "Bed: For colonists", none);
+            LogCall("WaitFor", Field<string>(closing, "Id"), null);
+            LogCall("End", 200, null, (bool?)true);
+            object cancelled = LogEntries().Last();
+            Invoke("RiMCP.Command.Interactions", "Cancel", closing, Field<int>(closing, "Page"));
+            Check(Field<string>(cancelled, "Outcome") == "cancelled", "a dialog closed without an answer cancels its entry: " + Describe(cancelled));
+        }
+        finally
+        {
+            LogCall("Reset");
+            Runner().GetMethod("Reset", Static).Invoke(null, null);
+            interactions.GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckAgentLogRouter()
+    {
+        Type interactions = mod.GetType("RiMCP.Command.Interactions", true);
+        interactions.GetMethod("Reset", Static).Invoke(null, null);
+        LogCall("Reset");
+        EventInfo recorded = AgentLogType().GetEvent("Recorded", Static);
+        Delegate failing = Typed(recorded.EventHandlerType, args => { throw new InvalidOperationException("a listener broke"); });
+        recorded.AddEventHandler(null, failing);
+        SetAccess("full", AllGroups());
+        try
+        {
+            var fake = new FakeDialog();
+            object dialog = interactions.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "A letter", FakeAdapter(fake), null, null });
+            string id = Field<string>(dialog, "Id");
+            int page = Field<int>(dialog, "Page");
+            Func<string, object> send = body => mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static).Invoke(null, new[] {
+                Activator.CreateInstance(mod.GetType("RiMCP.Bridge.BridgeRequest", true), new object[] { "POST", new Uri("http://127.0.0.1/v1/interactions/" + id + "/answer"), body, "Claude Code 9e1c" }) });
+            Func<object, int> status = response => (int)response.GetType().GetField("StatusCode").GetValue(response);
+            string answer = "{\"page\":" + page + ",\"option\":\"1\",\"requestId\":\"log-1\"}";
+            object first = send(answer);
+            Check(status(first) == 200 && fake.Chosen.Count == 1, "the answer runs, though a listener of the log fails");
+            List<object> entries = LogEntries();
+            Check(entries.Count == 1 && Field<string>(entries[0], "Line") == "Answered \"Yes\" (A letter)" && Field<string>(entries[0], "Client") == "Claude Code 9e1c" && Field<string>(entries[0], "Tool") == "answer_dialog", "the answer is one entry with its client: " + string.Join(" | ", entries.Select(Describe).ToArray()));
+            send(answer);
+            Check(LogEntries().Count == 1 && fake.Chosen.Count == 1, "its retry adds nothing");
+            object stale = send("{\"page\":" + page + ",\"option\":\"2\"}");
+            object refused = LogEntries().Last();
+            Check(status(stale) == 409 && Field<string>(refused, "Outcome") == "refused" && Field<string>(refused, "Line") == "Answer 'A letter'", "a refused answer is logged with what was asked: " + Describe(refused));
+            object read = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static).Invoke(null, new[] { Request("/v1/agent-log?limit=1") });
+            var json = Json.Deserialize<Dictionary<string, object>>((string)read.GetType().GetField("Body").GetValue(read));
+            Check(((ArrayList)json["entries"]).Count == 1 && (string)((Dictionary<string, object>)((ArrayList)json["entries"])[0])["outcome"] == "refused", "the log reads back newest first");
+        }
+        finally
+        {
+            recorded.RemoveEventHandler(null, failing);
+            LogCall("Reset");
+            interactions.GetMethod("Reset", Static).Invoke(null, null);
+        }
+    }
+
+    private static void CheckNotes()
+    {
+        Type limits = mod.GetType("RiMCP.Command.NoteLimits", true);
+        Func<string, int, bool, DateTime, string> refusal = (load, day, attention, now) => (string)limits.GetMethod("Refusal", Static).Invoke(null, new object[] { load, day, attention, now });
+        Action<string, int, bool, DateTime> use = (load, day, attention, now) => limits.GetMethod("Use", Static).Invoke(null, new object[] { load, day, attention, now });
+        limits.GetMethod("Reset", Static).Invoke(null, null);
+        LogCall("Reset");
+        try
+        {
+            DateTime start = new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
+            Check(refusal("load-a", 3, false, start) == null, "a first note is allowed");
+            use("load-a", 3, false, start);
+            string soon = refusal("load-b", 3, false, start.AddSeconds(4));
+            Check(soon != null && soon.Contains("6 seconds"), "the next within 10 seconds of real time is refused, across loads: " + soon);
+            Check(refusal("load-a", 3, false, start.AddSeconds(10)) == null, "after 10 seconds it is allowed");
+
+            DateTime later = start;
+            for (int i = 0; i < 3; i++)
+            {
+                later = later.AddSeconds(11);
+                Check(refusal("load-a", 3, true, later) == null, "letter " + (i + 1) + " of the day is allowed");
+                use("load-a", 3, true, later);
+            }
+            later = later.AddSeconds(11);
+            Check(refusal("load-a", 3, true, later) != null, "a fourth letter the same in-game day is refused");
+            Check(refusal("load-a", 3, false, later) == null, "a plain note still is not");
+            Check(refusal("load-a", 4, true, later) == null && refusal("load-b", 3, true, later) == null, "the next in-game day, or another loaded game, has its own allowance");
+
+            object[] none = new object[0];
+            LogCall("Begin", "tell_player", "Codex 3f2a");
+            LogCall("About", "Tell the player: \"Building a freezer\"", none);
+            LogCall("Note", "Building a freezer", false, none);
+            LogCall("End", 200, null, (bool?)true);
+            object note = LogEntries().Last();
+            Check(Field<bool>(note, "Note") && Field<string>(note, "Line") == "\"Building a freezer\"" && Field<string>(note, "Text") == "Building a freezer", "a note is logged as the agent's words: " + Describe(note));
+            LogCall("Begin", "tell_player", "Codex 3f2a");
+            LogCall("About", "Tell the player: \"Again\"", none);
+            LogCall("End", 429, "One note every 10 seconds.", null);
+            object limited = LogEntries().Last();
+            Check(!Field<bool>(limited, "Note") && Field<string>(limited, "Outcome") == "refused", "a note over a limit is refused and shows nothing: " + Describe(limited));
+
+            object noGame = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/notes", "POST", "{\"text\":\"Hello\"}"));
+            Check((int)noGame.GetType().GetField("StatusCode").GetValue(noGame) == 409 && Field<string>(LogEntries().Last(), "Line") == "Tell the player: \"Hello\"", "a note needs a loaded game, and the refusal is logged with what was said");
+            object tooLong = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/notes", "POST", "{\"text\":\"" + new string('a', 281) + "\"}"));
+            Check((int)tooLong.GetType().GetField("StatusCode").GetValue(tooLong) == 400, "a note over 280 characters is refused");
+        }
+        finally
+        {
+            limits.GetMethod("Reset", Static).Invoke(null, null);
+            LogCall("Reset");
+        }
     }
 
     private static object forButton(Command command)

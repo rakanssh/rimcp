@@ -107,7 +107,10 @@ namespace RiMCP.Bridge
             while (waited.Elapsed.TotalSeconds < deferred.Seconds && MainThreadAvailable && !deferred.Done.Wait(250))
             {
             }
-            return RunOnMainThread(deferred.Reply);
+            // The work goes on either way. If the main thread cannot rebuild the reply, the one from
+            // when the wait began still names the operation or run to check.
+            BridgeResponse rebuilt = RunOnMainThread(deferred.Reply);
+            return rebuilt.StatusCode == 503 || rebuilt.StatusCode == 504 ? response : rebuilt;
         }
 
         private static BridgeResponse RunOnMainThread(Func<BridgeResponse> action)

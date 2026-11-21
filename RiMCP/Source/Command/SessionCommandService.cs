@@ -40,7 +40,16 @@ namespace RiMCP.Command
             {
                 throw new CommandException(403, "Stopping " + operation.Tool + " needs " + operation.Tool + " (" + ToolGroups.Label(operation.Group) + ") to be on in RimMCP settings.");
             }
+            AgentLog.About("Stop " + AgentLog.Label(operation.Tool) + " (" + operation.Id + ")");
             bool changed = OperationRunner.Cancel(operation, "Cancelled with cancel_operation.");
+            if (changed)
+            {
+                AgentLog.Done("Stopped " + AgentLog.Label(operation.Tool) + " (" + operation.Id + ")");
+            }
+            else
+            {
+                AgentLog.NoChange(AgentLog.Label(operation.Tool) + " (" + operation.Id + ") had already finished");
+            }
             Dictionary<string, object> data = Serialize(operation);
             data["cancel"] = !changed
                 ? "The operation had already finished."
@@ -86,6 +95,7 @@ namespace RiMCP.Command
             SaveGameBody body = CommandUtil.ReadBody<SaveGameBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool overwrite = body.Overwrite == true;
+            AgentLog.Expect("Save as " + Quoted(body.Name), "Saved as " + Quoted(body.Name));
             return Begin(request, "save_game", requestId, () =>
             {
                 string name = ValidateSaveName(body.Name, "name");
@@ -106,6 +116,7 @@ namespace RiMCP.Command
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool discard = body.DiscardUnsaved == true;
             bool overwrite = body.Overwrite == true;
+            AgentLog.Expect("Load " + Quoted(body.Name) + SavingFirst(body.SaveFirst), "Loaded " + Quoted(body.Name) + SavingFirst(body.SaveFirst));
             return Begin(request, "load_game", requestId, () =>
             {
                 string name = ValidateSaveName(body.Name, "name");
@@ -138,6 +149,7 @@ namespace RiMCP.Command
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool discard = body.DiscardUnsaved == true;
             bool overwrite = body.Overwrite == true;
+            AgentLog.Expect("Leave the game" + SavingFirst(body.SaveFirst), "Left the game" + SavingFirst(body.SaveFirst));
             return Begin(request, "leave_game", requestId, () =>
             {
                 RequireSettled();
@@ -217,6 +229,7 @@ namespace RiMCP.Command
             RequestRecord previous = OperationRunner.Recall(tool, requestId, fingerprint, out known);
             if (previous != null)
             {
+                AgentLog.Replayed();
                 if (known == null)
                 {
                     return Envelope(false, Dto.Obj(
@@ -229,6 +242,7 @@ namespace RiMCP.Command
             }
             Func<Operation, IEnumerable<string>> steps = prepare();
             Operation operation = OperationRunner.Start(tool, group ?? ToolGroups.GameSetup, requestId, fingerprint, steps);
+            AgentLog.WaitFor(operation.Id);
             return WithWait(request, operation, () => Envelope(true, Serialize(operation)));
         }
 
@@ -571,6 +585,16 @@ namespace RiMCP.Command
 
         // Session replies avoid reading the game while it is being replaced, when its maps and clock
         // may be half built.
+        private static string Quoted(string name)
+        {
+            return string.IsNullOrWhiteSpace(name) ? "a save" : "'" + name.Trim() + "'";
+        }
+
+        private static string SavingFirst(string saveFirst)
+        {
+            return string.IsNullOrWhiteSpace(saveFirst) ? "" : ", saving first as '" + saveFirst.Trim() + "'";
+        }
+
         internal static BridgeResponse Envelope(bool changed, object data)
         {
             bool settled = !LongEventHandler.AnyEventNowOrWaiting && !OperationRunner.ReplacingGame && Current.ProgramState != ProgramState.MapInitializing;
@@ -582,7 +606,9 @@ namespace RiMCP.Command
                 Dto.Field("programState", Current.ProgramState.ToString()),
                 Dto.Field("changed", changed),
                 Dto.Field("data", data));
-            return BridgeResponse.Json(200, Json.Serialize(envelope));
+            BridgeResponse response = BridgeResponse.Json(200, Json.Serialize(envelope));
+            response.Changed = changed;
+            return response;
         }
 
         [DataContract]

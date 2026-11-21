@@ -26,6 +26,10 @@ namespace RiMCP.Settings
         public bool UnattendedSetup;
         // Mods' right-click options and buttons, which RimMCP cannot check before they run.
         public bool AllowModActions = true;
+        // Which agent changes show in game: 0 none, 1 decisions and notes, 2 every change.
+        public int AgentMessages = 1;
+        // The agent cursor and the flash where agents act.
+        public bool ShowWhereAgentsAct = true;
         // Only read, to migrate settings saved before access presets.
         private bool legacyAllowChanges = true;
 
@@ -45,6 +49,8 @@ namespace RiMCP.Settings
             Scribe_Values.Look(ref Token, "token");
             Scribe_Values.Look(ref UnattendedSetup, "unattendedSetup", false);
             Scribe_Values.Look(ref AllowModActions, "allowModActions", true);
+            Scribe_Values.Look(ref AgentMessages, "agentMessages", 1);
+            Scribe_Values.Look(ref ShowWhereAgentsAct, "showWhereAgentsAct", true);
         }
 
         internal string[] EnabledGroups

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mod:
+    name: Build the mod
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      # RimWorld 1.6 reference assemblies, which Ludeon permits using for reference. The mod is
+      # built against 1.6 so the same assembly also runs on 1.7.
+      RIMWORLD_REF_VERSION: '1.6.4871'
+      RIMWORLD_REF_SHA256: '81b168db70a9aceaeab293b1519bb695bc5167f4510966a45f7ff38cb236f54e'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Fetch RimWorld reference assemblies
+        run: |
+          package="$RUNNER_TEMP/rimworld-ref.nupkg"
+          curl -sSfL -o "$package" "https://api.nuget.org/v3-flatcontainer/krafs.rimworld.ref/$RIMWORLD_REF_VERSION/krafs.rimworld.ref.$RIMWORLD_REF_VERSION.nupkg"
+          echo "$RIMWORLD_REF_SHA256  $package" | sha256sum --check
+          unzip -q "$package" 'ref/net472/*' -d "$RUNNER_TEMP/rimworld-ref"
+
+      - name: Build
+        run: dotnet build RiMCP/Source/RiMCP.csproj -c Release -p:RimWorldManagedPath="$RUNNER_TEMP/rimworld-ref/ref/net472"
+
+  helper:
+    name: Check the MCP helper
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The helper's build generates its tool list from Shared/ToolManifest.cs with .NET.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Format
+        run: cargo fmt --manifest-path McpProxy/Cargo.toml --check
+
+      - name: Lint
+        run: cargo clippy --locked --manifest-path McpProxy/Cargo.toml -- -D warnings
+
+      - name: Test
+        run: cargo test --locked --manifest-path McpProxy/Cargo.toml

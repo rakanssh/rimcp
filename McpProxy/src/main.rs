@@ -19,6 +19,9 @@ const MAX_RESPONSE_BYTES: u64 = 16 * 1024 * 1024;
 const WORKERS: usize = 8;
 // How often the proxy asks RimMCP whether the tools that are on changed, by default.
 const ACCESS_POLL_SECONDS: u64 = 5;
+// Newest first: a client asking for one of these gets it, any other the newest.
+const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+const INSTRUCTIONS: &str = "RimMCP plays a running RimWorld game. Start with get_game_context: it says whether the game is at the main menu, in new-game setup, or playing, and which map is shown. Then get_colony_status lists what needs attention. Reads default to a short summary; ask for more with detail or include only when needed. Give each change a requestId, so a retry is safe. Read a reply's dialogs: a question the game asks waits for answer_dialog, or for the player. Use tell_player to tell the player what you are doing.";
 
 type ProxyError = Box<dyn Error>;
 
@@ -37,6 +40,10 @@ struct Proxy {
     listed: Mutex<Option<Option<String>>>,
     // The access version the client was last told about, so each change is announced once.
     notified: Mutex<Option<String>>,
+    // The client's name from initialize, and this helper's session id, sent with each call so
+    // RimMCP's agent log can say who acted.
+    client: Mutex<Option<String>>,
+    session: String,
 }
 
 enum Dispatch {
@@ -224,6 +231,8 @@ impl Proxy {
             access_poll: (poll_seconds > 0).then(|| Duration::from_secs(poll_seconds)),
             listed: Mutex::new(None),
             notified: Mutex::new(None),
+            client: Mutex::new(None),
+            session: session_id(),
         })
     }
 
@@ -232,7 +241,8 @@ impl Proxy {
     fn fetch_access(&self) -> Option<(String, HashSet<String>)> {
         let mut request = ureq::http::Request::builder()
             .method("GET")
-            .uri(format!("{}/v1/access", self.base_url.trim_end_matches('/')));
+            .uri(format!("{}/v1/access", self.base_url.trim_end_matches('/')))
+            .header("X-RimMCP-Session", self.session.as_str());
         if let Some(token) = &self.authorization {
             request = request.header("Authorization", token);
         }
@@ -393,13 +403,34 @@ impl Proxy {
         }
         match method {
             "ping" => Dispatch::Reply(result(id, json!({}))),
-            "initialize" => Dispatch::Reply(result(
-                id,
-                json!({
-                    "protocolVersion": "2025-11-25", "capabilities": {"tools": {"listChanged": true}},
-                    "serverInfo": {"name": "rimcp", "version": self.manifest.version}
-                }),
-            )),
+            "initialize" => {
+                let name = fields
+                    .get("params")
+                    .and_then(|params| params.get("clientInfo"))
+                    .and_then(|info| info.get("name"))
+                    .and_then(Value::as_str)
+                    .map(header_text)
+                    .filter(|name| !name.is_empty());
+                if let Ok(mut client) = self.client.lock() {
+                    *client = name;
+                }
+                let asked = fields
+                    .get("params")
+                    .and_then(|params| params.get("protocolVersion"))
+                    .and_then(Value::as_str);
+                let version = PROTOCOL_VERSIONS
+                    .iter()
+                    .find(|version| Some(**version) == asked)
+                    .unwrap_or(&PROTOCOL_VERSIONS[0]);
+                Dispatch::Reply(result(
+                    id,
+                    json!({
+                        "protocolVersion": version, "capabilities": {"tools": {"listChanged": true}},
+                        "serverInfo": {"name": "rimcp", "version": self.manifest.version},
+                        "instructions": INSTRUCTIONS
+                    }),
+                ))
+            }
             "notifications/initialized" => Dispatch::Silent,
             "tools/list" => Dispatch::Reply(result(id, self.list_tools())),
             "tools/call" => Dispatch::Call(
@@ -451,6 +482,10 @@ impl Proxy {
         if let Some(token) = &self.authorization {
             request = request.header("Authorization", token);
         }
+        if let Some(client) = self.client.lock().ok().and_then(|client| client.clone()) {
+            request = request.header("X-RimMCP-Client", client);
+        }
+        request = request.header("X-RimMCP-Session", self.session.as_str());
         let received = (|| -> Result<(bool, String), ProxyError> {
             let mut response = self.agent.run(request.body(data)?)?;
             let success = response.status().is_success();
@@ -490,6 +525,25 @@ impl Proxy {
             ),
         }
     }
+}
+
+/// Visible ASCII only, so it is always a valid header value.
+fn header_text(text: &str) -> String {
+    text.chars()
+        .filter(|c| c.is_ascii_graphic() || *c == ' ')
+        .take(40)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+/// A short id told apart from other helpers running at the same time.
+fn session_id() -> String {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+    let mut hasher = RandomState::new().build_hasher();
+    hasher.write_u32(std::process::id());
+    format!("{:04x}", hasher.finish() & 0xffff)
 }
 
 fn access_agent() -> ureq::Agent {
@@ -538,14 +592,13 @@ fn build_path(tool: &Tool, args: &Value) -> Result<Option<String>, &'static str>
     let mut segments = Vec::new();
     for segment in tool.path_template.split('/') {
         if segment.starts_with('{') && segment.ends_with('}') && segment.len() > 2 {
-            let Some(value) = args
-                .get(&segment[1..segment.len() - 1])
-                .and_then(Value::as_str)
-                .filter(|text| !text.trim().is_empty())
-            else {
-                return Ok(None);
+            // Ids typed as integers in a tool's schema arrive as numbers.
+            let value = match args.get(&segment[1..segment.len() - 1]) {
+                Some(Value::String(text)) if !text.trim().is_empty() => text.clone(),
+                Some(Value::Number(number)) => number.to_string(),
+                _ => return Ok(None),
             };
-            segments.push(escape(value));
+            segments.push(escape(&value));
         } else {
             segments.push(segment.into());
         }
@@ -617,6 +670,8 @@ mod tests {
             access_poll: None,
             listed: Mutex::new(None),
             notified: Mutex::new(None),
+            client: Mutex::new(None),
+            session: "test".into(),
         }
     }
 
@@ -685,19 +740,28 @@ mod tests {
                     reader.read_line(&mut request_line).unwrap();
                     // Logs each request with its declared body length and body.
                     let mut length: Option<usize> = None;
+                    let mut caller = String::new();
                     let mut header = String::new();
                     while reader.read_line(&mut header).unwrap() > 2 {
-                        if let Some(value) =
-                            header.to_ascii_lowercase().strip_prefix("content-length:")
-                        {
+                        let lower = header.to_ascii_lowercase();
+                        if let Some(value) = lower.strip_prefix("content-length:") {
                             length = value.trim().parse().ok();
+                        }
+                        for (name, label) in [
+                            ("x-rimmcp-client:", "client"),
+                            ("x-rimmcp-session:", "session"),
+                        ] {
+                            if lower.starts_with(name) {
+                                caller
+                                    .push_str(&format!(" {label}={}", header[name.len()..].trim()));
+                            }
                         }
                         header.clear();
                     }
                     let mut body = vec![0; length.unwrap_or(0)];
                     io::Read::read_exact(&mut reader, &mut body).unwrap();
                     log.lock().unwrap().push(format!(
-                        "{} length={length:?} body={}",
+                        "{} length={length:?} body={}{caller}",
                         request_line.trim(),
                         String::from_utf8_lossy(&body)
                     ));
@@ -767,6 +831,8 @@ mod tests {
             access_poll: None,
             listed: Mutex::new(None),
             notified: Mutex::new(None),
+            client: Mutex::new(None),
+            session: "test".into(),
         })
     }
 
@@ -892,6 +958,20 @@ mod tests {
     }
 
     #[test]
+    fn calls_name_their_client_and_session() {
+        let (_, received) = serve_requests(&[
+            json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"clientInfo": {"name": "codex-mcp-client", "version": "1"}}}),
+            tool_call(2, "fast"),
+        ]);
+        let line = received
+            .iter()
+            .find(|line| line.contains("/v1/fast"))
+            .expect("the call reached the bridge");
+        assert!(line.contains("client=codex-mcp-client"), "{line}");
+        assert!(line.contains("session=test"), "{line}");
+    }
+
+    #[test]
     fn writes_without_fields_declare_a_body_length() {
         // RimWorld 1.7's HTTP stack refuses a POST or PUT without a body length (HTTP 411).
         let (_, received) = serve_requests(&[tool_call(1, "cancel")]);
@@ -952,5 +1032,61 @@ mod tests {
             !received.iter().any(|line| line.contains("/v1/speed")),
             "the cancelled call reached the bridge: {received:?}"
         );
+    }
+
+    #[test]
+    fn initialize_answers_the_version_asked_for_and_says_how_to_start() {
+        let proxy = disconnected_proxy();
+        let reply = |asked: Value| {
+            let request = json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": asked}});
+            proxy
+                .handle(request.to_string().as_bytes())
+                .expect("initialize replies")["result"]
+                .clone()
+        };
+        assert_eq!(reply(json!("2025-06-18"))["protocolVersion"], "2025-06-18");
+        assert_eq!(reply(json!("2024-11-05"))["protocolVersion"], "2024-11-05");
+        assert_eq!(
+            reply(json!("1999-01-01"))["protocolVersion"],
+            PROTOCOL_VERSIONS[0]
+        );
+        assert_eq!(reply(Value::Null)["protocolVersion"], PROTOCOL_VERSIONS[0]);
+        assert!(reply(Value::Null)["instructions"]
+            .as_str()
+            .is_some_and(|text| text.contains("get_game_context")));
+    }
+
+    #[test]
+    fn every_path_argument_of_its_schema_type_fills_the_path() {
+        let manifest = Manifest::load().expect("the manifest loads");
+        for tool in &manifest.tools {
+            let mut args = serde_json::Map::new();
+            for segment in tool.path_template.split('/') {
+                let Some(name) = segment.strip_prefix('{').and_then(|s| s.strip_suffix('}')) else {
+                    continue;
+                };
+                let kind = tool
+                    .input_schema
+                    .get("properties")
+                    .and_then(|properties| properties.get(name))
+                    .and_then(|property| property.get("type"))
+                    .and_then(Value::as_str);
+                let value = match kind {
+                    Some("integer" | "number") => json!(7),
+                    Some("string") => json!("id7"),
+                    other => panic!("{}: path argument {name} has type {other:?}", tool.name),
+                };
+                args.insert(name.into(), value);
+            }
+            let args_count = args.len();
+            let path = build_path(tool, &Value::Object(args))
+                .expect("the path builds")
+                .unwrap_or_else(|| panic!("{}: a path argument was taken as missing", tool.name));
+            assert!(
+                !path.contains('{') && (args_count == 0 || path.contains('7')),
+                "{}: {path}",
+                tool.name
+            );
+        }
     }
 }

@@ -286,6 +286,13 @@ namespace RiMCP.Command
             operation.RevokeRequested = reason;
         }
 
+        private static string LogOutcome(string state)
+        {
+            return state == Operation.Succeeded ? Outcomes.Done
+                : state == Operation.Failed || state == Operation.Unverified ? Outcomes.Failed
+                : Outcomes.Cancelled;
+        }
+
         private static void Finish(Operation operation, string state, string message)
         {
             operation.State = state;
@@ -314,6 +321,7 @@ namespace RiMCP.Command
                     Verse.Log.Warning("[RimMCP] Cleaning up " + operation.Id + " failed: " + ex.Message);
                 }
             }
+            AgentLog.Finish(operation.Id, LogOutcome(state), null, message);
             RequestRecord record = FindRequest(operation.RequestId);
             if (record != null && record.OperationId == operation.Id)
             {

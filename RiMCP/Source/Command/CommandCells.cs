@@ -86,14 +86,30 @@ namespace RiMCP.Command
     {
         private const int MaxListed = 200;
         private readonly List<object> rejected = new List<object>();
+        private readonly List<string> reasons = new List<string>();
         private int rejectedCount;
         public int Applied;
         public int AlreadySatisfied;
         public int Outside;
 
+        public int RejectedCount
+        {
+            get { return rejectedCount; }
+        }
+
+        // The first few distinct reasons, for the agent log.
+        public string Reasons
+        {
+            get { return string.Join("; ", reasons.ToArray()); }
+        }
+
         public void Reject(IntVec3 cell, string reason)
         {
             rejectedCount++;
+            if (reason != null && reasons.Count < 3 && !reasons.Contains(reason))
+            {
+                reasons.Add(reason);
+            }
             if (rejected.Count < MaxListed)
             {
                 rejected.Add(Dto.Obj(Dto.Field("x", cell.x), Dto.Field("z", cell.z), Dto.Field("reason", reason)));
@@ -185,11 +201,17 @@ namespace RiMCP.Command
             object kept = Find(key);
             if (kept != null)
             {
+                AgentLog.Replayed();
                 return CommandEnvelope.Ok(context, false, kept);
             }
             CommandResult result = run();
             Record(key, result.Data);
             return CommandEnvelope.Ok(context, result.Changed, result.Data);
+        }
+
+        public static void ForgetOtherGames()
+        {
+            receipts.RemoveAll(receipt => !ReferenceEquals(receipt.Game, Current.Game));
         }
 
         private static object Find(RequestKey key)

@@ -27,6 +27,9 @@ namespace RiMCP.Bridge
         public double? MainThreadMs;
         // Set by handlers that may wait for game time to pass before answering.
         public DeferredReply Deferred;
+        public string ErrorMessage;
+        // Whether a command changed the game, where its envelope says.
+        public bool? Changed;
 
         public BridgeResponse(int statusCode, string body, string contentType = "application/json")
         {
@@ -42,7 +45,9 @@ namespace RiMCP.Bridge
 
         public static BridgeResponse Error(int statusCode, string message)
         {
-            return Json(statusCode, "{\"error\":" + RiMCP.Util.Json.String(message) + "}");
+            BridgeResponse response = Json(statusCode, "{\"error\":" + RiMCP.Util.Json.String(message) + "}");
+            response.ErrorMessage = message;
+            return response;
         }
     }
 }

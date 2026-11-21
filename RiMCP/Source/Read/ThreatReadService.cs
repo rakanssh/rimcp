@@ -81,13 +81,15 @@ namespace RiMCP.Read
             return pawn != null && pawn.MentalStateDef != null && pawn.MentalStateDef.defName.IndexOf("Manhunter", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        // A predator only threatens the colony while it hunts one of its people or animals.
         private static bool IsPredator(Pawn pawn)
         {
-            if (pawn == null || pawn.RaceProps == null || !pawn.RaceProps.Animal || pawn.Faction == Faction.OfPlayer)
+            if (pawn == null || pawn.RaceProps == null || !pawn.RaceProps.predator || pawn.Faction == Faction.OfPlayer || pawn.CurJobDef != JobDefOf.PredatorHunt)
             {
                 return false;
             }
-            return pawn.RaceProps.predator;
+            Pawn prey = pawn.CurJob.targetA.Thing as Pawn;
+            return prey != null && prey.Faction == Faction.OfPlayer;
         }
 
         private static object SerializeThreatPawn(Map map, Pawn pawn, ReadDetail detail)

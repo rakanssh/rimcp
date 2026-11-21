@@ -41,6 +41,14 @@ namespace RiMCP.Command
 
             // Changing speed takes manual control, so it ends any running advance.
             AdvanceRun ended = AdvanceRunner.Interrupt("set_game_speed");
+            if (previous != speed)
+            {
+                AgentLog.Done(speed == TimeSpeed.Paused ? "Paused the game" : "Set the speed to " + speed);
+            }
+            else
+            {
+                AgentLog.NoChange(speed == TimeSpeed.Paused ? "The game was already paused" : "The speed was already " + speed);
+            }
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("previousSpeed", previous.ToString()),
                 Dto.Field("speed", ticks.CurTimeSpeed.ToString()));
@@ -80,6 +88,15 @@ namespace RiMCP.Command
 
             bool created;
             AdvanceRun run = AdvanceRunner.Start(hours, speed, stopOn, body.RequestId, out created);
+            if (created)
+            {
+                AgentLog.Done("Running time for " + AdvanceRun.Duration((int)Math.Ceiling(hours * GenDate.TicksPerHour)));
+                AgentLog.WaitFor(AdvanceRun.LogKey(run.Id));
+            }
+            else
+            {
+                AgentLog.Replayed();
+            }
             Func<BridgeResponse> reply = () => CommandEnvelope.Ok(CommandUtil.ContextFor(null), created, SerializeRun(run));
             return WithWait(request, run, reply);
         }

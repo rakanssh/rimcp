@@ -64,5 +64,20 @@ namespace RiMCP.Command
             }
             FollowUps.Report(data, tool, subject, FollowUps.OpenedSince(before), continuing, selected, origin);
         }
+
+        // The press's log entry, partly done when targeting it started was cancelled.
+        public static void Report(Dictionary<string, object> data, string line, params object[] targets)
+        {
+            object value;
+            Dictionary<string, object> targeting = data.TryGetValue("targeting", out value) ? value as Dictionary<string, object> : null;
+            if (targeting != null && (targeting["targeting"] as string) == "cancelled")
+            {
+                AgentLog.Partly(line + "; its targeting was cancelled", targeting["reason"] as string, targets);
+            }
+            else
+            {
+                AgentLog.Done(line, targets);
+            }
+        }
     }
 }

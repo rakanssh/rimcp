@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using RiMCP.Bridge;
+using RiMCP.Command;
 using RiMCP.Settings;
 using UnityEngine;
 using Verse;
@@ -14,6 +16,7 @@ namespace RiMCP.UI
         private static readonly Color Off = new Color(0.55f, 0.55f, 0.55f);
         private static readonly Color Idle = new Color(0.35f, 0.75f, 0.4f);
         private static readonly Color Working = new Color(0.95f, 0.75f, 0.2f);
+        private const int StatusTipId = 0x52694D43;
 
         public override bool Visible
         {
@@ -36,7 +39,9 @@ namespace RiMCP.UI
             GUI.color = !on ? Off : working ? Working : Idle;
             GUI.DrawTexture(dot, BaseContent.WhiteTex);
             GUI.color = previous;
-            TooltipHandler.TipRegion(rect, Status());
+            // A fixed id: the text changes every second, and a tip keyed by its text restarts its delay.
+            TooltipHandler.TipRegion(rect, new TipSignal(Status, StatusTipId));
+            AgentOverlay.Draw(rect);
         }
 
         public override void Activate()
@@ -47,6 +52,7 @@ namespace RiMCP.UI
                 return;
             }
             List<FloatMenuOption> options = new List<FloatMenuOption>();
+            options.Add(new FloatMenuOption("Agent log", Window_AgentLog.Open));
             if (settings.BridgeEnabled)
             {
                 options.Add(new FloatMenuOption("Pause agents", () => Change(() => settings.BridgeEnabled = false)));
@@ -98,8 +104,11 @@ namespace RiMCP.UI
             {
                 return "RimMCP: the bridge is not running; see RimMCP settings.";
             }
+            List<AgentEntry> recent = AgentLog.Entries;
+            recent.Reverse();
             return "RimMCP: " + AccessPresets.Label(settings.AccessPreset) + (BridgeRuntime.AgentWorking ? ". An agent is working." : ". Agents are idle.")
-                + "\n" + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " client" : " clients") + ", last request " + BridgeRuntime.LastRequestDescription + ".";
+                + "\n" + BridgeRuntime.RecentClientCount + (BridgeRuntime.RecentClientCount == 1 ? " client" : " clients") + ", last request " + BridgeRuntime.LastRequestDescription + "."
+                + string.Concat(recent.Take(3).Select(entry => "\n- " + entry.Line + " (" + Window_AgentLog.OutcomeLabel(entry.Outcome) + ")").ToArray());
         }
     }
 }

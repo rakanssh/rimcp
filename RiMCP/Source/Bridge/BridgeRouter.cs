@@ -52,6 +52,7 @@ namespace RiMCP.Bridge
             { "events", EventReadService.GetEvents },
             { "answer-letter", DecisionCommandService.AnswerLetter },
             { "respond-to-quest", DecisionCommandService.RespondToQuest },
+            { "tell-player", NoteCommandService.TellPlayer },
             { "answer-dialog", DecisionCommandService.AnswerDialog },
             { "assign-owner", OwnerCommandService.AssignOwner },
             { "pawn-actions", PawnActionService.ListPawnActions },
@@ -94,7 +95,8 @@ namespace RiMCP.Bridge
             { "start-game", SetupCommandService.StartGame },
             { "answer-confirmation", SetupCommandService.AnswerConfirmation },
             { "tools", ToolReadService.GetTools },
-            { "access", (request, route) => ToolReadService.GetAccess(BridgeRuntime.Access) }
+            { "access", (request, route) => ToolReadService.GetAccess(BridgeRuntime.Access) },
+            { "agent-log", AgentLogReadService.GetLog }
         };
 
         // While RimWorld loads, saves, or changes games, the game may be half built, so only these
@@ -128,54 +130,7 @@ namespace RiMCP.Bridge
                     pathMatched = true;
                     if (route.MethodMatches(bridgeRequest.Method))
                     {
-                        AccessState access = BridgeRuntime.Access;
-                        if (!access.Enabled)
-                        {
-                            return BridgeResponse.Error(403, "RimMCP is disabled in its settings.");
-                        }
-                        if (!access.AllowsTool(route.Spec))
-                        {
-                            return BridgeResponse.Error(403, access.Allows(route.Spec.Group)
-                                ? route.Spec.Name + " is turned off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ")."
-                                : (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
-                        }
-                        if (route.Spec.Name != null)
-                        {
-                            BridgeRuntime.CountCall(route.Spec.Name);
-                        }
-                        if (!AnswerWhileBusy.Contains(route.Spec.HandlerId) && GameIsChanging())
-                        {
-                            Operation changing = OperationRunner.Active;
-                            return BridgeResponse.Error(503, "RimWorld is loading, saving, or changing games" + (changing == null ? "" : " (operation " + changing.Id + ", " + changing.Tool + ")") + ", so the game cannot be read or changed right now. Check progress with get_operation, then try again.");
-                        }
-                        if (!route.MethodMatches("GET"))
-                        {
-                            if (GameContext.InMultiplayer)
-                            {
-                                return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
-                            }
-                            LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
-                            // A retry of a request already recorded gets its operation back: while that
-                            // operation holds the game, and after it loaded another game. The registry
-                            // refuses a requestId reused with other arguments.
-                            RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
-                            if (retried != null && retried.Tool != route.Spec.Name)
-                            {
-                                retried = null;
-                            }
-                            Operation holding = OperationRunner.ProtectingGame ? OperationRunner.Active : null;
-                            if (holding != null && !ChangeWhileHeld.Contains(route.Spec.HandlerId) && (retried == null || retried.OperationId != holding.Id))
-                            {
-                                return BridgeResponse.Error(409, "Operation " + holding.Id + " (" + holding.Tool + ") saved the colony and is about to replace the game, so the game is held unchanged until then. Check it with get_operation.");
-                            }
-                            string expected = guard.ExpectedLoadId;
-                            string loaded = GameContext.LoadId;
-                            if (expected != null && expected != loaded && retried == null)
-                            {
-                                return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
-                            }
-                        }
-                        return route.Handle(bridgeRequest, match);
+                        return Logged(route) ? Recorded(route, bridgeRequest, match) : Dispatch(route, bridgeRequest, match);
                     }
                 }
 
@@ -187,8 +142,130 @@ namespace RiMCP.Bridge
             }
             catch (Exception ex)
             {
+                LogFailure(ex);
                 return BridgeResponse.Error(500, ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        // With the stack trace, once per kind of failure, so a player's bug report has it.
+        internal static void LogFailure(Exception ex)
+        {
+            try
+            {
+                Verse.Log.WarningOnce("RimMCP: a request failed: " + ex, (ex.GetType().FullName + ex.Message).GetHashCode());
+            }
+            catch
+            {
+                // Logging must never fail the reply.
+            }
+        }
+
+        // Calls that change the game go into the agent log, refused ones included.
+        private static bool Logged(BridgeRoute route)
+        {
+            return route.Spec.Name != null && !route.MethodMatches("GET") && !Unlogged.Contains(route.Spec.Name);
+        }
+
+        private static readonly HashSet<string> Unlogged = new HashSet<string> { "find_starting_sites" };
+
+        private static BridgeResponse Recorded(BridgeRoute route, BridgeRequest bridgeRequest, RouteMatch match)
+        {
+            AgentLog.Begin(route.Spec.Name, bridgeRequest.Client);
+            BridgeResponse response;
+            try
+            {
+                response = Dispatch(route, bridgeRequest, match);
+            }
+            catch (BridgeException ex)
+            {
+                AgentLog.End(ex.StatusCode, ex.Message, null);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AgentLog.End(500, ex.GetType().Name + ": " + ex.Message, null);
+                throw;
+            }
+            AgentLog.End(response.StatusCode, response.ErrorMessage, response.Changed);
+            return response;
+        }
+
+        // A section the tool does not list is refused, not ignored, so the agent learns the right name.
+        private static string IncludeRefusal(ToolSpec spec, BridgeRequest request)
+        {
+            List<string> asked = ReadRequest.FromUri(request.Uri).Include.ToList();
+            if (asked.Count == 0 || spec.Name == null)
+            {
+                return null;
+            }
+            object value;
+            Dictionary<string, object> properties = spec.InputSchema.TryGetValue("properties", out value) ? value as Dictionary<string, object> : null;
+            Dictionary<string, object> include = properties != null && properties.TryGetValue("include", out value) ? value as Dictionary<string, object> : null;
+            Dictionary<string, object> items = include != null && include.TryGetValue("items", out value) ? value as Dictionary<string, object> : null;
+            string[] sections = items != null && items.TryGetValue("enum", out value) ? value as string[] ?? new string[0] : new string[0];
+            if (sections.Length == 0)
+            {
+                return spec.Name + " takes no include.";
+            }
+            List<string> unknown = asked.Where(section => !sections.Contains(section, StringComparer.OrdinalIgnoreCase)).ToList();
+            return unknown.Count == 0 ? null : spec.Name + " has no include section " + string.Join(", ", unknown.ToArray()) + "; it has " + string.Join(", ", sections) + ".";
+        }
+
+        private static BridgeResponse Dispatch(BridgeRoute route, BridgeRequest bridgeRequest, RouteMatch match)
+        {
+            AccessState access = BridgeRuntime.Access;
+            if (!access.Enabled)
+            {
+                return BridgeResponse.Error(403, "RimMCP is disabled in its settings.");
+            }
+            if (!access.AllowsTool(route.Spec))
+            {
+                return BridgeResponse.Error(403, access.Allows(route.Spec.Group)
+                    ? route.Spec.Name + " is turned off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ")."
+                    : (route.Spec.Name ?? route.Template) + " is disabled: the " + ToolGroups.Label(route.Spec.Group) + " group is off in RimMCP settings (access: " + AccessPresets.Label(access.Preset) + ").");
+            }
+            if (route.Spec.Name != null)
+            {
+                BridgeRuntime.CountCall(route.Spec.Name);
+            }
+            string unknownSection = route.MethodMatches("GET") ? IncludeRefusal(route.Spec, bridgeRequest) : null;
+            if (unknownSection != null)
+            {
+                return BridgeResponse.Error(400, unknownSection);
+            }
+            if (!AnswerWhileBusy.Contains(route.Spec.HandlerId) && GameIsChanging())
+            {
+                Operation changing = OperationRunner.Active;
+                return BridgeResponse.Error(503, "RimWorld is loading, saving, or changing games" + (changing == null ? "" : " (operation " + changing.Id + ", " + changing.Tool + ")") + ", so the game cannot be read or changed right now. Check progress with get_operation, then try again.");
+            }
+            if (!route.MethodMatches("GET"))
+            {
+                if (GameContext.InMultiplayer)
+                {
+                    return BridgeResponse.Error(409, "RimMCP does not change the game or control time during a Multiplayer session, so every player's game stays in sync. Reads still work.");
+                }
+                LoadGuardBody guard = CommandUtil.ReadBody<LoadGuardBody>(bridgeRequest);
+                // A retry of a request already recorded gets its operation back: while that
+                // operation holds the game, and after it loaded another game. The registry
+                // refuses a requestId reused with other arguments.
+                RequestRecord retried = OperationRunner.FindRequest(guard.RequestId);
+                if (retried != null && retried.Tool != route.Spec.Name)
+                {
+                    retried = null;
+                }
+                Operation holding = OperationRunner.ProtectingGame ? OperationRunner.Active : null;
+                if (holding != null && !ChangeWhileHeld.Contains(route.Spec.HandlerId) && (retried == null || retried.OperationId != holding.Id))
+                {
+                    return BridgeResponse.Error(409, "Operation " + holding.Id + " (" + holding.Tool + ") saved the colony and is about to replace the game, so the game is held unchanged until then. Check it with get_operation.");
+                }
+                string expected = guard.ExpectedLoadId;
+                string loaded = GameContext.LoadId;
+                if (expected != null && expected != loaded && retried == null)
+                {
+                    return BridgeResponse.Error(409, "This command expected load " + expected + ", but the loaded game is " + (loaded ?? "none") + ". Another save was loaded; read the colony again before acting.");
+                }
+            }
+            return route.Handle(bridgeRequest, match);
         }
 
         private static bool GameIsChanging()

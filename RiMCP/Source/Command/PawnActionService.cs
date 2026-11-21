@@ -83,6 +83,7 @@ namespace RiMCP.Command
                 throw new CommandException(400, "The menu has no option '" + body.Option + "'.");
             }
             string label = entry.Option.Label.StripTags();
+            AgentLog.About(AgentLog.Name(pawn) + ": " + label, pawn, target);
             if (entry.Option.Disabled || entry.Option.action == null)
             {
                 throw new CommandException(409, "'" + label + "' is unavailable.");
@@ -96,6 +97,7 @@ namespace RiMCP.Command
                 Dto.Field("chosen", label),
                 Dto.Field("origin", entry.Origin.Mod));
             Press.Execute(data, entry.Origin, "choose_pawn_action", label, pawn, map, aim, () => entry.Option.Chosen(true, null));
+            Press.Report(data, AgentLog.Name(pawn) + ": " + label, pawn, target);
             data["job"] = PawnJob(pawn);
             return new CommandResult(true, data);
         }

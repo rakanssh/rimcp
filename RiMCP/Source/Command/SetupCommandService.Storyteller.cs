@@ -17,6 +17,7 @@ namespace RiMCP.Command
         public static BridgeResponse SetStoryteller(BridgeRequest request, RouteMatch route)
         {
             StorytellerBody body = CommandUtil.ReadBody<StorytellerBody>(request);
+            AgentLog.Expect("Set the storyteller", "Set the storyteller" + (string.IsNullOrWhiteSpace(body.Storyteller) ? "" : ": " + body.Storyteller.Trim()));
             Page_SelectStoryteller page = SetupController.Require<Page_SelectStoryteller>(SetupController.Storyteller);
             SetupController.RequireRevision(body.ExpectedRevision);
             StorytellerDef storyteller = DefDatabase<StorytellerDef>.AllDefs.FirstOrDefault(def => def.listVisible && string.Equals(def.defName, (body.Storyteller ?? "").Trim(), StringComparison.OrdinalIgnoreCase));

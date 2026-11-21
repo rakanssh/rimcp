@@ -508,6 +508,12 @@ namespace RiMCP.Command
                 Dto.Field("canCancel", open ? (object)interaction.Dialog.CanCancel() : null));
         }
 
+        // Update ends the open ones of another game first.
+        public static void ForgetOtherGames()
+        {
+            kept.RemoveAll(interaction => !ReferenceEquals(interaction.Game, Current.Game) && interaction.State != Interaction.Open);
+        }
+
         internal static void Reset()
         {
             kept.Clear();
@@ -555,6 +561,10 @@ namespace RiMCP.Command
         {
             interaction.State = state;
             interaction.Reason = reason;
+            AgentLog.Finish(interaction.Id,
+                state == Interaction.Answered || state == Interaction.AnsweredByPlayer ? Outcomes.Done : Outcomes.Cancelled,
+                null,
+                state == Interaction.Answered ? "Answered." : state == Interaction.Cancelled ? "Cancelled." : reason);
         }
     }
 }

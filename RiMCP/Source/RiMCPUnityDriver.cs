@@ -18,6 +18,7 @@ namespace RiMCP
 
             BridgeRuntime.SetApplicationFocused(Application.isFocused);
             BridgeRuntime.SetRunInBackground(Application.runInBackground);
+            UI.AgentActivity.Start();
             GameObject gameObject = new GameObject("RiMCP Driver");
             DontDestroyOnLoad(gameObject);
             instance = gameObject.AddComponent<RiMCPUnityDriver>();
@@ -31,6 +32,8 @@ namespace RiMCP
             HistoryWatch.Update();
             SetupController.Update();
             FoodHistory.Update();
+            OldGames.Update();
+            UI.AgentActivity.Update();
             BridgeRuntime.ProcessMainThreadQueue();
             // Read after handling requests: set_game_settings may have just turned this off, and an
             // unfocused game stops calling Update before the next frame.

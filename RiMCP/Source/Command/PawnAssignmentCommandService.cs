@@ -51,6 +51,7 @@ namespace RiMCP.Command
             }
 
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
+            Attempt(pawn, "schedule");
             if (pawn.timetable == null)
             {
                 throw new CommandException(409, "Pawn has no timetable.");
@@ -77,6 +78,7 @@ namespace RiMCP.Command
                 }
             }
 
+            Report(pawn, "schedule", changedHours.Count + (changedHours.Count == 1 ? " hour changed" : " hours changed"), changedHours.Count > 0);
             return CommandEnvelope.Ok(context, changedHours.Count > 0, Dto.Obj(
                 Dto.Field("assignmentKind", "schedule"),
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
@@ -94,6 +96,7 @@ namespace RiMCP.Command
             }
 
             Pawn pawn = ResolveManagedPawn(context, pawnId);
+            Attempt(pawn, policyKind + " policy");
             Policy previous;
             Policy current;
             switch (policyKind)
@@ -146,6 +149,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "Unknown policy kind.");
             }
 
+            Report(pawn, policyKind + " policy", current == null ? "none" : current.label, previous != current);
             return CommandEnvelope.Ok(context, previous != current, Dto.Obj(
                 Dto.Field("assignmentKind", "policy"),
                 Dto.Field("policyKind", policyKind),
@@ -157,10 +161,12 @@ namespace RiMCP.Command
         private static BridgeResponse SetMedicalCare(CommandContext context, string pawnId, SetPawnAssignmentBody body)
         {
             Pawn pawn = ResolveManagedPawn(context, pawnId);
+            Attempt(pawn, "medical care");
             Pawn_PlayerSettings settings = RequirePlayerSettings(pawn);
             MedicalCareCategory care = ParseEnum<MedicalCareCategory>(body.Care, "care", "Medical care");
             MedicalCareCategory previous = settings.medCare;
             settings.medCare = care;
+            Report(pawn, "medical care", settings.medCare.GetLabel(), previous != settings.medCare);
 
             return CommandEnvelope.Ok(context, previous != settings.medCare, Dto.Obj(
                 Dto.Field("assignmentKind", "medicalCare"),
@@ -177,6 +183,7 @@ namespace RiMCP.Command
             }
 
             Pawn pawn = ResolveManagedPawn(context, pawnId);
+            Attempt(pawn, "self-tend");
             Pawn_PlayerSettings settings = RequirePlayerSettings(pawn);
             // Mirrors HealthCardUtility: the toggle exists only for non-baby colonists, and
             // enabling it is rejected for pawns that can never do Doctor work.
@@ -190,6 +197,7 @@ namespace RiMCP.Command
                 throw new CommandException(409, "Pawn can never do Doctor work, so self-tend cannot be enabled.");
             }
             settings.selfTend = body.Enabled.Value;
+            Report(pawn, "self-tend", settings.selfTend ? "on" : "off", previous != settings.selfTend);
 
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("assignmentKind", "selfTend"),
@@ -206,6 +214,7 @@ namespace RiMCP.Command
         private static BridgeResponse SetHostilityResponse(CommandContext context, string pawnId, SetPawnAssignmentBody body)
         {
             Pawn pawn = ResolveManagedPawn(context, pawnId);
+            Attempt(pawn, "hostility response");
             Pawn_PlayerSettings settings = RequirePlayerSettings(pawn);
             if (!settings.UsesConfigurableHostilityResponse)
             {
@@ -215,6 +224,7 @@ namespace RiMCP.Command
             HostilityResponseMode mode = ParseEnum<HostilityResponseMode>(body.Mode, "mode", "Hostility response mode");
             HostilityResponseMode previous = settings.hostilityResponse;
             settings.hostilityResponse = mode;
+            Report(pawn, "hostility response", settings.hostilityResponse.GetLabel(), previous != settings.hostilityResponse);
 
             return CommandEnvelope.Ok(context, previous != settings.hostilityResponse, Dto.Obj(
                 Dto.Field("assignmentKind", "hostilityResponse"),
@@ -231,6 +241,7 @@ namespace RiMCP.Command
             }
 
             Pawn pawn = ResolveManagedPawn(context, pawnId);
+            Attempt(pawn, "allowed area");
             Pawn_PlayerSettings settings = RequirePlayerSettings(pawn);
             if (!settings.SupportsAllowedAreas)
             {
@@ -240,6 +251,7 @@ namespace RiMCP.Command
             Area previous = settings.AreaRestrictionInPawnCurrentMap;
             Area current = ResolveAllowedArea(context.Map, body.AreaId);
             settings.AreaRestrictionInPawnCurrentMap = current;
+            Report(pawn, "allowed area", settings.AreaRestrictionInPawnCurrentMap == null ? "unrestricted" : settings.AreaRestrictionInPawnCurrentMap.Label, previous != settings.AreaRestrictionInPawnCurrentMap);
 
             return CommandEnvelope.Ok(context, previous != settings.AreaRestrictionInPawnCurrentMap, Dto.Obj(
                 Dto.Field("assignmentKind", "allowedArea"),
@@ -260,6 +272,7 @@ namespace RiMCP.Command
             }
 
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
+            Attempt(pawn, "medicine to carry");
             if (pawn.inventoryStock == null)
             {
                 throw new CommandException(409, "Pawn has no inventory stock tracker.");
@@ -285,6 +298,7 @@ namespace RiMCP.Command
             ThingDef currentThing = pawn.inventoryStock.GetDesiredThingForGroup(group);
             object current = PawnReadService.SerializeCarryMedicine(pawn);
             bool changed = previousCount != currentCount || previousThing != currentThing;
+            Report(pawn, "medicine to carry", currentCount + (currentThing == null ? "" : " " + currentThing.label), changed);
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("assignmentKind", "carryMedicine"),
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
@@ -300,6 +314,7 @@ namespace RiMCP.Command
                 "Prisoner interaction mode");
 
             Pawn pawn = CommandUtil.ResolveSpawnedPawn(context, pawnId);
+            Attempt(pawn, "prisoner interaction");
             CommandUtil.RequireColonyPrisoner(pawn);
             ValidateInteractionMode(pawn, interactionMode);
 
@@ -322,6 +337,7 @@ namespace RiMCP.Command
                 }
             }
 
+            Report(pawn, "prisoner interaction", pawn.guest.ExclusiveInteractionMode == null ? "none" : ReadUtil.DefLabel(pawn.guest.ExclusiveInteractionMode), changed);
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("assignmentKind", "prisonerInteraction"),
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
@@ -335,6 +351,23 @@ namespace RiMCP.Command
                     Dto.Field("name", target.name));
             }
             return CommandEnvelope.Ok(context, changed, data);
+        }
+
+        private static void Attempt(Pawn pawn, string setting)
+        {
+            AgentLog.About("Change " + AgentLog.Name(pawn) + "'s " + setting, pawn);
+        }
+
+        private static void Report(Pawn pawn, string setting, string value, bool changed)
+        {
+            if (changed)
+            {
+                AgentLog.Done("Set " + AgentLog.Name(pawn) + "'s " + setting + " to " + value, pawn);
+            }
+            else
+            {
+                AgentLog.NoChange(AgentLog.Name(pawn) + "'s " + setting + " was already " + value, pawn);
+            }
         }
 
         private static string NormalizeAssignmentKind(string assignmentKind)

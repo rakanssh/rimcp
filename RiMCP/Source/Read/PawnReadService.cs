@@ -60,7 +60,10 @@ namespace RiMCP.Read
                 return BridgeResponse.Error(404, "Pawn not found.");
             }
 
-            return ReadEnvelope.Ok(context, SerializePawn(pawn, RoleForPawn(context.Map, pawn), ReadDetail.Full, context.Request));
+            // One pawn is read at normal detail unless asked otherwise: needs, mood, health, skills
+            // and traits, with the rest by include or detail=full.
+            ReadDetail detail = context.Request.Get("detail") == null ? ReadDetail.Normal : context.Request.Detail;
+            return ReadEnvelope.Ok(context, SerializePawn(pawn, RoleForPawn(context.Map, pawn), detail, context.Request));
         }
 
         // Pawns under fog, such as insects or sleeping mechanoids in an unopened ancient shrine, are
@@ -118,13 +121,14 @@ namespace RiMCP.Read
             {
                 return "hostile";
             }
-            if (map.mapPawns.FreeColonistsSpawned.Contains(pawn))
-            {
-                return "colonist";
-            }
+            // Before free colonists, which include slaves.
             if (map.mapPawns.SlavesOfColonySpawned.Contains(pawn))
             {
                 return "slave";
+            }
+            if (map.mapPawns.FreeColonistsSpawned.Contains(pawn))
+            {
+                return "colonist";
             }
             if (map.mapPawns.PrisonersOfColonySpawned.Contains(pawn))
             {
@@ -168,10 +172,10 @@ namespace RiMCP.Read
             }
             dto["ideoligion"] = IdeoligionReadService.SerializePawnIdeoligionSummary(pawn);
 
-            if (detail != ReadDetail.Summary || request.Wants("needs"))
+            if (detail != ReadDetail.Summary || request.Wants("needs") || request.Wants("thoughts"))
             {
                 dto["needs"] = SerializeNeeds(pawn, detail);
-                dto["mood"] = SerializeMood(pawn, detail);
+                dto["mood"] = SerializeMood(pawn, request.Wants("thoughts") ? ReadDetail.Full : detail);
             }
             if (detail != ReadDetail.Summary || request.Wants("health"))
             {
@@ -182,12 +186,17 @@ namespace RiMCP.Read
                 dto["skills"] = SerializeSkills(pawn);
                 dto["traits"] = SerializeTraits(pawn);
             }
+            // The assignments carry the schedule too, so it is sent once.
+            bool assignments = detail == ReadDetail.Full || request.Wants("assignments");
             if (detail == ReadDetail.Full || request.Wants("work"))
             {
                 dto["work"] = SerializePawnWork(pawn);
-                dto["schedule"] = SerializeSchedule(pawn);
+                if (!assignments)
+                {
+                    dto["schedule"] = SerializeSchedule(pawn);
+                }
             }
-            if (detail == ReadDetail.Full || request.Wants("assignments"))
+            if (assignments)
             {
                 dto["assignments"] = SerializeAssignments(pawn);
             }
@@ -509,11 +518,13 @@ namespace RiMCP.Read
                 return null;
             }
 
+            // Not GetCurrentEntryFor, which adds the default entry to the pawn for its save.
             InventoryStockGroupDef group = InventoryStockGroupDefOf.Medicine;
-            ThingDef thingDef = pawn.inventoryStock.GetDesiredThingForGroup(group);
+            InventoryStockEntry entry;
+            bool set = pawn.inventoryStock.stockEntries.TryGetValue(group, out entry);
             return Dto.Obj(
-                Dto.Field("count", pawn.inventoryStock.GetDesiredCountForGroup(group)),
-                Dto.Field("thing", ReadUtil.Def(thingDef)));
+                Dto.Field("count", set ? entry.count : group.min),
+                Dto.Field("thing", ReadUtil.Def(set ? entry.thingDef : group.DefaultThingDef)));
         }
 
         public static object SerializeTraining(Pawn pawn)

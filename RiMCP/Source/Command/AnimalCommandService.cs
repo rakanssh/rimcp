@@ -21,6 +21,8 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolveSpawnedPawn(context, pawnId);
+            string animalOrder = action == "none" ? "Clear the orders on " + AgentLog.Name(pawn) : "Mark " + AgentLog.Name(pawn) + " to " + action;
+            AgentLog.About(animalOrder, pawn);
             CommandUtil.RequireAnimal(pawn);
 
             DesignationDef target = DesignationForAction(action);
@@ -43,6 +45,11 @@ namespace RiMCP.Command
                     // Designator_Slaughter cancels a pending release to the wild.
                     context.Map.designationManager.TryRemoveDesignationOn(pawn, DesignationDefOf.ReleaseAnimalToWild);
                 }
+                AgentLog.Done(target == null ? "Cleared the orders on " + AgentLog.Name(pawn) : "Marked " + AgentLog.Name(pawn) + " to " + action, pawn);
+            }
+            else
+            {
+                AgentLog.NoChange(target == null ? AgentLog.Name(pawn) + " had no orders" : AgentLog.Name(pawn) + " was already marked to " + action, pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
@@ -64,6 +71,7 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolveSpawnedPawn(context, pawnId);
+            AgentLog.About("Change " + AgentLog.Name(pawn) + "'s training", pawn);
             CommandUtil.RequireColonyAnimal(pawn);
             if (pawn.training == null)
             {
@@ -91,6 +99,18 @@ namespace RiMCP.Command
                     Dto.Field("wanted", currentWanted[def.defName])))
                 .ToArray();
 
+            List<string> trainingChanges = allTrainables
+                .Where(def => previousWanted[def.defName] != currentWanted[def.defName])
+                .Select(def => ReadUtil.DefLabel(def) + (currentWanted[def.defName] ? " on" : " off"))
+                .ToList();
+            if (trainingChanges.Count > 0)
+            {
+                AgentLog.Done("Set " + AgentLog.Name(pawn) + "'s training: " + string.Join(", ", trainingChanges.ToArray()), pawn);
+            }
+            else
+            {
+                AgentLog.NoChange(AgentLog.Name(pawn) + "'s training was already set", pawn);
+            }
             return CommandEnvelope.Ok(context, changedTrainables.Length > 0, Dto.Obj(
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
                 Dto.Field("previousTraining", PawnReadService.SerializeTraining(pawn, previousWanted)),

@@ -17,7 +17,10 @@ namespace RiMCP.Bridge
         private readonly Func<BridgeRequest, BridgeResponse> dispatch;
         private readonly RecentLog log;
         private readonly Func<AccessState> access;
-        private readonly HashSet<string> recentClients = new HashSet<string>();
+        // Callers that passed the token, by the helper's session id, or by address for other
+        // callers, with when each was last seen. The helper's access poll keeps an idle one counted.
+        private readonly Dictionary<string, DateTime> recentClients = new Dictionary<string, DateTime>();
+        private static readonly TimeSpan RecentClientWindow = TimeSpan.FromMinutes(1);
         private HttpListener listener;
         private Thread thread;
         private volatile bool stopping;
@@ -42,6 +45,16 @@ namespace RiMCP.Bridge
             {
                 lock (recentClients)
                 {
+                    DateTime cutoff = DateTime.UtcNow - RecentClientWindow;
+                    List<string> stale = new List<string>();
+                    foreach (KeyValuePair<string, DateTime> seen in recentClients)
+                    {
+                        if (seen.Value < cutoff)
+                        {
+                            stale.Add(seen.Key);
+                        }
+                    }
+                    stale.ForEach(key => recentClients.Remove(key));
                     return recentClients.Count;
                 }
             }
@@ -129,6 +142,17 @@ namespace RiMCP.Bridge
             }
         }
 
+        private void Seen(HttpListenerRequest request)
+        {
+            string session = request.Headers["X-RimMCP-Session"];
+            string client = !string.IsNullOrWhiteSpace(session) ? "session " + session.Trim()
+                : request.RemoteEndPoint == null ? "unknown" : request.RemoteEndPoint.Address.ToString();
+            lock (recentClients)
+            {
+                recentClients[client] = DateTime.UtcNow;
+            }
+        }
+
         private void ProcessContext(HttpListenerContext context)
         {
             // The proxy's access poll keeps a client counted, but is not activity.
@@ -137,20 +161,20 @@ namespace RiMCP.Bridge
             {
                 LastRequestUtc = DateTime.UtcNow;
             }
-            string client = context.Request.RemoteEndPoint == null ? "unknown" : context.Request.RemoteEndPoint.Address.ToString();
-            lock (recentClients)
-            {
-                recentClients.Add(client);
-            }
-
             BridgeResponse response;
             try
             {
-                if (!IsOriginAllowed(context.Request.Headers["Origin"]))
+                bool originAllowed = IsOriginAllowed(context.Request.Headers["Origin"]);
+                bool authorized = originAllowed && IsAuthorized(context.Request);
+                if (authorized)
+                {
+                    Seen(context.Request);
+                }
+                if (!originAllowed)
                 {
                     response = BridgeResponse.Error(403, "Origin is not allowed.");
                 }
-                else if (!IsAuthorized(context.Request))
+                else if (!authorized)
                 {
                     response = BridgeResponse.Error(401, "Missing or invalid bearer token.");
                 }
@@ -166,7 +190,8 @@ namespace RiMCP.Bridge
                 }
                 else
                 {
-                    response = dispatch(new BridgeRequest(context.Request.HttpMethod, context.Request.Url, ReadBody(context.Request)));
+                    response = dispatch(new BridgeRequest(context.Request.HttpMethod, context.Request.Url, ReadBody(context.Request),
+                        AgentClients.Describe(context.Request.Headers["X-RimMCP-Client"], context.Request.Headers["X-RimMCP-Session"])));
                 }
             }
             catch (RequestBodyTooLargeException ex)

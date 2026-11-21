@@ -26,7 +26,7 @@ namespace RiMCP.Read
                 Dto.Field("currentMap", ReadUtil.MapSummary(context.Map)),
                 Dto.Field("maps", maps),
                 Dto.Field("storyteller", SerializeStoryteller()),
-                Dto.Field("mods", SerializeMods())));
+                Dto.Field("mods", SerializeMods(context.Request.Include.Contains("mods")))));
         }
 
         public static BridgeResponse GetColonyStatus(BridgeRequest request, RouteMatch route)
@@ -120,24 +120,25 @@ namespace RiMCP.Read
                     Dto.Field("threatScale", difficulty == null ? 0f : difficulty.threatScale))));
         }
 
-        private static object SerializeMods()
+        // The game and its expansions by name, and the other mods only counted unless asked for: a
+        // heavily modded game's list is many kilobytes, and list_mods reads it in full.
+        private static object SerializeMods(bool all)
         {
-            List<object> mods = new List<object>();
+            List<ModContentPack> mods = new List<ModContentPack>();
             try
             {
-                foreach (ModContentPack mod in LoadedModManager.RunningModsListForReading)
-                {
-                    mods.Add(Dto.Obj(
-                        Dto.Field("name", mod.Name),
-                        Dto.Field("packageId", mod.PackageId)));
-                }
+                mods.AddRange(LoadedModManager.RunningModsListForReading);
             }
             catch
             {
             }
+            Func<ModContentPack, object> summary = mod => Dto.Obj(Dto.Field("name", mod.Name), Dto.Field("packageId", mod.PackageId));
+            List<ModContentPack> official = mods.Where(mod => mod.PackageId != null && mod.PackageId.StartsWith("ludeon.", StringComparison.OrdinalIgnoreCase)).ToList();
             return Dto.Obj(
                 Dto.Field("count", mods.Count),
-                Dto.Field("loaded", mods));
+                Dto.Field("official", official.Select(mod => mod.Name).ToArray()),
+                Dto.Field("others", mods.Count - official.Count),
+                Dto.Field("loaded", all ? mods.Select(summary).ToArray() : null));
         }
 
         private static object CountPawns(IEnumerable<PawnReadService.PawnRole> pawns)
