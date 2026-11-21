@@ -8,41 +8,39 @@
     <li>1.6</li>
     <li>1.7</li>
   </supportedVersions>
-  <description>Agentic intelligence - Now brought to the Rim.
+  <description>Agentic intelligence for the Rim.
 
-RimMCP connects your colony to any AI agent that speaks MCP. Your agent will be able to see and do almost anything in the game: lay out zones, build, order pawns, run time forward, and tell you anything about the game.
+What is this?
+RimMCP connects your colony to any AI agent with MCP support. Your agent will be able to see and do almost anything in the game.
 
-For the modern high-impact 10x engineer looking to utilize agentic AI to drive business value in their colony.
+For the modern high-impact 10x engineer.
 
-What can it do?
-• See what you see. Pawns, stockpiles, bills, research, threats, the map itself, even your mod list and error log. Keep up with alerts, letters and what happened while you weren't looking.
-• Tell you what's wrong. Why nobody is cooking, why the field isn't sown, what's about to rot.
-• Run the colony. Zones, stockpiles, blueprints, mining, bills, work priorities, policies, research. Assign beds and thrones to their owners.
-• Command your pawns. Draft, move, attack, rescue, tend, equip. Capture, arrest, strip, or prioritize a job through their right-click menus.
-• Time Control. Let time run, and pause the moment something important happens.
-• Make decisions. Answer letters, accept quests, pick rewards, and handle the questions that follow. The dialogs stay on screen, so you can answer first.
-• Push the buttons. Power switches, doors held open, medical beds, hold fire, mortar targets and psycasts. Supported buttons and right-click orders from your mods work too.
-• Start from scratch. Pick a scenario, storyteller and difficulty, generate a world, find a starting site, build an ideoligion, and roll colonists to your criteria. All through the game's setup screens while you watch. You approve the start unless you enable unattended setup.
-• Save your place. Save, load, or head back to the main menu. Check a save's game version and mods before loading it.
-• Watch it work. A cursor with your agent's name glides to wherever it acts. Its notes and decisions pop up in bubbles by the RimMCP button, and it can send you a letter when something needs a look. The agent log lists everything it did, and what it was refused and why; click a line to jump there.
+What does it let agents do?
+• See. Pawns, stockpiles, bills, research, threats, the map itself, even your mod list and error log.
+• Do. Zones, stockpiles, blueprints, mining, bills, work priorities, policies, research.
+• Command. Draft, move, attack, rescue, tend, equip. Use their right-click orders and abilities (Mod actions supported)
+• Time. Control speed, pause, run the game.
+• Handle. Read alerts and letters, accept quests, choose rewards, answer dialogs.
+• Prepare agentically Pick the scenario, world, landing site, ideoligion and colonists through the game's setup screens.
+• Save. Save, load, and return to the main menu.
+• Talk. Tell you what they're doing, or send a letter when something needs your attention.
 
-Access
-  Full control (default): do everything, including storyteller, difficulty, saves and new games.
-  Control: run the colony, including letters and quests, but not change game settings, save, load or set up games.
-  Administration: read, manage colony settings and run time, but not give direct orders.
-  Read only: look, but no actions.
+Access Presets
+  Full control (default): Do everything, including storyteller, difficulty, saves and new games.
+  Control: Run the colony, including letters and quests, but not change game settings, save, load or set up games.
+  Administration: Read, manage colony settings and run time, but not give direct orders.
+  Read only: Look, but no actions.
 
-Fine-tune access by switching individual tools on or off. The RimMCP button on the bottom bar opens the agent log, and lets you pause agents or change their access in a click.
+Fine-tune access by switching individual tools on or off in mod settings.
 
 Things to try
 • "Anyone worth trying to recruit from the injured raiders?"
-• "Make a potato field on the rich soil, queue up meals."
+• "Make a corn field on the rich soil, queue up meals."
 • "Figure out the most efficient fabric available, order clothes for the colony and set up apparel policies."
-• "Which mod is throwing that red error and why?"
+• "Which mod is throwing red errors and why?"
 • "Destroy the Mechhive, make no mistakes."
-• "Find a mountain base with a long growing season, roll me a doctor and a decent cook."
-• "Catch me up on what happened and check whether any of these quest rewards are worth the trouble."
-• "Turn off the idle benches and stop holding the freezer door open."
+• "Reroll colonists until we have a well-rounded colony and two shooters."
+• "Keep me posted on anything that needs my attention."
 
 Requirements
 • RimWorld 1.6 or 1.7.
@@ -55,9 +53,14 @@ Setup
 4. Turn on RimWorld's Run in background option so requests work while you're alt-tabbed.
 
 Frequently asked
-Mid-save compatible? Yes. Nothing RimMCP leaves in a save needs RimMCP to load: its letters and History entries use the game's own types. Feel free to add or remove at will.
-Performance? Near 0 impact when idling. When your agent calls tools, most requests are handled in milliseconds.
-Multiplayer Mod? Your agent can look, but anything that changes the game or the clock is refused during a Multiplayer session.
+Mid-save compatible? Yes. Agent letters stay in your History like any other letter, but nothing in your save needs RimMCP. Feel free to add or remove at will.
+
+Performance? Near 0 impact when idling. When your agent calls tools, most requests are handled in milliseconds. Token wise, full game control and repeatedly reading pawns can consume a lot of tokens, keep an eye on your usage if you're enabling everything. Since 1.2, reading a pawn costs about a third of what it used to.
+
+What is my agent doing? A cursor with its name shows where it acts. The RimMCP button on the bottom bar opens the agent log: everything it did, and what it was refused and why.
+
+Multiplayer Mod? Supported, read-only operations will work, but anything that changes the game or the clock is refused during a Multiplayer session.
+
 Privacy? If your client uses a cloud model, it may send colony data to that provider. Your colony data could help shape the mind of future LLMs, what could possibly go wrong?
 
 Source: https://github.com/rakanssh/rimcp | Bugs: https://github.com/rakanssh/rimcp/issues</description>
