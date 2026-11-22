@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.AgentActivity.ShowChanges>在游戏中显示智能体的改动：</RiMCP.AgentActivity.ShowChanges>
+  <RiMCP.AgentActivity.ShowWhere>显示智能体的操作位置</RiMCP.AgentActivity.ShowWhere>
+  <RiMCP.AgentActivity.ShowWhereTip>智能体的光标会移到刚刚操作的位置，地图上会出现短暂的闪烁标记。</RiMCP.AgentActivity.ShowWhereTip>
+  <RiMCP.AgentActivity.ModeOff>关闭</RiMCP.AgentActivity.ModeOff>
+  <RiMCP.AgentActivity.ModeEveryChange>每项改动</RiMCP.AgentActivity.ModeEveryChange>
+  <RiMCP.AgentActivity.ModeDecisionsAndNotes>决策和留言</RiMCP.AgentActivity.ModeDecisionsAndNotes>
+  <RiMCP.AgentActivity.LogTitle>智能体日志</RiMCP.AgentActivity.LogTitle>
+  <RiMCP.AgentActivity.LogEmpty>暂无记录。本次会话中智能体的改动会按从新到旧的顺序显示在这里。</RiMCP.AgentActivity.LogEmpty>
+  <RiMCP.AgentActivity.MainMenu>在主菜单中</RiMCP.AgentActivity.MainMenu>
+  <RiMCP.AgentActivity.EarlierGame>在先前的游戏中</RiMCP.AgentActivity.EarlierGame>
+  <RiMCP.AgentActivity.SaidLetter>留言（信件）</RiMCP.AgentActivity.SaidLetter>
+  <RiMCP.AgentActivity.Said>留言</RiMCP.AgentActivity.Said>
+  <RiMCP.AgentActivity.Pending>进行中</RiMCP.AgentActivity.Pending>
+  <RiMCP.AgentActivity.Done>已完成</RiMCP.AgentActivity.Done>
+  <RiMCP.AgentActivity.PartlyDone>部分完成</RiMCP.AgentActivity.PartlyDone>
+  <RiMCP.AgentActivity.NoChange>无改动</RiMCP.AgentActivity.NoChange>
+  <RiMCP.AgentActivity.Refused>已拒绝</RiMCP.AgentActivity.Refused>
+  <RiMCP.AgentActivity.Failed>失败</RiMCP.AgentActivity.Failed>
+  <RiMCP.AgentActivity.Cancelled>已取消</RiMCP.AgentActivity.Cancelled>
+  <RiMCP.AgentActivity.QuickStatusEntry>- {0}（{1}）</RiMCP.AgentActivity.QuickStatusEntry>
+  <RiMCP.AgentActivity.UnnamedAgent>一名智能体</RiMCP.AgentActivity.UnnamedAgent>
+  <RiMCP.AgentActivity.LetterTitle>智能体消息</RiMCP.AgentActivity.LetterTitle>
+  <RiMCP.AgentActivity.LetterBody>来自{0}的留言：
+
+{1}</RiMCP.AgentActivity.LetterBody>
+  <RiMCP.AgentActivity.SpeechMessage>{0}说：{1}</RiMCP.AgentActivity.SpeechMessage>
+  <RiMCP.AgentActivity.ActionMessage>{0}：{1}</RiMCP.AgentActivity.ActionMessage>
+  <RiMCP.AgentActivity.PartlyDoneMessage>{0}（部分完成）</RiMCP.AgentActivity.PartlyDoneMessage>
+  <RiMCP.AgentActivity.FailedMessage>{0}（失败）</RiMCP.AgentActivity.FailedMessage>
+  <RiMCP.AgentActivity.FoldedMessageOne>另有 {0} 项改动，详见智能体日志</RiMCP.AgentActivity.FoldedMessageOne>
+  <RiMCP.AgentActivity.FoldedMessageMany>另有 {0} 项改动，详见智能体日志</RiMCP.AgentActivity.FoldedMessageMany>
+  <RiMCP.AgentActivity.FoldedBubbleOne>另有 {0} 项改动。点击打开智能体日志。</RiMCP.AgentActivity.FoldedBubbleOne>
+  <RiMCP.AgentActivity.FoldedBubbleMany>另有 {0} 项改动。点击打开智能体日志。</RiMCP.AgentActivity.FoldedBubbleMany>
+  <RiMCP.AgentActivity.LogButton>日志</RiMCP.AgentActivity.LogButton>
+  <RiMCP.AgentActivity.JumpTip>点击跳转到目标，右键关闭。</RiMCP.AgentActivity.JumpTip>
+  <RiMCP.AgentActivity.LogTip>点击打开智能体日志，右键关闭。</RiMCP.AgentActivity.LogTip>
+  <RiMCP.AgentActivity.LogDetailLimit>60</RiMCP.AgentActivity.LogDetailLimit>
+  <RiMCP.AgentActivity.NoteLengthLimit>140</RiMCP.AgentActivity.NoteLengthLimit>
+  <RiMCP.AgentActivity.LogMetaClient>{0} · {1}</RiMCP.AgentActivity.LogMetaClient>
+  <RiMCP.AgentActivity.LogMetaDetail>{0} · {1}</RiMCP.AgentActivity.LogMetaDetail>
+  <RiMCP.AgentActivity.LogMetaClientDetail>{0} · {1} · {2}</RiMCP.AgentActivity.LogMetaClientDetail>
+  <RiMCP.AgentActivity.QuickStatusWithEntries>{0}
+{1}</RiMCP.AgentActivity.QuickStatusWithEntries>
+</LanguageData>

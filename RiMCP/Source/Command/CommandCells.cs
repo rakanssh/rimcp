@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -97,10 +98,10 @@ namespace RiMCP.Command
             get { return rejectedCount; }
         }
 
-        // The first few distinct reasons, for the agent log.
+        // The first few distinct reasons, for the agent log
         public string Reasons
         {
-            get { return string.Join("; ", reasons.ToArray()); }
+            get { return string.Join(Keys.AgentLog_RefusalSeparator.Text(), reasons); }
         }
 
         public void Reject(IntVec3 cell, string reason)

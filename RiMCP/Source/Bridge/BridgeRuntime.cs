@@ -5,6 +5,8 @@ using System.Linq;
 using RiMCP.Command;
 using RiMCP.Settings;
 using RiMCP.Shared;
+using RiMCP.UI;
+using Verse;
 
 namespace RiMCP.Bridge
 {
@@ -172,8 +174,10 @@ namespace RiMCP.Bridge
         internal static void Disable()
         {
             access = access.Disabled();
-            AdvanceRunner.Revoke("RimMCP was disabled in its settings.");
-            Interactions.Revoke(interaction => true, "RimMCP was disabled in its settings.");
+            AdvanceRunner.RevokeWithDisplayReason("RimMCP was disabled in its settings.",
+                () => Keys.TimeLog_RimMCPDisabled.Text());
+            Interactions.RevokeWithDisplayReason(interaction => true, "RimMCP was disabled in its settings.",
+                () => Keys.AgentLog_DialogRevokedBridgeDisabled.Text());
             // Every operation stops, whatever its group, including a search.
             Operation running = OperationRunner.Active;
             if (running != null)
@@ -204,7 +208,9 @@ namespace RiMCP.Bridge
             }
             if (!access.AllowsTool("advance_time"))
             {
-                AdvanceRunner.Revoke(access.Allows(ToolGroups.Time) ? "advance_time was turned off in RimMCP settings." : "Time access was turned off in RimMCP settings.");
+                bool hasTimeAccess = access.Allows(ToolGroups.Time);
+                AdvanceRunner.RevokeWithDisplayReason(hasTimeAccess ? "advance_time was turned off in RimMCP settings." : "Time access was turned off in RimMCP settings.",
+                    () => hasTimeAccess ? Keys.TimeLog_AdvanceDisabled.Text("advance_time") : Keys.TimeLog_TimeAccessDisabled.Text());
             }
             // A queued operation never starts; a running one stops at its next step.
             Operation running = OperationRunner.Active;
@@ -213,7 +219,8 @@ namespace RiMCP.Bridge
                 OperationRunner.Revoke(running.Group, access.Allows(running.Group) ? running.Tool + " was turned off in RimMCP settings." : ToolGroups.Label(running.Group) + " access was turned off in RimMCP settings.");
             }
             AccessState now = access;
-            Interactions.Revoke(interaction => !now.AllowsTool(interaction.Tool), "The tool that opened the dialog was turned off in RimMCP settings.");
+            Interactions.RevokeWithDisplayReason(interaction => !now.AllowsTool(interaction.Tool), "The tool that opened the dialog was turned off in RimMCP settings.",
+                () => Keys.AgentLog_DialogRevokedToolDisabled.Text());
         }
 
         // Calls per tool since RimWorld started, for the settings' Activity tab.

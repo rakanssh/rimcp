@@ -62,18 +62,6 @@ namespace RiMCP.Settings
                 default: return "Custom";
             }
         }
-
-        public static string Description(string preset)
-        {
-            switch (preset)
-            {
-                case Full: return "Every tool, including game settings, and saving, loading, and setting up games.";
-                case Control: return "Everything except game settings and game setup.";
-                case Administration: return "Reads, colony settings, and time, so an agent can check its changes by advancing time. No direct orders.";
-                case ReadOnly: return "Reads only. Agents can't change anything.";
-                default: return "Your own choice of groups and tools. Tools added in later versions follow their group.";
-            }
-        }
     }
 
     // Per-tool choices on top of the groups: tools turned on in a group that is off, and tools

@@ -12,13 +12,15 @@ namespace RiMCP.Read
         public readonly int Index;
         public readonly string Id;
         public readonly string Text;
+        public readonly string LogText;
         public readonly string DisabledReason;
 
-        public LetterChoice(int index, string id, string text, string disabledReason)
+        public LetterChoice(int index, string id, string text, string logText, string disabledReason)
         {
             Index = index;
             Id = id;
             Text = text;
+            LogText = logText;
             DisabledReason = disabledReason;
         }
     }
@@ -30,10 +32,9 @@ namespace RiMCP.Read
         private static readonly FieldInfo OptionText = typeof(DiaOption).GetField("text", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly string[] ViewOnlyKeys = { "JumpToLocation", "ViewRelatedQuest", "ViewQuest", "ViewEntityCodex", "ViewGenes" };
 
-        public static string Text(DiaOption option)
+        public static string RawText(DiaOption option)
         {
-            string text = OptionText == null ? null : OptionText.GetValue(option) as string;
-            return string.IsNullOrEmpty(text) ? text : text.StripTags().Trim();
+            return OptionText == null ? null : OptionText.GetValue(option) as string;
         }
 
         public static List<LetterChoice> Of(ChoiceLetter letter)
@@ -52,13 +53,14 @@ namespace RiMCP.Read
             for (int i = 0; i < options.Count; i++)
             {
                 DiaOption option = options[i];
-                string text = option == null ? null : Text(option);
+                string logText = option == null ? null : RawText(option).StripTags();
+                string text = logText?.Trim();
                 if (string.IsNullOrEmpty(text) || option.hyperlink.def != null || viewOnly.Any(view => text == view || text.StartsWith(view + ":")))
                 {
                     continue;
                 }
                 string reason = option.disabled ? (string.IsNullOrEmpty(option.disabledReason) ? "Unavailable." : option.disabledReason.StripTags().Trim()) : null;
-                choices.Add(new LetterChoice(i, (choices.Count + 1).ToString(), text, reason));
+                choices.Add(new LetterChoice(i, (choices.Count + 1).ToString(), text, logText, reason));
             }
             return choices;
         }

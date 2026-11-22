@@ -4,6 +4,7 @@ using System.Linq;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -17,9 +18,25 @@ namespace RiMCP.Command
     {
         private static int asked;
 
+        public sealed class Refusal
+        {
+            public readonly string Reason;
+            private readonly TextKey key;
+            private readonly NamedArgument[] arguments;
+
+            public Refusal(string reason, TextKey key, params NamedArgument[] arguments)
+            {
+                Reason = reason;
+                this.key = key;
+                this.arguments = arguments;
+            }
+
+            public DisplayText Display() => key.Display(arguments);
+        }
+
         // kind and message describe the question; stale returns why it no longer applies, or null;
         // hold runs every frame while waiting, such as keeping the game paused.
-        public static IEnumerable<string> Await(Operation operation, List<Window> asking, string kind, string message, bool agentMayAnswer, Func<bool> proceeded, Func<string> stale, Action hold = null, params Dto.JsonField[] details)
+        public static IEnumerable<string> Await(Operation operation, List<Window> asking, string kind, string message, bool agentMayAnswer, Func<bool> proceeded, Func<Refusal> stale, Action hold = null, params Dto.JsonField[] details)
         {
             string id = "confirm-" + (++asked);
             Dialog_MessageBox box = asking.OfType<Dialog_MessageBox>().FirstOrDefault();
@@ -38,9 +55,7 @@ namespace RiMCP.Command
             // Every way of accepting checks first, right before it acts: the dialog's buttons and Enter
             // key, the mod list dialog's Load anyway, and answer_confirmation. A stop asked for, or a
             // stale question, refuses it, even before the operation's next step.
-            Func<string> refusal = () => operation.Done ? "The operation has ended, so its question no longer applies."
-                : operation.CancelRequested != null || operation.RevokeRequested != null ? "The operation is stopping, so its question no longer applies."
-                : stale();
+            Func<Refusal> refusal = () => CheckRefusal(operation, stale);
             foreach (Dialog_MessageBox each in asking.OfType<Dialog_MessageBox>())
             {
                 each.buttonAAction = Guard(each.buttonAAction, refusal);
@@ -55,10 +70,10 @@ namespace RiMCP.Command
             operation.Confirmation = confirmation;
             operation.Answer = !answerable ? (Func<bool, string>)null : accept =>
             {
-                string reason = refusal();
-                if (reason != null)
+                Refusal rejected = refusal();
+                if (rejected != null)
                 {
-                    return reason;
+                    return rejected.Reason;
                 }
                 // As the button does: its action, then the dialog closes. The mod list dialog's
                 // accept is Load anyway, and its decline Go back.
@@ -74,10 +89,10 @@ namespace RiMCP.Command
             {
                 while (asking.Any(Find.WindowStack.IsOpen) && !proceeded())
                 {
-                    string reason = stale();
-                    if (reason != null)
+                    Refusal rejected = stale();
+                    if (rejected != null)
                     {
-                        throw new OperationEnded(Operation.Interrupted, reason);
+                        throw new OperationEnded(Operation.Interrupted, rejected.Reason);
                     }
                     if (hold != null)
                     {
@@ -103,7 +118,20 @@ namespace RiMCP.Command
             }
         }
 
-        private static Action Guard(Action action, Func<string> refusal)
+        private static Refusal CheckRefusal(Operation operation, Func<Refusal> stale)
+        {
+            if (operation.Done)
+            {
+                return new Refusal("The operation has ended, so its question no longer applies.", Keys.ConfirmationEnded);
+            }
+            if (operation.CancelRequested != null || operation.RevokeRequested != null)
+            {
+                return new Refusal("The operation is stopping, so its question no longer applies.", Keys.ConfirmationStopping);
+            }
+            return stale();
+        }
+
+        private static Action Guard(Action action, Func<Refusal> refusal)
         {
             if (action == null)
             {
@@ -111,10 +139,10 @@ namespace RiMCP.Command
             }
             return () =>
             {
-                string reason = refusal();
-                if (reason != null)
+                Refusal rejected = refusal();
+                if (rejected != null)
                 {
-                    Messages.Message(reason, MessageTypeDefOf.RejectInput, false);
+                    UiDisplay.Message(rejected.Display(), MessageTypeDefOf.RejectInput, false);
                     return;
                 }
                 action();
@@ -122,13 +150,18 @@ namespace RiMCP.Command
         }
 
         // A setup question goes stale once the setup changes from the revision it was asked at.
-        public static Func<string> SetupUnchanged(int revision)
+        public static Func<Refusal> SetupUnchanged(int revision)
         {
             return () =>
             {
                 SetupController.Observe();
-                return SetupController.Revision != revision ? "The setup changed while the game was asking, so the question was withdrawn." : null;
+                return SetupController.Revision != revision
+                    ? new Refusal("The setup changed while the game was asking, so the question was withdrawn.", Keys.ConfirmationSetupChanged)
+                    : null;
             };
         }
+
+        public static Refusal SaveChanged(string name) =>
+            new Refusal("The save '" + name + "' changed while the game was asking, so the question was withdrawn.", Keys.ConfirmationSaveChanged, name);
     }
 }

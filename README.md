@@ -130,6 +130,12 @@ The **Build MCP helpers** workflow builds all four platforms on native runners. 
 - `RiMCP/Tools/McpProxy/osx-x64/RiMCP.McpProxy`
 - `RiMCP/Tools/McpProxy/osx-arm64/RiMCP.McpProxy`
 
+## Localization
+
+RimMCP includes English and Simplified Chinese for its in-game interface. Missing translations fall back to English. The agent log records action text in the game's selected language. Its HTTP diagnostic returns the same recorded text and stable `tool` and `outcome` fields.
+
+See the localization guide ([English](README.localization.md) · [简体中文](README.localization.zh-CN.md)) for translating an installed mod, contributing language files, and developing localized UI.
+
 ## License
 
 RimMCP's original code and assets are licensed under the MIT License. See [LICENSE](LICENSE).

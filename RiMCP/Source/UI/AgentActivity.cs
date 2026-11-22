@@ -56,7 +56,7 @@ namespace RiMCP.UI
                 folded = 0;
                 if (Current.Game != null)
                 {
-                    Post(foldedBy, null, "made " + AgentLog.Count(count, "more change") + "; the agent log lists them", false);
+                    Post(foldedBy, null, (count == 1 ? Keys.AgentActivity_FoldedMessageOne : Keys.AgentActivity_FoldedMessageMany).Display(count), false);
                 }
             }
         }
@@ -95,7 +95,8 @@ namespace RiMCP.UI
                 foldedAt = Time.realtimeSinceStartup;
                 return;
             }
-            string line = entry.Line + (entry.Outcome == Outcomes.PartlyDone ? " (partly)" : entry.Outcome == Outcomes.Failed ? " (failed)" : "");
+            DisplayText line = entry.Outcome == Outcomes.PartlyDone ? Keys.AgentActivity_PartlyDoneMessage.Display(entry.Line)
+                : entry.Outcome == Outcomes.Failed ? Keys.AgentActivity_FailedMessage.Display(entry.Line) : DisplayText.Raw(entry.Line);
             Post(entry.Client, entry, line, decision);
         }
 
@@ -107,17 +108,17 @@ namespace RiMCP.UI
             LookTargets look = Look(entry) ?? LookTargets.Invalid;
             if (entry.Attention)
             {
-                Letter letter = LetterMaker.MakeLetter("Agent message", who + " says:\n\n" + entry.Text, LetterDefOf.NeutralEvent, look);
+                Letter letter = UiDisplay.CreateLetter(Keys.AgentActivity_LetterTitle.Display(), Keys.AgentActivity_LetterBody.Display(who, entry.Text), LetterDefOf.NeutralEvent, look);
                 Find.LetterStack.ReceiveLetter(letter);
                 AgentLog.MarkPosted(letter.GetUniqueLoadID(), entry.Client);
             }
             else if (AgentOverlay.Showing)
             {
-                AgentOverlay.Say(who, entry.Text, entry);
+                AgentOverlay.Say(who, DisplayText.Raw(entry.Text), entry);
             }
             else
             {
-                Messages.Message(new Message(who + " says: " + entry.Text, MessageTypeDefOf.NeutralEvent, look), false);
+                Messages.Message(UiDisplay.CreateMessage(Keys.AgentActivity_SpeechMessage.Display(who, entry.Text), MessageTypeDefOf.NeutralEvent, look), false);
             }
         }
 
@@ -138,10 +139,10 @@ namespace RiMCP.UI
 
         // Kept in History only for decisions, with the game's own message type, so routine changes
         // never push the player's entries out and saves never depend on RimMCP.
-        private static void Post(string client, AgentEntry entry, string text, bool historical)
+        private static void Post(string client, AgentEntry entry, DisplayText text, bool historical)
         {
-            string who = client ?? "An agent";
-            Message message = new Message(who + ": " + text, historical ? MessageTypeDefOf.NeutralEvent : MessageTypeDefOf.SilentInput, (entry == null ? null : Look(entry)) ?? LookTargets.Invalid);
+            string who = client ?? Keys.AgentActivity_UnnamedAgent.Text();
+            Message message = UiDisplay.CreateMessage(Keys.AgentActivity_ActionMessage.Display(who, text.Value), historical ? MessageTypeDefOf.NeutralEvent : MessageTypeDefOf.SilentInput, (entry == null ? null : Look(entry)) ?? LookTargets.Invalid);
             if (AgentOverlay.Showing)
             {
                 AgentOverlay.Say(who, text, entry);
@@ -162,7 +163,7 @@ namespace RiMCP.UI
 
         private static string Who(AgentEntry entry)
         {
-            return entry.Client ?? "An agent";
+            return entry.Client ?? Keys.AgentActivity_UnnamedAgent.Text();
         }
 
         private static LookTargets Look(AgentEntry entry)

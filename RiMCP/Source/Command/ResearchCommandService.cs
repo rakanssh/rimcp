@@ -2,6 +2,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -25,7 +26,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Research project not found.");
             }
-            AgentLog.About("Research " + ReadUtil.DefLabel(project));
+            AgentLog.About(Keys.ColonyLog_Research.Text(project.label ?? project.defName));
             if (project.IsFinished)
             {
                 throw new CommandException(409, "Research project is already finished.");
@@ -45,11 +46,11 @@ namespace RiMCP.Command
             if (changed)
             {
                 manager.SetCurrentProject(project);
-                AgentLog.Done("Set research to " + ReadUtil.DefLabel(project));
+                AgentLog.Done(Keys.ColonyLog_ResearchSet.Text(project.label ?? project.defName));
             }
             else
             {
-                AgentLog.NoChange("Already researching " + ReadUtil.DefLabel(project));
+                AgentLog.NoChange(Keys.ColonyLog_ResearchAlready.Text(project.label ?? project.defName));
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(

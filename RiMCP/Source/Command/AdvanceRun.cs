@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using RimWorld;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 using Verse.AI;
 
@@ -155,23 +156,36 @@ namespace RiMCP.Command
 
         public void Revoke(string reason, int tick)
         {
+            RevokeWithDisplayReason(reason, tick, null);
+        }
+
+        public void RevokeWithDisplayReason(string reason, int tick, string displayReason)
+        {
             Revoked = true;
-            End("interrupted", reason, tick);
+            EndWithDisplayReason("interrupted", reason, tick, displayReason);
         }
 
         public void Fail(string message, int tick)
         {
             Failed = true;
-            End("interrupted", "error: " + message, tick);
+            EndWithDisplayReason("interrupted", "error: " + message, tick, Keys.TimeLog_Error.Text(message));
         }
 
         public void End(string status, string reason, int tick)
+        {
+            EndWithDisplayReason(status, reason, tick, null);
+        }
+
+        public void EndWithDisplayReason(string status, string reason, int tick, string displayReason)
         {
             Status = status;
             EndReason = reason;
             EndTick = tick;
             int elapsed = Math.Max(0, tick - StartTick);
-            string line = "Advanced " + Duration(elapsed) + (status == "stopped" ? "; stopped for " + Reason(reason) : status == "completed" ? "" : "; " + Reason(reason));
+            string duration = Duration(elapsed);
+            string line = status == "completed" ? Keys.TimeLog_AdvanceCompleted.Text(duration)
+                : status == "stopped" ? Keys.TimeLog_AdvanceStopped.Text(duration, Reason(reason))
+                : Keys.TimeLog_AdvanceInterrupted.Text(duration, displayReason ?? Reason(reason));
             AgentLog.Finish(LogKey(Id), elapsed == 0 && status != "completed" ? Outcomes.Cancelled : Outcomes.Done, line);
         }
 
@@ -186,27 +200,30 @@ namespace RiMCP.Command
             if (hours < 1f)
             {
                 int minutes = (int)Math.Round(hours * 60f);
-                return minutes == 1 ? "1 minute" : minutes + " minutes";
+                return minutes == 1 ? Keys.TimeLog_MinuteOne.Text()
+                    : Keys.TimeLog_MinuteMany.Text(minutes);
             }
-            return hours == 1f ? "1 hour" : hours.ToString("0.#") + " hours";
+            return hours == 1f ? Keys.TimeLog_HourOne.Text()
+                : Keys.TimeLog_HourMany.Text(hours.ToString("0.#"));
         }
 
         private static string Reason(string reason)
         {
             switch (reason)
             {
-                case "death": return "a death";
-                case "downed": return "a colonist down";
-                case "injured": return "an injury";
-                case "mentalBreak": return "a mental break";
-                case "hostiles": return "hostiles";
-                case "lowFood": return "low food";
-                case "threatLetter": return "a threat letter";
-                case "letter": return "a letter";
-                case "paused": return "the game was paused";
-                case "speedChanged": return "the speed was changed";
-                case "gameUnloaded": return "the game was unloaded";
-                default: return reason ?? "interrupted";
+                case "death": return Keys.TimeLog_Death.Text();
+                case "downed": return Keys.TimeLog_Downed.Text();
+                case "injured": return Keys.TimeLog_Injured.Text();
+                case "mentalBreak": return Keys.TimeLog_MentalBreak.Text();
+                case "hostiles": return Keys.TimeLog_Hostiles.Text();
+                case "lowFood": return Keys.TimeLog_LowFood.Text();
+                case "threatLetter": return Keys.TimeLog_ThreatLetter.Text();
+                case "letter": return Keys.TimeLog_Letter.Text();
+                case "paused": return Keys.TimeLog_GamePaused.Text();
+                case "speedChanged": return Keys.TimeLog_GameSpeedChanged.Text();
+                case "gameUnloaded": return Keys.TimeLog_GameUnloaded.Text();
+                case "set_game_speed": return Keys.TimeLog_SetGameSpeed.Text(reason);
+                default: return reason ?? Keys.TimeLog_Interrupted.Text();
             }
         }
 
@@ -375,22 +392,23 @@ namespace RiMCP.Command
             return run;
         }
 
-        public static AdvanceRun Interrupt(string reason)
+        public static AdvanceRun Interrupt(string reason, Func<string> displayReason = null)
         {
             AdvanceRun run = latest;
             if (run == null || run.Status != AdvanceRun.Running)
             {
                 return null;
             }
-            run.End("interrupted", reason, Current.Game == null ? run.Previous.Tick : Find.TickManager.TicksGame);
+            run.EndWithDisplayReason("interrupted", reason, Current.Game == null ? run.Previous.Tick : Find.TickManager.TicksGame, displayReason?.Invoke());
             run.Ended.Set();
             return run;
         }
 
         // A dialog pauses the game without changing its speed, so a run would resume once it closed.
-        public static AdvanceRun EndForDialog(string reason)
+        public static AdvanceRun EndForDialog(string tool)
         {
-            AdvanceRun run = Interrupt(reason);
+            AdvanceRun run = Interrupt("A dialog opened by " + tool + " is waiting for an answer.",
+                () => Keys.TimeLog_DialogWaiting.Text(tool));
             if (run != null && Current.Game != null && ReferenceEquals(Current.Game, run.Game))
             {
                 Find.TickManager.Pause();
@@ -401,13 +419,18 @@ namespace RiMCP.Command
         // The agent lost time control while its run owned time: end the run and pause.
         public static AdvanceRun Revoke(string reason)
         {
+            return RevokeWithDisplayReason(reason, null);
+        }
+
+        public static AdvanceRun RevokeWithDisplayReason(string reason, Func<string> displayReason)
+        {
             AdvanceRun run = latest;
             if (run == null || run.Status != AdvanceRun.Running)
             {
                 return null;
             }
             bool loaded = Current.Game != null && ReferenceEquals(Current.Game, run.Game);
-            run.Revoke(reason, loaded ? Find.TickManager.TicksGame : run.Previous.Tick);
+            run.RevokeWithDisplayReason(reason, loaded ? Find.TickManager.TicksGame : run.Previous.Tick, displayReason?.Invoke());
             if (loaded)
             {
                 Find.TickManager.Pause();

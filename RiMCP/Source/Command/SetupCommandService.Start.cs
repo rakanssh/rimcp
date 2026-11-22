@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -18,7 +19,7 @@ namespace RiMCP.Command
         {
             RevisionBody body = CommandUtil.ReadBody<RevisionBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
-            AgentLog.Expect("Start the colony", "Started the colony");
+            AgentLog.Expect(Keys.AgentLog_StartColony.Text(), Keys.AgentLog_StartColonyDone.Text());
             return SessionCommandService.Begin(request, "start_game", requestId, () =>
             {
                 Page page = SetupController.OpenPage;
@@ -43,7 +44,7 @@ namespace RiMCP.Command
             {
                 // The player approves this exact setup. Any change while asking voids the approval.
                 bool approved = false;
-                Dialog_MessageBox approval = new Dialog_MessageBox(Summary(), "Start colony", () => approved = true, "Not yet", null, "RimMCP is ready to start this colony");
+                Dialog_MessageBox approval = UiDisplay.Dialog(DisplayText.Raw(Summary()), Keys.StartColony.Display(), () => approved = true, Keys.NotYet.Display(), Keys.StartTitle.Display());
                 Find.WindowStack.Add(approval);
                 operation.State = Operation.AwaitingConfirmation;
                 operation.Confirmation = Dto.Obj(
@@ -118,10 +119,13 @@ namespace RiMCP.Command
             GameInitData init = Find.GameInitData;
             List<string> lines = new List<string>
             {
-                "Scenario: " + (Find.Scenario == null ? "?" : Find.Scenario.name),
-                "Storyteller: " + (Find.Storyteller == null ? "?" : Find.Storyteller.def.LabelCap + ", " + Find.Storyteller.difficultyDef.LabelCap) + (init.permadeath ? " (commitment mode)" : ""),
-                "Site: tile " + init.startingTile.tileId + (init.startingTile.Valid ? ", " + Find.WorldGrid[init.startingTile].PrimaryBiome.LabelCap : "") + ", map " + init.mapSize,
-                "Colonists: " + string.Join(", ", init.startingAndOptionalPawns.Take(init.startingPawnCount).Select(pawn => ReadUtil.PawnName(pawn)).ToArray())
+                Keys.SetupScenario.Text(Find.Scenario == null ? "?" : Find.Scenario.name),
+                (init.permadeath ? Keys.SetupStorytellerCommitment : Keys.SetupStoryteller).Text(
+                    Find.Storyteller == null ? "?" : Keys.SetupStorytellerDetails.Text(Find.Storyteller.def.label, Find.Storyteller.difficultyDef.label)),
+                Keys.SetupSite.Text(init.startingTile.tileId,
+                    init.startingTile.Valid ? Keys.SetupSiteBiome.Text(Find.WorldGrid[init.startingTile].PrimaryBiome.label) : "",
+                    init.mapSize),
+                Keys.SetupColonists.Text(string.Join(Keys.ColonyLog_ListSeparator.Text(), init.startingAndOptionalPawns.Take(init.startingPawnCount).Select(pawn => AgentLog.Name(pawn))))
             };
             return string.Join("\n", lines.ToArray());
         }

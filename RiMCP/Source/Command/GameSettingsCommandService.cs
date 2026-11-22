@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -80,30 +81,36 @@ namespace RiMCP.Command
             {
                 Prefs.Save();
             }
-            List<string> settingChanges = new List<string>();
-            if (storytellerChanged)
-            {
-                settingChanges.Add("storyteller " + storytellerDef.label);
-            }
-            if (difficultyChanged)
-            {
-                settingChanges.Add("difficulty " + difficultyDef.label);
-            }
-            if (preferencesChanged)
-            {
-                settingChanges.Add("game options");
-            }
-            if (settingChanges.Count > 0)
-            {
-                AgentLog.Done("Changed " + string.Join(", ", settingChanges.ToArray()));
-            }
-            else
-            {
-                AgentLog.NoChange("The game settings were already so");
-            }
+            ReportChanges(storytellerChanged ? storytellerDef : null, difficultyChanged ? difficultyDef : null, preferencesChanged);
             return CommandEnvelope.Ok(context, storytellerChanged || difficultyChanged || preferencesChanged, Dto.Obj(
                 Dto.Field("previous", previous),
                 Dto.Field("current", GameSettingsReadService.Snapshot())));
+        }
+
+        private static void ReportChanges(StorytellerDef storyteller, DifficultyDef difficulty, bool preferencesChanged)
+        {
+            List<string> settingChanges = new List<string>();
+            if (storyteller != null)
+            {
+                settingChanges.Add(Keys.TimeLog_Storyteller.Text(storyteller.label));
+            }
+            if (difficulty != null)
+            {
+                settingChanges.Add(Keys.TimeLog_Difficulty.Text(difficulty.label));
+            }
+            if (preferencesChanged)
+            {
+                settingChanges.Add(Keys.TimeLog_Options.Text());
+            }
+            if (settingChanges.Count > 0)
+            {
+                string changes = string.Join(Keys.ColonyLog_ListSeparator.Text(), settingChanges);
+                AgentLog.Done(Keys.TimeLog_SettingsChanged.Text(changes));
+            }
+            else
+            {
+                AgentLog.NoChange(Keys.TimeLog_SettingsUnchanged.Text());
+            }
         }
 
         private static bool ApplyPreferences(SettingsBody body)

@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -46,8 +47,8 @@ namespace RiMCP.Command
         public static BridgeResponse StartSetup(BridgeRequest request, RouteMatch route)
         {
             StartSetupBody body = CommandUtil.ReadBody<StartSetupBody>(request);
-            AgentLog.Expect("Start new-game setup" + (string.IsNullOrWhiteSpace(body.Scenario) ? "" : " (" + body.Scenario.Trim() + ")"),
-                "Opened new-game setup" + (string.IsNullOrWhiteSpace(body.Scenario) ? "" : " (" + body.Scenario.Trim() + ")"));
+            string scenario = string.IsNullOrWhiteSpace(body.Scenario) ? "" : Keys.AgentLog_ScenarioName.Text(body.Scenario);
+            AgentLog.Expect(Keys.AgentLog_OpenSetup.Text(scenario), Keys.AgentLog_OpenedSetup.Text(scenario));
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool discard = body.DiscardUnsaved == true;
             bool overwrite = body.Overwrite == true;
@@ -120,7 +121,7 @@ namespace RiMCP.Command
         public static BridgeResponse SetupBack(BridgeRequest request, RouteMatch route)
         {
             RevisionBody body = CommandUtil.ReadBody<RevisionBody>(request);
-            AgentLog.Expect("Go back a setup screen", "Went back a setup screen");
+            AgentLog.Expect(Keys.AgentLog_PreviousSetup.Text(), Keys.AgentLog_PreviousSetupDone.Text());
             SetupController.RequireRevision(body.ExpectedRevision);
             Page page = SetupController.OpenPage;
             if (page == null)
@@ -139,7 +140,7 @@ namespace RiMCP.Command
         {
             RevisionBody body = CommandUtil.ReadBody<RevisionBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
-            AgentLog.Expect("Cancel new-game setup", "Cancelled new-game setup");
+            AgentLog.Expect(Keys.AgentLog_CancelSetup.Text(), Keys.AgentLog_CancelSetupDone.Text());
             return SessionCommandService.Begin(request, "cancel_setup", requestId, () =>
             {
                 SessionCommandService.RequireSettled();
@@ -188,7 +189,8 @@ namespace RiMCP.Command
         public static BridgeResponse AnswerConfirmation(BridgeRequest request, RouteMatch route)
         {
             AnswerBody body = CommandUtil.ReadBody<AnswerBody>(request);
-            AgentLog.Expect("Answer the game's question", "Answered the game's question: " + (body.Accept == true ? "yes" : "no"));
+            AgentLog.Expect(Keys.AgentLog_AnswerGame.Text(),
+                (body.Accept == true ? Keys.AgentLog_AnswerYes : Keys.AgentLog_AnswerNo).Text());
             Operation operation = OperationRunner.Find(route["operationId"]);
             if (operation == null)
             {

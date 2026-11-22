@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -31,8 +32,9 @@ namespace RiMCP.Command
             }
 
             ProductionReadService.BillRecord record = FindBill(context.Map, billId);
-            string billName = BillName(record);
-            AgentLog.About("Change " + billName, record.Workbench);
+            string billLabel = record.Bill.Label;
+            string workbenchName = AgentLog.Name(record.Workbench);
+            AgentLog.About(Keys.ColonyLog_BillChange.Text(billLabel, workbenchName), record.Workbench);
 
             if (!HasUpdateFields(body))
             {
@@ -47,11 +49,11 @@ namespace RiMCP.Command
             bool changed = !previous.Equals(current);
             if (changed)
             {
-                AgentLog.Done("Changed " + billName, record.Workbench);
+                AgentLog.Done(Keys.ColonyLog_BillChanged.Text(billLabel, workbenchName), record.Workbench);
             }
             else
             {
-                AgentLog.NoChange(char.ToUpperInvariant(billName[0]) + billName.Substring(1) + " was already so", record.Workbench);
+                AgentLog.NoChange(Keys.ColonyLog_BillAlready.Text(billLabel, workbenchName), record.Workbench);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
@@ -87,7 +89,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Workshop not found.");
             }
-            AgentLog.About("Add a bill at " + AgentLog.Name(workshop.Workbench), workshop.Workbench);
+            AgentLog.About(Keys.ColonyLog_BillAdd.Text(AgentLog.Name(workshop.Workbench)), workshop.Workbench);
 
             RecipeDef recipe = DefDatabase<RecipeDef>.GetNamedSilentFail(body.RecipeDefName);
             if (recipe == null)
@@ -110,7 +112,7 @@ namespace RiMCP.Command
             ApplyBillSettings(bill, settings);
 
             ProductionReadService.BillRecord record = new ProductionReadService.BillRecord(workshop.Workbench, workshop.Giver, bill);
-            AgentLog.Done("Added the bill '" + bill.LabelCap + "' at " + AgentLog.Name(workshop.Workbench), workshop.Workbench);
+            AgentLog.Done(Keys.ColonyLog_BillAdded.Text(bill.Label, AgentLog.Name(workshop.Workbench)), workshop.Workbench);
             return new CommandResult(true, Dto.Obj(
                 Dto.Field("bill", ProductionReadService.SerializeBill(record, ReadDetail.Full)),
                 Dto.Field("workshop", SummaryDto.ThingWithPosition(workshop.Workbench))));
@@ -358,19 +360,15 @@ namespace RiMCP.Command
             return record;
         }
 
-        private static string BillName(ProductionReadService.BillRecord record)
-        {
-            return "the bill '" + record.Bill.LabelCap + "' at " + AgentLog.Name(record.Workbench);
-        }
-
         private static CommandResult DeleteBill(Map map, string billId)
         {
             ProductionReadService.BillRecord record = FindBill(map, billId);
-            string billName = BillName(record);
-            AgentLog.About("Delete " + billName, record.Workbench);
+            string billLabel = record.Bill.Label;
+            string workbenchName = AgentLog.Name(record.Workbench);
+            AgentLog.About(Keys.ColonyLog_BillDelete.Text(billLabel, workbenchName), record.Workbench);
             object deletedBill = ProductionReadService.SerializeBill(record, ReadDetail.Full);
             record.Giver.BillStack.Delete(record.Bill);
-            AgentLog.Done("Deleted " + billName, record.Workbench);
+            AgentLog.Done(Keys.ColonyLog_BillDeleted.Text(billLabel, workbenchName), record.Workbench);
             return new CommandResult(true, Dto.Obj(
                 Dto.Field("deleted", true),
                 Dto.Field("bill", deletedBill),

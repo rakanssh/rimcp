@@ -4,7 +4,8 @@ This Windows .NET Framework console harness loads the built `RiMCP.dll` and real
 RimWorld 1.6 managed assemblies. It checks the shared 1.6/1.7 mod without starting
 RimWorld, opening a bridge connection, or accessing player configuration or saves.
 No game API stubs are used. Definitions and bill objects are created only inside
-the test process.
+the test process. The build copies the mod's English keyed resources next to the
+executable, and the harness loads them into Verse with English active by default.
 
 Build the mod first using the repository README. Then, from the repository root:
 
@@ -14,10 +15,10 @@ dotnet build tests/CompatibilityRegression/CompatibilityRegression.csproj -c Rel
 & tests/CompatibilityRegression/bin/Release/net472/CompatibilityRegression.exe $managed (Resolve-Path RiMCP/Assemblies/RiMCP.dll).Path
 ```
 
-Use the same retained 1.6 reference directory used to build the mod. It must
-include `Assembly-CSharp.dll` and the corresponding Unity managed dependencies.
-The harness intentionally does not run against 1.7's .NET 10 engine assemblies;
-live 1.7 smoke tests cover that runtime.
+For execution, point `$managed` to real 1.6 game assemblies, including
+`Assembly-CSharp.dll` and the corresponding Unity managed dependencies.
+The 1.6 reference assemblies can build the mod and this harness.
+Use a .NET 10 smoke test for 1.7 game assemblies.
 
 When using the repository-local dependency cache:
 
@@ -27,7 +28,7 @@ $env:NUGET_PACKAGES = Join-Path $PWD '.nuget/packages'
 dotnet restore tests/CompatibilityRegression/CompatibilityRegression.csproj --source $env:NUGET_PACKAGES "-p:RimWorldManagedPath=$managed"
 ```
 
-The eighty-four checks cover:
+The checks cover:
 
 - Main-menu research listing, definition lookup, and definition search, including
   absence of invented `finished`/`progress` values and blockers, and `availableOnly`
@@ -60,6 +61,13 @@ The eighty-four checks cover:
   asked, with the reason; a failure kept apart from a refusal, as it may have partly run; a partial
   batch saying what was applied and what was rejected, and a batch that applied nothing refused;
   a retry answered from its receipt and a busy game adding nothing; and only the newest entries kept.
+  A refused load preserves the save and backup names, and the diagnostic endpoint
+  returns the recorded text after a language switch. In-memory templates exercise
+  verbatim strings and tagged text, named and numbered arguments, reordering,
+  repeated arguments, and escaped braces. Dialog answers strip game markup while
+  preserving the option's spacing in the log and trimming it in the API response.
+  Tool descriptions use the active
+  translation and fall back to the English manifest text.
 - Entries waiting on an operation, an advance, or a dialog finishing in place when it ends, without
   polling: a save done, a cancelled load cancelled, an advance ending with what stopped it, work that
   ends before its call is recorded still finishing the entry, and a dialog answered or closed.
@@ -68,7 +76,10 @@ The eighty-four checks cover:
   the call; the log reads back newest first from `/v1/agent-log`.
 - Notes limited to one every 10 seconds of real time across loads, and 3 letters per in-game day
   per loaded game, a plain note still allowed when letters are used up; notes logged as the agent's
-  words apart from actions; and notes refused without a game or over 280 characters.
+  words apart from actions. Notes and letters share a length limit read from the active
+  language. The built-in limits are 280 UTF-16 code units in English and 140 in
+  Simplified Chinese, with a fallback of 280. Requests over the limit are refused.
+  Requests exactly at the limit pass length validation and still need a loaded game.
 - A press that fails after starting targeting: the targeting cancelled, the failure reaching the
   caller, and the dialog settled on a new page so the answer is not taken for the player's; and
   no press run, or targeting touched, while the player is choosing a target. Targeting is

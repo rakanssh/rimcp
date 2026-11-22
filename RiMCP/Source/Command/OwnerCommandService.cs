@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -58,15 +59,16 @@ namespace RiMCP.Command
                 throw new CommandException(404, "Pawn not found.");
             }
             string name = ReadUtil.PawnName(pawn);
-            string named = Find.ActiveLanguageWorker.WithDefiniteArticle(building.Label.StripTags());
-            AgentLog.About((assign ? "Assign " + name + " to " : "Unassign " + name + " from ") + named, building);
+            string displayName = AgentLog.Name(pawn);
+            string named = AgentLog.Name(building);
+            AgentLog.About((assign ? Keys.PawnLog_OwnerAssignAttempt : Keys.PawnLog_OwnerUnassignAttempt).Text(displayName, named), building);
             List<Pawn> before = owners.AssignedPawnsForReading.ToList();
             Building_Bed previousBed = pawn.ownership == null ? null : pawn.ownership.OwnedBed;
             if (assign)
             {
                 if (before.Contains(pawn))
                 {
-                    AgentLog.NoChange(name + " already owned " + named, building);
+                    AgentLog.NoChange(Keys.PawnLog_OwnerAssignUnchanged.Text(displayName, named), building);
                     return Result(false, building, owners, before, name + " already owns " + label + ".", null);
                 }
                 // The dialog lists only its candidates, greys out those it cannot take with the
@@ -95,12 +97,12 @@ namespace RiMCP.Command
                 // On a bed, unassigning frees whatever bed the pawn owns, so check it is this one.
                 if (!before.Contains(pawn))
                 {
-                    AgentLog.NoChange(name + " did not own " + named, building);
+                    AgentLog.NoChange(Keys.PawnLog_OwnerUnassignUnchanged.Text(displayName, named), building);
                     return Result(false, building, owners, before, name + " does not own " + label + ".", null);
                 }
                 owners.TryUnassignPawn(pawn);
             }
-            AgentLog.Done((assign ? "Assigned " + name + " to " : "Unassigned " + name + " from ") + named, building, pawn);
+            AgentLog.Done((assign ? Keys.PawnLog_OwnerAssignDone : Keys.PawnLog_OwnerUnassignDone).Text(displayName, named), building, pawn);
             string moved = assign && previousBed != null && previousBed != building ? ReadUtil.ThingId(previousBed) : null;
             return Result(true, building, owners, before, null, moved);
         }

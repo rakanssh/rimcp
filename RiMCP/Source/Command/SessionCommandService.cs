@@ -9,6 +9,7 @@ using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using RiMCP.Util;
 using Verse;
 
@@ -40,15 +41,15 @@ namespace RiMCP.Command
             {
                 throw new CommandException(403, "Stopping " + operation.Tool + " needs " + operation.Tool + " (" + ToolGroups.Label(operation.Group) + ") to be on in RimMCP settings.");
             }
-            AgentLog.About("Stop " + AgentLog.Label(operation.Tool) + " (" + operation.Id + ")");
+            AgentLog.About(Keys.AgentLog_StopOperation.Text(operation.Tool, operation.Id));
             bool changed = OperationRunner.Cancel(operation, "Cancelled with cancel_operation.");
             if (changed)
             {
-                AgentLog.Done("Stopped " + AgentLog.Label(operation.Tool) + " (" + operation.Id + ")");
+                AgentLog.Done(Keys.AgentLog_StoppedOperation.Text(operation.Tool, operation.Id));
             }
             else
             {
-                AgentLog.NoChange(AgentLog.Label(operation.Tool) + " (" + operation.Id + ") had already finished");
+                AgentLog.NoChange(Keys.AgentLog_AlreadyFinished.Text(operation.Tool, operation.Id));
             }
             Dictionary<string, object> data = Serialize(operation);
             data["cancel"] = !changed
@@ -95,7 +96,7 @@ namespace RiMCP.Command
             SaveGameBody body = CommandUtil.ReadBody<SaveGameBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool overwrite = body.Overwrite == true;
-            AgentLog.Expect("Save as " + Quoted(body.Name), "Saved as " + Quoted(body.Name));
+            AgentLog.About(Keys.AgentLog_SaveAs.Text(Quoted(body.Name)));
             return Begin(request, "save_game", requestId, () =>
             {
                 string name = ValidateSaveName(body.Name, "name");
@@ -106,6 +107,7 @@ namespace RiMCP.Command
                 }
                 RequireFreeName(name, overwrite, "name");
                 string loadId = GameContext.LoadId;
+                AgentLog.WhenDone(Keys.AgentLog_SavedAs.Text(Quoted(name)));
                 return operation => SaveOnly(operation, name, overwrite, loadId);
             }, body.Name, overwrite);
         }
@@ -116,7 +118,7 @@ namespace RiMCP.Command
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool discard = body.DiscardUnsaved == true;
             bool overwrite = body.Overwrite == true;
-            AgentLog.Expect("Load " + Quoted(body.Name) + SavingFirst(body.SaveFirst), "Loaded " + Quoted(body.Name) + SavingFirst(body.SaveFirst));
+            AgentLog.About(Keys.AgentLog_LoadSave.Text(Quoted(body.Name), SavingFirst(body.SaveFirst)));
             return Begin(request, "load_game", requestId, () =>
             {
                 string name = ValidateSaveName(body.Name, "name");
@@ -139,6 +141,7 @@ namespace RiMCP.Command
                     RequireFreeName(saveFirst, overwrite, "saveFirst");
                 }
                 string loadId = colony ? GameContext.LoadId : null;
+                AgentLog.WhenDone(Keys.AgentLog_LoadedSave.Text(Quoted(name), SavingFirst(saveFirst)));
                 return operation => Load(operation, name, saveFirst, overwrite, loadId);
             }, body.Name, discard, body.SaveFirst, overwrite);
         }
@@ -149,7 +152,7 @@ namespace RiMCP.Command
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             bool discard = body.DiscardUnsaved == true;
             bool overwrite = body.Overwrite == true;
-            AgentLog.Expect("Leave the game" + SavingFirst(body.SaveFirst), "Left the game" + SavingFirst(body.SaveFirst));
+            AgentLog.About(Keys.AgentLog_LeaveGame.Text(SavingFirst(body.SaveFirst)));
             return Begin(request, "leave_game", requestId, () =>
             {
                 RequireSettled();
@@ -178,6 +181,7 @@ namespace RiMCP.Command
                 string loadId = GameContext.LoadId;
                 string save = saveFirst;
                 bool replace = overwrite;
+                AgentLog.WhenDone(Keys.AgentLog_LeftGame.Text(SavingFirst(save)));
                 return operation => Leave(operation, save, replace, loadId);
             }, discard, body.SaveFirst, overwrite);
         }
@@ -325,7 +329,8 @@ namespace RiMCP.Command
         // not replaced after all, the game's speed comes back.
         private static void HoldGame(Operation operation)
         {
-            AdvanceRunner.Revoke(operation.Tool + " (" + operation.Id + ") is saving before it replaces the game.");
+            AdvanceRunner.RevokeWithDisplayReason(operation.Tool + " (" + operation.Id + ") is saving before it replaces the game.",
+                () => Keys.TimeLog_SavingBeforeReplacement.Text(operation.Tool, operation.Id));
             TimeSpeed before = Find.TickManager.CurTimeSpeed;
             string loadId = GameContext.LoadId;
             KeepPaused();
@@ -359,13 +364,14 @@ namespace RiMCP.Command
             }
             RequireSameGame(loadId);
             string before = Current.Game == null ? null : GameContext.LoadId;
-            AdvanceRunner.Revoke("load_game (" + operation.Id + ") is replacing the game.");
+            AdvanceRunner.RevokeWithDisplayReason("load_game (" + operation.Id + ") is replacing the game.",
+                () => Keys.TimeLog_LoadingReplacement.Text(operation.Id, operation.Tool));
             // A colony saved first is held as saved while the game asks: the notice under the
             // question blocks input to the map, which some questions let through.
-            RiMCP.UI.HeldGameNotice notice = null;
+            HeldGameNotice notice = null;
             if (saveFirst != null)
             {
-                notice = new RiMCP.UI.HeldGameNotice("RimMCP saved the colony as '" + saveFirst + "' and is loading '" + name + "'. The colony is held as saved until you answer.");
+                notice = new HeldGameNotice(Keys.HeldSave.Display(saveFirst, name));
                 Find.WindowStack.Add(notice);
             }
             try
@@ -387,7 +393,7 @@ namespace RiMCP.Command
                     DateTime written = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
                     string message;
                     string kind = LoadQuestion(name, asking, out message);
-                    Func<string> stale = () => !File.Exists(file) || File.GetLastWriteTimeUtc(file) != written ? "The save '" + name + "' changed while the game was asking, so the question was withdrawn." : null;
+                    Func<Confirmations.Refusal> stale = () => !File.Exists(file) || File.GetLastWriteTimeUtc(file) != written ? Confirmations.SaveChanged(name) : null;
                     foreach (string step in Confirmations.Await(operation, asking, kind, message, false, () => LongEventHandler.AnyEventNowOrWaiting, stale, saveFirst != null ? (Action)KeepPaused : null, Dto.Field("save", name)))
                     {
                         yield return step;
@@ -427,7 +433,8 @@ namespace RiMCP.Command
                 }
             }
             RequireSameGame(loadId);
-            AdvanceRunner.Revoke("leave_game (" + operation.Id + ") is leaving the game.");
+            AdvanceRunner.RevokeWithDisplayReason("leave_game (" + operation.Id + ") is leaving the game.",
+                () => Keys.TimeLog_LeavingGame.Text(operation.Id, operation.Tool));
             operation.InNativeStep = true;
             operation.ReplacingGame = true;
             GenScene.GoToMainMenu();
@@ -587,12 +594,12 @@ namespace RiMCP.Command
         // may be half built.
         private static string Quoted(string name)
         {
-            return string.IsNullOrWhiteSpace(name) ? "a save" : "'" + name.Trim() + "'";
+            return string.IsNullOrWhiteSpace(name) ? Keys.AgentLog_UnnamedSave.Text() : Keys.AgentLog_NamedSave.Text(name);
         }
 
         private static string SavingFirst(string saveFirst)
         {
-            return string.IsNullOrWhiteSpace(saveFirst) ? "" : ", saving first as '" + saveFirst.Trim() + "'";
+            return string.IsNullOrWhiteSpace(saveFirst) ? "" : Keys.AgentLog_SavingFirst.Text(saveFirst);
         }
 
         internal static BridgeResponse Envelope(bool changed, object data)

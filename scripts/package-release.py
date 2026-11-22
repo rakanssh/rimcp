@@ -33,8 +33,15 @@ def main():
         "RiMCP/Tools/McpProxy/rimcp-proxy.cmd": "Tools/McpProxy/rimcp-proxy.cmd",
         "LICENSE": "LICENSE",
         "README.md": "README.md",
+        "README.localization.md": "README.localization.md",
+        "README.localization.zh-CN.md": "README.localization.zh-CN.md",
         "CHANGELOG.md": "CHANGELOG.md",
     }
+    catalog = root / "RiMCP/Languages/English/Keyed/ToolDescriptions.xml"
+    if not catalog.is_file():
+        raise FileNotFoundError(f"Missing {catalog.name}. Build the mod before packaging.")
+    for source in sorted((root / "RiMCP/Languages").rglob("*.xml")):
+        files[str(source.relative_to(root))] = source.relative_to(root / "RiMCP").as_posix()
     for rid in ("win-x64", "linux-x64", "osx-x64", "osx-arm64"):
         executable = "RiMCP.McpProxy.exe" if rid == "win-x64" else "RiMCP.McpProxy"
         for name in (executable, "LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):

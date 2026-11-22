@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using RiMCP.Read;
+using RiMCP.UI;
 using UnityEngine;
 using Verse;
 
@@ -13,13 +14,15 @@ namespace RiMCP.Command
         public readonly string Id;
         public readonly int Index;
         public readonly string Text;
+        public readonly string LogText;
         public readonly string DisabledReason;
 
         public DialogOption(string id, int index, string text, string disabledReason)
         {
             Id = id;
             Index = index;
-            Text = text;
+            LogText = text.StripTags();
+            Text = LogText?.Trim();
             DisabledReason = disabledReason;
         }
 
@@ -102,7 +105,7 @@ namespace RiMCP.Command
                 PageKey = () => slider,
                 Title = () => null,
                 Question = () => Clean(slider.textGetter((int)SliderValue.GetValue(slider))),
-                Options = () => new List<DialogOption> { new DialogOption("ok", 0, Clean("OK".Translate().ToString()), null) },
+                Options = () => new List<DialogOption> { new DialogOption("ok", 0, "OK".Translate().ToString(), null) },
                 NotReady = option => null,
                 CanCancel = () => true,
                 Min = slider.from,
@@ -137,7 +140,7 @@ namespace RiMCP.Command
                 Options = () => node().options
                     .Select((option, index) => new { option, index })
                     .Where(each => each.option != null && each.option.hyperlink.def == null)
-                    .Select(each => new DialogOption((each.index + 1).ToString(), each.index, LetterChoices.Text(each.option),
+                    .Select(each => new DialogOption((each.index + 1).ToString(), each.index, LetterChoices.RawText(each.option),
                         each.option.disabled ? (string.IsNullOrEmpty(each.option.disabledReason) ? "Unavailable." : Clean(each.option.disabledReason)) : null))
                     .ToList(),
                 NotReady = option => InteractiveAt != null && Time.realtimeSinceStartup < (float)InteractiveAt.GetValue(dialog) ? "The dialog is not taking answers yet; try again in a moment." : null,
@@ -197,14 +200,14 @@ namespace RiMCP.Command
                 Question = () => Clean(box.text.Resolve()),
                 Options = () =>
                 {
-                    List<DialogOption> buttons = new List<DialogOption> { new DialogOption("a", 0, Clean(box.buttonAText), null) };
+                    List<DialogOption> buttons = new List<DialogOption> { new DialogOption("a", 0, box.buttonAText, null) };
                     if (box.buttonBText != null)
                     {
-                        buttons.Add(new DialogOption("b", 1, Clean(box.buttonBText), null));
+                        buttons.Add(new DialogOption("b", 1, box.buttonBText, null));
                     }
                     if (box.buttonCText != null)
                     {
-                        buttons.Add(new DialogOption("c", 2, Clean(box.buttonCText), null));
+                        buttons.Add(new DialogOption("c", 2, box.buttonCText, null));
                     }
                     return buttons;
                 },
@@ -249,7 +252,7 @@ namespace RiMCP.Command
                 PageKey = () => menu,
                 Title = () => Clean(MenuTitle == null ? null : MenuTitle.GetValue(menu) as string),
                 Question = () => null,
-                Options = () => options().Select((option, index) => new DialogOption((index + 1).ToString(), index, Clean(option.Label), option.Disabled ? "Unavailable." : null)).ToList(),
+                Options = () => options().Select((option, index) => new DialogOption((index + 1).ToString(), index, option.Label, option.Disabled ? "Unavailable." : null)).ToList(),
                 NotReady = option => null,
                 CanCancel = () => true,
                 Choose = option =>
@@ -301,6 +304,7 @@ namespace RiMCP.Command
         public string Id;
         public string Tool;
         public string Subject;
+        public string DisplaySubject;
         public ActionOrigin Origin;
         public Thing Selected;
         public object Game;
@@ -394,9 +398,14 @@ namespace RiMCP.Command
 
         public static void Revoke(Func<Interaction, bool> which, string reason)
         {
+            RevokeWithDisplayReason(which, reason, null);
+        }
+
+        public static void RevokeWithDisplayReason(Func<Interaction, bool> which, string reason, Func<string> displayReason)
+        {
             foreach (Interaction interaction in kept.Where(each => each.State == Interaction.Open && which(each)).ToList())
             {
-                End(interaction, Interaction.Revoked, reason + " The dialog is left to the player.");
+                End(interaction, Interaction.Revoked, reason + " The dialog is left to the player.", displayReason?.Invoke());
             }
         }
 
@@ -557,14 +566,27 @@ namespace RiMCP.Command
             return read.Count == now.Count && read.Zip(now, (a, b) => a.Id == b.Id && a.SameAs(b)).All(same => same);
         }
 
-        private static void End(Interaction interaction, string state, string reason)
+        private static string LogDetail(string state, string reason)
+        {
+            switch (state)
+            {
+                case Interaction.Answered: return Keys.AgentLog_DialogAnswered.Text();
+                case Interaction.Cancelled: return Keys.AgentLog_DialogCancelled.Text();
+                case Interaction.Ended: return Keys.AgentLog_DialogEnded.Text();
+                case Interaction.Closed: return Keys.AgentLog_DialogClosed.Text();
+                case Interaction.AnsweredByPlayer: return Keys.AgentLog_DialogAnsweredByPlayer.Text();
+                default: return reason;
+            }
+        }
+
+        private static void End(Interaction interaction, string state, string reason, string displayReason = null)
         {
             interaction.State = state;
             interaction.Reason = reason;
             AgentLog.Finish(interaction.Id,
                 state == Interaction.Answered || state == Interaction.AnsweredByPlayer ? Outcomes.Done : Outcomes.Cancelled,
                 null,
-                state == Interaction.Answered ? "Answered." : state == Interaction.Cancelled ? "Cancelled." : reason);
+                displayReason ?? LogDetail(state, reason));
         }
     }
 }

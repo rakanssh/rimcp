@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using UnityEngine;
 using Verse;
 using Verse.AI;
@@ -31,6 +32,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "equip",
+                Label = Keys.PawnLog_Order_equip,
                 Target = TargetKind.Item,
                 Jobs = () => new[] { JobDefOf.Equip },
                 Provider = () => new FloatMenuOptionProvider_Equip(),
@@ -44,6 +46,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "wear",
+                Label = Keys.PawnLog_Order_wear,
                 Target = TargetKind.Item,
                 Jobs = () => new[] { JobDefOf.Wear },
                 Provider = () => new FloatMenuOptionProvider_Wear(),
@@ -58,6 +61,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "move",
+                Label = Keys.PawnLog_Order_move,
                 Target = TargetKind.Cell,
                 DraftedOnly = true,
                 Jobs = () => new[] { JobDefOf.Goto },
@@ -72,6 +76,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "attack",
+                Label = Keys.PawnLog_Order_attack,
                 Target = TargetKind.Thing,
                 DraftedOnly = true,
                 Jobs = () => new[] { JobDefOf.AttackStatic, JobDefOf.AttackMelee },
@@ -82,6 +87,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "rescue",
+                Label = Keys.PawnLog_Order_rescue,
                 Target = TargetKind.Pawn,
                 Jobs = () => new[] { JobDefOf.Rescue },
                 Provider = () => new FloatMenuOptionProvider_RescuePawn(),
@@ -92,6 +98,7 @@ namespace RiMCP.Command
             new PawnOrder
             {
                 Name = "tend",
+                Label = Keys.PawnLog_Order_tend,
                 Target = TargetKind.Pawn,
                 DraftedOnly = true,
                 Jobs = () => new[] { JobDefOf.TendPatient },
@@ -131,9 +138,14 @@ namespace RiMCP.Command
         {
             Map map = context.Map;
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
-            AgentLog.About("Order " + AgentLog.Name(pawn) + " to " + order.Name, pawn);
+            string name = AgentLog.Name(pawn);
+            string action = order.Label.Text();
+            AgentLog.About(Keys.PawnLog_OrderAttempt.Text(name, action), pawn);
             LocalTargetInfo target = ResolveTarget(order, body, map, pawn);
-            string ordered = AgentLog.Name(pawn) + " to " + OrderText(order.Name, target) + (queue ? " (queued)" : "");
+            string what = target.HasThing ? AgentLog.Name(target.Thing) : target.Cell.ToIntVec2.ToString();
+            string ordered = Keys.PawnLog_OrderTarget.Text(action, what);
+            string orderToLog = queue ? Keys.PawnLog_OrderQueued.Text(ordered) : ordered;
+            string attempt = Keys.PawnLog_OrderAttempt.Text(name, orderToLog);
             string outcome;
             string reason = null;
             List<Window> opened = new List<Window>();
@@ -147,15 +159,15 @@ namespace RiMCP.Command
             }
             if (outcome == "jobIssued")
             {
-                AgentLog.Done("Ordered " + ordered, pawn, target);
+                AgentLog.Done(Keys.PawnLog_OrderDone.Text(name, orderToLog), pawn, target);
             }
             else if (outcome == "alreadySatisfied")
             {
-                AgentLog.NoChange(AgentLog.Name(pawn) + " was already set to " + OrderText(order.Name, target), pawn, target);
+                AgentLog.NoChange(Keys.PawnLog_OrderUnchanged.Text(name, ordered), pawn, target);
             }
             else if (outcome != "awaitingInput")
             {
-                AgentLog.Refused("Order " + ordered, reason, pawn, target);
+                AgentLog.Refused(attempt, reason, pawn, target);
             }
 
             Job current = pawn.CurJob;
@@ -171,23 +183,18 @@ namespace RiMCP.Command
                 Dto.Field("queuedJobs", PawnReadService.SerializeQueuedJobs(pawn)));
             if (outcome == "awaitingInput")
             {
-                FollowUps.Report(data, "order_pawn", "Order " + ordered, opened, selected: pawn);
+                string subject = "Order " + name + " to " + (order.Name == "move" ? "go to" : order.Name) + " " + what + (queue ? " (queued)" : "");
+                FollowUps.Report(data, "order_pawn", subject, opened, selected: pawn, displaySubject: attempt);
                 if (data.ContainsKey("dialogs"))
                 {
-                    AgentLog.WhenDone("Ordered " + ordered);
+                    AgentLog.WhenDone(Keys.PawnLog_OrderDone.Text(name, orderToLog));
                 }
                 else
                 {
-                    AgentLog.Refused("Order " + ordered, reason, pawn, target);
+                    AgentLog.Refused(attempt, reason, pawn, target);
                 }
             }
             return new CommandResult(outcome == "jobIssued", data);
-        }
-
-        private static string OrderText(string order, LocalTargetInfo target)
-        {
-            string what = target.HasThing ? AgentLog.Name(target.Thing) : "(" + target.Cell.x + ", " + target.Cell.z + ")";
-            return order == "move" ? "go to " + what : order + " " + what;
         }
 
         private static LocalTargetInfo ResolveTarget(PawnOrder order, OrderPawnBody body, Map map, Pawn pawn)
@@ -410,6 +417,7 @@ namespace RiMCP.Command
         private sealed class PawnOrder
         {
             public string Name;
+            public TextKey Label;
             public TargetKind Target;
             public bool DraftedOnly;
             public Func<JobDef[]> Jobs;

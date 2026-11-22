@@ -9,9 +9,9 @@ namespace RiMCP.UI
     // list warning, let input through on their own.
     internal sealed class HeldGameNotice : Window
     {
-        private readonly string text;
+        private readonly DisplayText text;
 
-        public HeldGameNotice(string text)
+        public HeldGameNotice(DisplayText text)
         {
             this.text = text;
             forcePause = true;
@@ -36,7 +36,7 @@ namespace RiMCP.UI
 
         public override void DoWindowContents(Rect inRect)
         {
-            Widgets.Label(inRect, text);
+            UiDisplay.Label(inRect, text);
         }
     }
 }

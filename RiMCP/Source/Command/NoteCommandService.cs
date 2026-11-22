@@ -5,6 +5,8 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
+using RiMCP.Util;
 using Verse;
 
 namespace RiMCP.Command
@@ -13,7 +15,7 @@ namespace RiMCP.Command
     // loaded game, so loading an earlier save starts a new allowance but cannot speed notes up.
     internal static class NoteLimits
     {
-        public const int MaxLength = 280;
+        public static int MaxLength => Keys.AgentActivity_NoteLengthLimit.ReadLimit(minimum: 1, fallback: 280);
         public const int CooldownSeconds = 10;
         public const int LettersPerDay = 3;
         private static readonly Dictionary<string, int> letters = new Dictionary<string, int>();
@@ -63,26 +65,28 @@ namespace RiMCP.Command
         {
             TellPlayerBody body = CommandUtil.ReadBody<TellPlayerBody>(request);
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
-            string text = body.Text == null ? null : body.Text.Trim();
-            if (string.IsNullOrEmpty(text))
+            string text = body.Text;
+            if (string.IsNullOrWhiteSpace(text))
             {
                 throw new CommandException(400, "Missing required field 'text'.");
             }
-            if (text.Length > NoteLimits.MaxLength)
+            int maxLength = NoteLimits.MaxLength;
+            if (text.Length > maxLength)
             {
-                throw new CommandException(400, "Field 'text' is " + text.Length + " characters; at most " + NoteLimits.MaxLength + ".");
+                throw new CommandException(400, "Field 'text' is " + text.Length + " characters; at most " + maxLength + ".");
             }
             if (body.X.HasValue != body.Z.HasValue)
             {
                 throw new CommandException(400, "Give both x and z for a cell.");
             }
-            AgentLog.About("Tell the player: \"" + text + "\"");
+            AgentLog.About(Keys.AgentLog_TellPlayer.Text(text));
             if (Current.Game == null || Current.ProgramState != ProgramState.Playing)
             {
                 throw new CommandException(409, "No game is loaded; notes show in game.");
             }
             CommandContext context = CommandUtil.ContextFor(null);
-            RequestKey key = RequestKey.For("tell_player", requestId, null, text, body.About == null ? null : string.Join(",", body.About), body.X, body.Z, body.Attention);
+            // Quote the note so request-key normalization preserves its surrounding whitespace
+            RequestKey key = RequestKey.For("tell_player", requestId, null, Json.String(text), body.About == null ? null : string.Join(",", body.About), body.X, body.Z, body.Attention);
             return CommandReceipts.Once(context, key, () => Tell(body, text));
         }
 

@@ -6,6 +6,7 @@ using RimWorld;
 using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using UnityEngine;
 using Verse;
 
@@ -168,7 +169,7 @@ namespace RiMCP.Command
                 {
                     entry.Outcome = status >= 500 ? Outcomes.Failed : Outcomes.Refused;
                     entry.Line = ended.About ?? ended.Line ?? Label(ended.Tool);
-                    entry.Detail = status >= 500 ? error + " It may have partly run." : error;
+                    entry.Detail = status >= 500 ? Keys.AgentLog_MayHavePartlyRun.Text(error) : error;
                     entry.Targets = ended.Targets ?? ended.AboutTargets ?? new List<AgentTarget>();
                 }
                 else
@@ -243,10 +244,12 @@ namespace RiMCP.Command
         // was asked for.
         public static void Counted(string doneLine, string asked, int applied, int already, int rejected, string reasons, params object[] targets)
         {
-            string refusals = rejected + " rejected" + (string.IsNullOrEmpty(reasons) ? "." : ": " + reasons);
+            string refusals = string.IsNullOrEmpty(reasons)
+                ? Keys.AgentLog_RejectedCount.Text(rejected)
+                : Keys.AgentLog_RejectedReasons.Text(rejected, reasons);
             if (applied > 0 && rejected > 0)
             {
-                Partly(doneLine + "; " + rejected + " rejected", refusals, targets);
+                Partly(Keys.AgentLog_PartlyRejected.Text(doneLine, rejected), refusals, targets);
             }
             else if (applied > 0)
             {
@@ -258,32 +261,29 @@ namespace RiMCP.Command
             }
             else
             {
-                NoChange(asked + (already > 0 ? ": already so" : ": nothing to do"), targets);
+                NoChange((already > 0 ? Keys.AgentLog_AlreadySo : Keys.AgentLog_NothingToDo).Text(asked), targets);
             }
         }
 
-        public static string Count(int count, string one, string many = null)
-        {
-            return count + " " + (count == 1 ? one : many ?? one + "s");
-        }
-
-        // "wood x300" for stacks of one kind, "the oak tree", "9 oak trees", "9 trees", else "9 things".
-        public static string Count(ICollection<Thing> things, string fallback)
+        // Stacks and homogeneous groups keep the source label, while mixed groups use their category
+        public static string Count(ICollection<Thing> things, TextKey fallback)
         {
             ThingDef kind = things.Count > 0 && things.All(thing => thing.def == things.First().def) ? things.First().def : null;
             if (kind != null && kind.stackLimit > 1)
             {
-                return kind.label + " x" + things.Sum(thing => thing.stackCount);
+                return Keys.AgentLog_CountStack.Text(kind.label.StripTags(), things.Sum(thing => thing.stackCount));
             }
             if (things.Count == 1)
             {
-                return Find.ActiveLanguageWorker.WithDefiniteArticle(things.First().LabelNoCount);
+                return things.First().LabelNoCount.StripTags();
             }
             if (kind == null)
             {
-                return Count(things.Count, things.Count > 0 && things.All(thing => thing.def.plant != null && thing.def.plant.IsTree) ? "tree" : fallback);
+                TextKey category = things.Count > 0 && things.All(thing => thing.def.plant != null && thing.def.plant.IsTree)
+                    ? Keys.AgentLog_Count_tree : fallback;
+                return category.Text(things.Count);
             }
-            return things.Count + " " + Find.ActiveLanguageWorker.Pluralize(kind.label, things.Count);
+            return Keys.AgentLog_CountNamed.Text(things.Count, kind.label.StripTags());
         }
 
         // A decision shows in game as well as in the log.
@@ -300,7 +300,7 @@ namespace RiMCP.Command
 
         public static void Note(string text, bool attention, params object[] targets)
         {
-            Report(Outcomes.Done, "\"" + text + "\"", null, targets);
+            Report(Outcomes.Done, Keys.AgentLog_QuotedMessage.Text(text), null, targets);
             Guard(() =>
             {
                 if (call != null)
@@ -398,9 +398,7 @@ namespace RiMCP.Command
             {
                 return null;
             }
-            Pawn pawn = thing as Pawn;
-            string label = pawn != null ? ReadUtil.PawnName(pawn) : thing.LabelShortCap.ToString();
-            return new AgentTarget(ReadUtil.ThingId(thing), Clean(label), thing.PositionHeld, thing.MapHeld);
+            return new AgentTarget(ReadUtil.ThingId(thing), Name(thing), thing.PositionHeld, thing.MapHeld);
         }
 
         public static AgentTarget Cell(Map map, IntVec3 cell, string label = null)
@@ -427,13 +425,12 @@ namespace RiMCP.Command
 
         public static string Name(Thing thing)
         {
-            AgentTarget target = Target(thing);
-            return target == null ? "?" : target.Label;
+            return thing is Pawn pawn && pawn.Name != null ? pawn.Name.ToStringFull : thing?.LabelNoCount.StripTags() ?? "?";
         }
 
         public static string Label(string tool)
         {
-            return string.IsNullOrEmpty(tool) ? "An agent call" : tool.Replace('_', ' ');
+            return string.IsNullOrEmpty(tool) ? Keys.AgentLog_AgentCall.Text() : Keys.AgentLog_ToolCall.Text(tool);
         }
 
         // Jumps to what an entry acted on, only within the loaded game it came from.
@@ -627,11 +624,6 @@ namespace RiMCP.Command
                     Log.Warning("RimMCP: the agent log failed and skipped an entry: " + ex);
                 }
             }
-        }
-
-        private static string Clean(string text)
-        {
-            return string.IsNullOrEmpty(text) ? text : text.StripTags().Trim();
         }
     }
 }

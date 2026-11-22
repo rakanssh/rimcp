@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.AgentLog.MayHavePartlyRun>{0} 操作可能已执行了一部分。</RiMCP.AgentLog.MayHavePartlyRun>
+  <RiMCP.AgentLog.RejectedCount>有 {0} 项被拒绝。</RiMCP.AgentLog.RejectedCount>
+  <RiMCP.AgentLog.RejectedReasons>有 {0} 项被拒绝，原因：{1}</RiMCP.AgentLog.RejectedReasons>
+  <RiMCP.AgentLog.PartlyRejected>{0}，另有 {1} 项被拒绝</RiMCP.AgentLog.PartlyRejected>
+  <RiMCP.AgentLog.AlreadySo>{0}：已经是所需状态</RiMCP.AgentLog.AlreadySo>
+  <RiMCP.AgentLog.NothingToDo>{0}：无需操作</RiMCP.AgentLog.NothingToDo>
+  <RiMCP.AgentLog.Count.plant>{0} 株植物</RiMCP.AgentLog.Count.plant>
+  <RiMCP.AgentLog.Count.tree>{0} 棵树</RiMCP.AgentLog.Count.tree>
+  <RiMCP.AgentLog.Count.thing>{0} 个对象</RiMCP.AgentLog.Count.thing>
+  <RiMCP.AgentLog.Count.item>{0} 件物品</RiMCP.AgentLog.Count.item>
+  <RiMCP.AgentLog.QuotedMessage>“{0}”</RiMCP.AgentLog.QuotedMessage>
+  <RiMCP.AgentLog.AgentCall>智能体调用</RiMCP.AgentLog.AgentCall>
+  <RiMCP.AgentLog.ToolCall>智能体调用：{0}</RiMCP.AgentLog.ToolCall>
+  <RiMCP.AgentLog.TargetingCancelled>{0}；已取消目标选择</RiMCP.AgentLog.TargetingCancelled>
+  <RiMCP.AgentLog.TellPlayer>向玩家留言：“{0}”</RiMCP.AgentLog.TellPlayer>
+  <RiMCP.AgentLog.DialogAnswered>已答复。</RiMCP.AgentLog.DialogAnswered>
+  <RiMCP.AgentLog.DialogCancelled>已取消。</RiMCP.AgentLog.DialogCancelled>
+  <RiMCP.AgentLog.DialogEnded>已载入另一局游戏，此对话框已失效。</RiMCP.AgentLog.DialogEnded>
+  <RiMCP.AgentLog.DialogClosed>智能体作出答复前，对话框已关闭。</RiMCP.AgentLog.DialogClosed>
+  <RiMCP.AgentLog.DialogAnsweredByPlayer>玩家已答复该对话框。</RiMCP.AgentLog.DialogAnsweredByPlayer>
+  <RiMCP.AgentLog.DialogRevokedBridgeDisabled>已在设置中停用 RimMCP。请由玩家处理该对话框。</RiMCP.AgentLog.DialogRevokedBridgeDisabled>
+  <RiMCP.AgentLog.DialogRevokedToolDisabled>打开此对话框的工具已在 RimMCP 设置中停用。请由玩家处理该对话框。</RiMCP.AgentLog.DialogRevokedToolDisabled>
+  <RiMCP.AgentLog.AnswerDialog>答复“{0}”</RiMCP.AgentLog.AnswerDialog>
+  <RiMCP.AgentLog.ClosedDialog>已关闭“{0}”，未作答复</RiMCP.AgentLog.ClosedDialog>
+  <RiMCP.AgentLog.AnsweredDialog>已在“{1}”中答复“{0}”</RiMCP.AgentLog.AnsweredDialog>
+  <RiMCP.AgentLog.DismissLetter>忽略信件“{0}”</RiMCP.AgentLog.DismissLetter>
+  <RiMCP.AgentLog.AnswerLetter>答复信件“{0}”</RiMCP.AgentLog.AnswerLetter>
+  <RiMCP.AgentLog.DismissQuest>忽略任务“{0}”</RiMCP.AgentLog.DismissQuest>
+  <RiMCP.AgentLog.RestoreQuest>恢复任务“{0}”</RiMCP.AgentLog.RestoreQuest>
+  <RiMCP.AgentLog.AlreadyDismissed>任务“{0}”已被忽略</RiMCP.AgentLog.AlreadyDismissed>
+  <RiMCP.AgentLog.AlreadyRestored>任务“{0}”已在任务列表中</RiMCP.AgentLog.AlreadyRestored>
+  <RiMCP.AgentLog.AcceptQuest>接受任务“{0}”</RiMCP.AgentLog.AcceptQuest>
+  <RiMCP.AgentLog.ConfirmQuest>已请求确认是否接受任务“{0}”</RiMCP.AgentLog.ConfirmQuest>
+  <RiMCP.AgentLog.StopOperation>停止 {0}（{1}）</RiMCP.AgentLog.StopOperation>
+  <RiMCP.AgentLog.StoppedOperation>已停止 {0}（{1}）</RiMCP.AgentLog.StoppedOperation>
+  <RiMCP.AgentLog.AlreadyFinished>{0}（{1}）已结束</RiMCP.AgentLog.AlreadyFinished>
+  <RiMCP.AgentLog.UnnamedSave>存档</RiMCP.AgentLog.UnnamedSave>
+  <RiMCP.AgentLog.NamedSave>“{0}”</RiMCP.AgentLog.NamedSave>
+  <RiMCP.AgentLog.SaveAs>另存为{0}</RiMCP.AgentLog.SaveAs>
+  <RiMCP.AgentLog.SavedAs>已另存为{0}</RiMCP.AgentLog.SavedAs>
+  <RiMCP.AgentLog.SavingFirst>，先另存为“{0}”</RiMCP.AgentLog.SavingFirst>
+  <RiMCP.AgentLog.LoadSave>载入{0}{1}</RiMCP.AgentLog.LoadSave>
+  <RiMCP.AgentLog.LoadedSave>已载入{0}{1}</RiMCP.AgentLog.LoadedSave>
+  <RiMCP.AgentLog.LeaveGame>离开游戏{0}</RiMCP.AgentLog.LeaveGame>
+  <RiMCP.AgentLog.LeftGame>已离开游戏{0}</RiMCP.AgentLog.LeftGame>
+  <RiMCP.AgentLog.ScenarioName>（{0}）</RiMCP.AgentLog.ScenarioName>
+  <RiMCP.AgentLog.OpenSetup>开始新游戏设置{0}</RiMCP.AgentLog.OpenSetup>
+  <RiMCP.AgentLog.OpenedSetup>已打开新游戏设置{0}</RiMCP.AgentLog.OpenedSetup>
+  <RiMCP.AgentLog.PreviousSetup>返回上一步设置</RiMCP.AgentLog.PreviousSetup>
+  <RiMCP.AgentLog.PreviousSetupDone>已返回上一步设置</RiMCP.AgentLog.PreviousSetupDone>
+  <RiMCP.AgentLog.CancelSetup>取消新游戏设置</RiMCP.AgentLog.CancelSetup>
+  <RiMCP.AgentLog.CancelSetupDone>已取消新游戏设置</RiMCP.AgentLog.CancelSetupDone>
+  <RiMCP.AgentLog.AnswerGame>答复游戏提示</RiMCP.AgentLog.AnswerGame>
+  <RiMCP.AgentLog.AnswerYes>已在游戏提示中选择“是”</RiMCP.AgentLog.AnswerYes>
+  <RiMCP.AgentLog.AnswerNo>已在游戏提示中选择“否”</RiMCP.AgentLog.AnswerNo>
+  <RiMCP.AgentLog.SetIdeoligion>设置文化信仰</RiMCP.AgentLog.SetIdeoligion>
+  <RiMCP.AgentLog.SetIdeoligionDone>已设置文化信仰</RiMCP.AgentLog.SetIdeoligionDone>
+  <RiMCP.AgentLog.EditIdeoligion>编辑文化信仰</RiMCP.AgentLog.EditIdeoligion>
+  <RiMCP.AgentLog.EditIdeoligionDone>已编辑文化信仰</RiMCP.AgentLog.EditIdeoligionDone>
+  <RiMCP.AgentLog.SetColonists>设置初始殖民者</RiMCP.AgentLog.SetColonists>
+  <RiMCP.AgentLog.SetColonistsDone>已设置初始殖民者</RiMCP.AgentLog.SetColonistsDone>
+  <RiMCP.AgentLog.StartColony>开始殖民</RiMCP.AgentLog.StartColony>
+  <RiMCP.AgentLog.StartColonyDone>已开始殖民</RiMCP.AgentLog.StartColonyDone>
+  <RiMCP.AgentLog.GenerateWorld>生成世界</RiMCP.AgentLog.GenerateWorld>
+  <RiMCP.AgentLog.GenerateWorldDone>已生成世界</RiMCP.AgentLog.GenerateWorldDone>
+  <RiMCP.AgentLog.ChooseSite>选择初始定居点</RiMCP.AgentLog.ChooseSite>
+  <RiMCP.AgentLog.ChooseSiteDone>已选择初始定居点</RiMCP.AgentLog.ChooseSiteDone>
+  <RiMCP.AgentLog.SetStoryteller>设置故事叙述者</RiMCP.AgentLog.SetStoryteller>
+  <RiMCP.AgentLog.SetStorytellerDone>已设置故事叙述者</RiMCP.AgentLog.SetStorytellerDone>
+  <RiMCP.AgentLog.SetStorytellerNamed>已设置故事叙述者：{0}</RiMCP.AgentLog.SetStorytellerNamed>
+  <RiMCP.AgentLog.CountNamed>{0} 个{1}</RiMCP.AgentLog.CountNamed>
+  <RiMCP.AgentLog.CountStack>{0} ×{1}</RiMCP.AgentLog.CountStack>
+  <RiMCP.AgentLog.RefusalSeparator>；</RiMCP.AgentLog.RefusalSeparator>
+  <RiMCP.AgentLog.NamedRefusal>{0}：{1}</RiMCP.AgentLog.NamedRefusal>
+</LanguageData>

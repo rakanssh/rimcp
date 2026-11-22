@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.PawnLog.DraftAttempt>Draft {0}</RiMCP.PawnLog.DraftAttempt>
+  <RiMCP.PawnLog.UndraftAttempt>Undraft {0}</RiMCP.PawnLog.UndraftAttempt>
+  <RiMCP.PawnLog.DraftDone>Drafted {0}</RiMCP.PawnLog.DraftDone>
+  <RiMCP.PawnLog.UndraftDone>Undrafted {0}</RiMCP.PawnLog.UndraftDone>
+  <RiMCP.PawnLog.DraftUnchanged>{0} was already drafted</RiMCP.PawnLog.DraftUnchanged>
+  <RiMCP.PawnLog.UndraftUnchanged>{0} was already undrafted</RiMCP.PawnLog.UndraftUnchanged>
+  <RiMCP.PawnLog.WorkOffAttempt>Turn off {0}'s {1}</RiMCP.PawnLog.WorkOffAttempt>
+  <RiMCP.PawnLog.WorkPriorityAttempt>Set {0}'s {1} priority to {2}</RiMCP.PawnLog.WorkPriorityAttempt>
+  <RiMCP.PawnLog.WorkOffDone>Turned off {0}'s {1}</RiMCP.PawnLog.WorkOffDone>
+  <RiMCP.PawnLog.WorkPriorityDone>Set {0}'s {1} priority to {2}</RiMCP.PawnLog.WorkPriorityDone>
+  <RiMCP.PawnLog.ManualPriorities>{0} (the colony now uses manual priorities)</RiMCP.PawnLog.ManualPriorities>
+  <RiMCP.PawnLog.WorkOffUnchanged>{0}'s {1} was already off</RiMCP.PawnLog.WorkOffUnchanged>
+  <RiMCP.PawnLog.WorkPriorityUnchanged>{0}'s {1} priority was already {2}</RiMCP.PawnLog.WorkPriorityUnchanged>
+  <RiMCP.PawnLog.OrderAttempt>Order {0} to {1}</RiMCP.PawnLog.OrderAttempt>
+  <RiMCP.PawnLog.OrderDone>Ordered {0} to {1}</RiMCP.PawnLog.OrderDone>
+  <RiMCP.PawnLog.OrderUnchanged>{0} was already set to {1}</RiMCP.PawnLog.OrderUnchanged>
+  <RiMCP.PawnLog.OrderTarget>{0} {1}</RiMCP.PawnLog.OrderTarget>
+  <RiMCP.PawnLog.OrderQueued>{0} (queued)</RiMCP.PawnLog.OrderQueued>
+  <RiMCP.PawnLog.Order.equip>equip</RiMCP.PawnLog.Order.equip>
+  <RiMCP.PawnLog.Order.wear>wear</RiMCP.PawnLog.Order.wear>
+  <RiMCP.PawnLog.Order.move>go to</RiMCP.PawnLog.Order.move>
+  <RiMCP.PawnLog.Order.attack>attack</RiMCP.PawnLog.Order.attack>
+  <RiMCP.PawnLog.Order.rescue>rescue</RiMCP.PawnLog.Order.rescue>
+  <RiMCP.PawnLog.Order.tend>tend</RiMCP.PawnLog.Order.tend>
+  <RiMCP.PawnLog.ScheduleAttempt>Change {0}'s schedule</RiMCP.PawnLog.ScheduleAttempt>
+  <RiMCP.PawnLog.ScheduleDoneOne>Changed one hour of {0}'s schedule</RiMCP.PawnLog.ScheduleDoneOne>
+  <RiMCP.PawnLog.ScheduleDoneMany>Changed {1} hours of {0}'s schedule</RiMCP.PawnLog.ScheduleDoneMany>
+  <RiMCP.PawnLog.ScheduleUnchanged>{0}'s schedule was already set</RiMCP.PawnLog.ScheduleUnchanged>
+  <RiMCP.PawnLog.AssignmentAttempt>Change {0}'s {1}</RiMCP.PawnLog.AssignmentAttempt>
+  <RiMCP.PawnLog.AssignmentDone>Set {0}'s {1} to {2}</RiMCP.PawnLog.AssignmentDone>
+  <RiMCP.PawnLog.AssignmentUnchanged>{0}'s {1} was already {2}</RiMCP.PawnLog.AssignmentUnchanged>
+  <RiMCP.PawnLog.Policy.apparel>apparel policy</RiMCP.PawnLog.Policy.apparel>
+  <RiMCP.PawnLog.Policy.food>food policy</RiMCP.PawnLog.Policy.food>
+  <RiMCP.PawnLog.Policy.drug>drug policy</RiMCP.PawnLog.Policy.drug>
+  <RiMCP.PawnLog.Policy.reading>reading policy</RiMCP.PawnLog.Policy.reading>
+  <RiMCP.PawnLog.MedicalCare>medical care</RiMCP.PawnLog.MedicalCare>
+  <RiMCP.PawnLog.SelfTend>self-tend</RiMCP.PawnLog.SelfTend>
+  <RiMCP.PawnLog.HostilityResponse>hostility response</RiMCP.PawnLog.HostilityResponse>
+  <RiMCP.PawnLog.AllowedArea>allowed area</RiMCP.PawnLog.AllowedArea>
+  <RiMCP.PawnLog.CarryMedicine>medicine to carry</RiMCP.PawnLog.CarryMedicine>
+  <RiMCP.PawnLog.PrisonerInteraction>prisoner interaction</RiMCP.PawnLog.PrisonerInteraction>
+  <RiMCP.PawnLog.On>on</RiMCP.PawnLog.On>
+  <RiMCP.PawnLog.Off>off</RiMCP.PawnLog.Off>
+  <RiMCP.PawnLog.None>none</RiMCP.PawnLog.None>
+  <RiMCP.PawnLog.Unrestricted>unrestricted</RiMCP.PawnLog.Unrestricted>
+  <RiMCP.PawnLog.CountedMedicine>{0} {1}</RiMCP.PawnLog.CountedMedicine>
+  <RiMCP.PawnLog.Designation.hunt>hunting</RiMCP.PawnLog.Designation.hunt>
+  <RiMCP.PawnLog.Designation.tame>taming</RiMCP.PawnLog.Designation.tame>
+  <RiMCP.PawnLog.Designation.slaughter>slaughter</RiMCP.PawnLog.Designation.slaughter>
+  <RiMCP.PawnLog.DesignationAttempt>Mark {0} for {1}</RiMCP.PawnLog.DesignationAttempt>
+  <RiMCP.PawnLog.DesignationDone>Marked {0} for {1}</RiMCP.PawnLog.DesignationDone>
+  <RiMCP.PawnLog.DesignationUnchanged>{0} was already marked for {1}</RiMCP.PawnLog.DesignationUnchanged>
+  <RiMCP.PawnLog.DesignationClearAttempt>Clear the orders on {0}</RiMCP.PawnLog.DesignationClearAttempt>
+  <RiMCP.PawnLog.DesignationClearDone>Cleared the orders on {0}</RiMCP.PawnLog.DesignationClearDone>
+  <RiMCP.PawnLog.DesignationClearUnchanged>{0} had no orders</RiMCP.PawnLog.DesignationClearUnchanged>
+  <RiMCP.PawnLog.TrainingAttempt>Change {0}'s training</RiMCP.PawnLog.TrainingAttempt>
+  <RiMCP.PawnLog.TrainingState>{0} {1}</RiMCP.PawnLog.TrainingState>
+  <RiMCP.PawnLog.TrainingDone>Set {0}'s training: {1}</RiMCP.PawnLog.TrainingDone>
+  <RiMCP.PawnLog.TrainingUnchanged>{0}'s training was already set</RiMCP.PawnLog.TrainingUnchanged>
+  <RiMCP.PawnLog.OwnerAssignAttempt>Assign {0} to {1}</RiMCP.PawnLog.OwnerAssignAttempt>
+  <RiMCP.PawnLog.OwnerUnassignAttempt>Unassign {0} from {1}</RiMCP.PawnLog.OwnerUnassignAttempt>
+  <RiMCP.PawnLog.OwnerAssignDone>Assigned {0} to {1}</RiMCP.PawnLog.OwnerAssignDone>
+  <RiMCP.PawnLog.OwnerUnassignDone>Unassigned {0} from {1}</RiMCP.PawnLog.OwnerUnassignDone>
+  <RiMCP.PawnLog.OwnerAssignUnchanged>{0} already owned {1}</RiMCP.PawnLog.OwnerAssignUnchanged>
+  <RiMCP.PawnLog.OwnerUnassignUnchanged>{0} did not own {1}</RiMCP.PawnLog.OwnerUnassignUnchanged>
+  <RiMCP.PawnLog.NamedAction>{0}: {1}</RiMCP.PawnLog.NamedAction>
+  <RiMCP.PawnLog.ToggleAttempt>Turn {1} {2} on {0}</RiMCP.PawnLog.ToggleAttempt>
+  <RiMCP.PawnLog.ToggleDone>Turned {1} {2} on {0}</RiMCP.PawnLog.ToggleDone>
+  <RiMCP.PawnLog.ToggleUnchanged>{1} on {0} was already {2}</RiMCP.PawnLog.ToggleUnchanged>
+  <RiMCP.PawnLog.GizmoTarget>{0} at {1}</RiMCP.PawnLog.GizmoTarget>
+  <RiMCP.PawnLog.GizmoToggle>{0} {1}</RiMCP.PawnLog.GizmoToggle>
+  <RiMCP.PawnLog.GizmoPending>{0} (waiting for a colonist to flick it)</RiMCP.PawnLog.GizmoPending>
+  <RiMCP.PawnLog.GizmoUnchanged>{0}: already so</RiMCP.PawnLog.GizmoUnchanged>
+  <RiMCP.PawnLog.TrainingListSeparator>, </RiMCP.PawnLog.TrainingListSeparator>
+</LanguageData>

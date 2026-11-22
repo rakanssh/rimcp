@@ -55,6 +55,8 @@ internal static class Program
         Current.Game = null;
         Current.CreatingWorld = null;
         Current.ProgramState = ProgramState.Entry;
+        LanguageDatabase.defaultLanguage = LoadEnglish();
+        LanguageDatabase.activeLanguage = LanguageDatabase.defaultLanguage;
         typeof(DefOfHelper).GetField("bindingNow", Static).SetValue(null, true);
         SetAccess("full", AllGroups());
         ResearchProjectDef alpha = Project("RegressionAlpha");
@@ -104,9 +106,13 @@ internal static class Program
         Test("an answer to options that shrank since they were read is refused before its option's code is looked up", CheckLateAnswer);
         Test("a press that fails cancels the targeting it started and settles its dialog, and none runs while the player targets", CheckPressFailure);
         Test("the agent log keeps one entry per change with its outcome: refusals, failures, partial batches, replays, and busy calls", CheckAgentLogEntries);
+        Test("a load refusal keeps both names and its recorded language in the diagnostic log", CheckAgentLogLanguage);
+        Test("UI formatting preserves raw text through argument reordering, repetition, and escaped braces", CheckUiFormatting);
+        Test("player-facing tool descriptions use the active translation with manifest fallback", CheckToolDescriptionLanguage);
         Test("agent log entries waiting on an operation, an advance, or a dialog finish in place when it ends", CheckAgentLogPending);
         Test("dialog answers through the router are logged once with their client, and a failing listener never fails the call", CheckAgentLogRouter);
-        Test("notes are limited to one every 10 seconds and 3 letters per in-game day per loaded game, and are logged apart from actions", CheckNotes);
+        Test("note receipts distinguish the exact message text", CheckNoteReceipts);
+        Test("notes are limited to one every 10 seconds and 3 letters per in-game day per loaded game, use the active language's length limit, and are logged apart from actions", CheckNotes);
         Test("letter revisions belong to one loaded game", CheckLetterRevision);
         Test("every right-click menu provider and button type in the game is classified", CheckGameActionTables);
         Test("options and buttons are the game's only when their code is, and the audited ones are refused", CheckActionOrigins);
@@ -989,7 +995,7 @@ internal static class Program
         letter.ID = 7;
         Type choiceType = mod.GetType("RiMCP.Read.LetterChoice", true);
         IList choices = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(choiceType));
-        choices.Add(Activator.CreateInstance(choiceType, 0, "1", "Accept", null));
+        choices.Add(Activator.CreateInstance(choiceType, 0, "1", "Accept", "Accept", null));
         MethodInfo revision = mod.GetType("RiMCP.Read.LetterChoices", true).GetMethod("Revision", Static);
         string a = (string)revision.Invoke(null, new object[] { "session-1", letter, choices });
         string b = (string)revision.Invoke(null, new object[] { "session-2", letter, choices });
@@ -1171,6 +1177,40 @@ internal static class Program
         Check(Field<string>(forButton(new Command_Action { action = Log.Clear }), "Unsupported") == null, "an ordinary game button is not refused");
     }
 
+    private static LoadedLanguage TestLanguage(Type workerType)
+    {
+        // The game constructor reads Unity textures and the lazy loader scans installed mods
+        var language = (LoadedLanguage)FormatterServices.GetUninitializedObject(typeof(LoadedLanguage));
+        language.folderName = "Regression";
+        language.info = new LanguageInfo { languageWorkerClass = workerType };
+        language.keyedReplacements = new Dictionary<string, LoadedLanguage.KeyedReplacement>();
+        typeof(LoadedLanguage).GetField("dataIsLoaded", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(language, true);
+        return language;
+    }
+
+    private static LoadedLanguage LoadEnglish()
+    {
+        var language = TestLanguage(typeof(LanguageWorker_English));
+        language.folderName = "English";
+        string keyed = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Languages", "English", "Keyed");
+        foreach (string file in Directory.GetFiles(keyed, "*.xml"))
+        {
+            foreach (DirectXmlLoaderSimple.XmlKeyValuePair entry in DirectXmlLoaderSimple.ValuesFromXmlFile(File.ReadAllText(file)))
+            {
+                language.keyedReplacements.Add(entry.key, new LoadedLanguage.KeyedReplacement
+                {
+                    key = entry.key,
+                    value = entry.value,
+                    fileSource = Path.GetFileName(file),
+                    fileSourceLine = entry.lineNumber,
+                    fileSourceFullPath = file
+                });
+            }
+        }
+        Check(language.keyedReplacements.Count > 0, "expected English keyed resources");
+        return language;
+    }
+
     private static Type AgentLogType()
     {
         return mod.GetType("RiMCP.Command.AgentLog", true);
@@ -1222,7 +1262,10 @@ internal static class Program
             LogCall("Done", "Big: Fire", none);
             LogCall("End", 500, "NullReferenceException: broken", null);
             object failed = LogEntries().Last();
-            Check(Field<string>(failed, "Outcome") == "failed" && Field<string>(failed, "Line") == "Big: Fire" && Field<string>(failed, "Detail").Contains("may have partly run"), "a failure is not a refusal, and may have partly run: " + Describe(failed));
+            string detail = Field<string>(failed, "Detail");
+            Check(Field<string>(failed, "Outcome") == "failed" && Field<string>(failed, "Line") == "Big: Fire"
+                && detail.Contains("NullReferenceException: broken") && detail != "NullReferenceException: broken",
+                "a failure retains the error and adds context about partial execution: " + Describe(failed));
 
             int before = LogEntries().Count;
             LogCall("Begin", "designate", null);
@@ -1233,7 +1276,7 @@ internal static class Program
             LogCall("Counted", "Placed 9 wall blueprints", "Place wall", 9, 0, 3, "Blocked by a wall.", none);
             LogCall("End", 200, null, (bool?)true);
             object partly = LogEntries().Last();
-            Check(Field<string>(partly, "Outcome") == "partlyDone" && Field<string>(partly, "Line") == "Placed 9 wall blueprints; 3 rejected" && Field<string>(partly, "Detail").Contains("Blocked by a wall."), "a partial batch says what was applied and what was rejected: " + Describe(partly));
+            Check(Field<string>(partly, "Outcome") == "partlyDone" && Field<string>(partly, "Line").Contains("Placed 9 wall blueprints") && Field<string>(partly, "Line").Contains("3") && Field<string>(partly, "Detail").Contains("Blocked by a wall."), "a partial batch says what was applied and what was rejected: " + Describe(partly));
 
             LogCall("Begin", "place_blueprint", null);
             LogCall("Counted", "Placed 0 wall blueprints", "Place wall", 0, 0, 2, "Blocked.", none);
@@ -1259,6 +1302,106 @@ internal static class Program
         finally
         {
             LogCall("Reset");
+        }
+    }
+
+    private static void CheckAgentLogLanguage()
+    {
+        LoadedLanguage previous = LanguageDatabase.activeLanguage;
+        const string key = "RiMCP.AgentLog.LoadSave";
+        const string name = "  alpha. beta/slot  ";
+        const string backup = "  keep. delta  ";
+        LoadedLanguage language = TestLanguage(typeof(LanguageWorker_Default));
+        language.keyedReplacements[key] = new LoadedLanguage.KeyedReplacement { key = key, value = "test-load {1} | {0}" };
+        LogCall("Reset");
+        try
+        {
+            LanguageDatabase.activeLanguage = language;
+            SetAccess("full", AllGroups());
+            string body = Json.Serialize(new { name, saveFirst = backup });
+            object response = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/session/load", "POST", body));
+            Check(Field<int>(response, "StatusCode") == 400, "the invalid save name must be refused before file access");
+            object entry = LogEntries().Single();
+            string line = Field<string>(entry, "Line");
+            string detail = Field<string>(entry, "Detail");
+            int first = line.IndexOf(backup, StringComparison.Ordinal);
+            Check(line.StartsWith("test-load ", StringComparison.Ordinal) && first >= 0 && line.IndexOf(name, StringComparison.Ordinal) > first,
+                "the active template must reorder and preserve both names: " + line);
+
+            LanguageDatabase.activeLanguage = previous;
+            var row = (Dictionary<string, object>)Rows(Call("AgentLogReadService", "GetLog", "/v1/agent-log?limit=1")["entries"])[0];
+            Check(!string.IsNullOrEmpty(detail) && (string)row["line"] == line && (string)row["detail"] == detail
+                && (string)row["tool"] == "load_game" && (string)row["outcome"] == "refused",
+                "the diagnostic endpoint must return the text recorded before the language switch");
+        }
+        finally
+        {
+            LanguageDatabase.activeLanguage = previous;
+            LogCall("Reset");
+        }
+    }
+
+    private static void CheckUiFormatting()
+    {
+        const string key = "RegressionFormatting";
+        const string raw = "  keep {0}. lowercase\r\n(*Name)next(/Name)  ";
+        LoadedLanguage previous = LanguageDatabase.activeLanguage;
+        LoadedLanguage language = TestLanguage(typeof(LanguageWorker_Default));
+        language.keyedReplacements[key] = new LoadedLanguage.KeyedReplacement
+        {
+            key = key, value = "{NOTE} · {COUNT}. lowercase  {{0}} {NOTE} {0}"
+        };
+        Type keyType = mod.GetType("RiMCP.UI.TextKey", true);
+        object resource = keyType.GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null, new[] { typeof(string) }, null)
+            .Invoke(new object[] { key });
+        try
+        {
+            LanguageDatabase.activeLanguage = language;
+            string Render(NamedArgument note) => (string)resource.GetType().GetMethod("Text", new[] { typeof(NamedArgument[]) }).Invoke(resource,
+                new object[] { new[] { new NamedArgument(3, "COUNT"), note } });
+            string expected = raw + " · 3. lowercase  {0} " + raw + " 3";
+            Check(Render(new NamedArgument(raw, "NOTE")) == expected, "strings must survive reordering, repetition and escaping verbatim");
+            Check(Render(new NamedArgument((TaggedString)raw, "NOTE")) == expected, "tagged text must survive verbatim");
+
+            const string regularKey = "RiMCP.AgentsOff";
+            object regularResource = mod.GetType("RiMCP.UI.Keys", true).GetField("AgentsOff", Static).GetValue(null);
+            string RenderRegular() => (string)regularResource.GetType().GetMethod("Text", new[] { typeof(NamedArgument[]) }).Invoke(regularResource,
+                new object[] { Array.Empty<NamedArgument>() });
+            Check(LanguageDatabase.defaultLanguage.TryGetTextFromKey(regularKey, out var english), "expected an English translation");
+            Check(RenderRegular() == english.RawText, "missing resource text must fall back to English");
+            language.keyedReplacements[regularKey] = new LoadedLanguage.KeyedReplacement { key = regularKey, value = " " };
+            Check(RenderRegular() == english.RawText, "blank resource text must fall back to English");
+        }
+        finally
+        {
+            LanguageDatabase.activeLanguage = previous;
+        }
+    }
+
+    private static void CheckToolDescriptionLanguage()
+    {
+        object tool = Tool("save_game");
+        string original = Field<string>(tool, "Description");
+        string key = "RiMCP.Tool." + Field<string>(tool, "Name") + ".Description";
+        LoadedLanguage previous = LanguageDatabase.activeLanguage;
+        LoadedLanguage language = TestLanguage(typeof(LanguageWorker_Default));
+        string Description() => (string)Invoke("RiMCP.UI.UiText", "ToolDescription", tool);
+        try
+        {
+            LanguageDatabase.activeLanguage = language;
+            Check(Description() == original, "missing tool text must fall back to the manifest");
+            const string translated = "fixture {raw}. lowercase";
+            language.keyedReplacements[key] = new LoadedLanguage.KeyedReplacement { key = key, value = translated };
+            Check(Description() == translated, "tool descriptions must display the active language's verbatim text");
+            language.folderName = LanguageDatabase.DefaultLangFolderName;
+            Check(Description() == original, "the English description must come from the manifest");
+            language.folderName = "Regression";
+            language.keyedReplacements[key].value = "  ";
+            Check(Description() == original, "blank tool text must fall back to the manifest");
+        }
+        finally
+        {
+            LanguageDatabase.activeLanguage = previous;
         }
     }
 
@@ -1297,21 +1440,21 @@ internal static class Program
             object game = new object();
             object run = AdvanceRun(game, Observation(game, 100, TimeSpeed.Superfast), id: 7);
             LogCall("Begin", "advance_time", null);
-            LogCall("Done", "Running time for 1 hour", none);
+            LogCall("Done", "Starting advance", none);
             LogCall("WaitFor", "advance-7", null);
             LogCall("End", 200, null, (bool?)true);
             object advance = LogEntries().Last();
             run.GetType().GetMethod("End").Invoke(run, new object[] { "stopped", "hostiles", 100 + 575 });
-            Check(Field<string>(advance, "Outcome") == "done" && Field<string>(advance, "Line") == "Advanced 14 minutes; stopped for hostiles", "an advance's entry ends with what happened: " + Describe(advance));
+            Check(Field<string>(advance, "Outcome") == "done" && Field<string>(advance, "Line").Contains("RiMCP.TimeLog.MinuteMany".Translate(14).ToString()) && Field<string>(advance, "Line").Contains("RiMCP.TimeLog.Hostiles".Translate().ToString()), "an advance's entry ends with what happened: " + Describe(advance));
 
             object finishedEarly = AdvanceRun(game, Observation(game, 200, TimeSpeed.Superfast), id: 8);
             LogCall("Begin", "advance_time", null);
-            LogCall("Done", "Running time for 1 hour", none);
+            LogCall("Done", "Starting advance", none);
             LogCall("WaitFor", "advance-8", null);
             finishedEarly.GetType().GetMethod("End").Invoke(finishedEarly, new object[] { "completed", "completed", 200 + 2500 });
             LogCall("End", 200, null, (bool?)true);
             object early = LogEntries().Last();
-            Check(Field<string>(early, "Outcome") == "done" && Field<string>(early, "Line") == "Advanced 1 hour", "work that ends before its call is recorded still finishes the entry: " + Describe(early));
+            Check(Field<string>(early, "Outcome") == "done" && Field<string>(early, "Line").Contains("RiMCP.TimeLog.HourOne".Translate().ToString()), "work that ends before its call is recorded still finishes the entry: " + Describe(early));
 
             var fake = new FakeDialog();
             fake.OnChoose = id => fake.Open = false;
@@ -1323,7 +1466,7 @@ internal static class Program
             object press = LogEntries().Last();
             Check(Field<string>(press, "Outcome") == "pending", "a press that opened a dialog waits for it: " + Describe(press));
             AnswerPage(dialog, Field<int>(dialog, "Page"), "1", null);
-            Check(Field<string>(press, "Outcome") == "done" && Field<string>(press, "Detail") == "Answered.", "it finishes when the dialog is answered: " + Describe(press));
+            Check(Field<string>(press, "Outcome") == "done" && Field<string>(press, "Detail") == "RiMCP.AgentLog.DialogAnswered".Translate().ToString(), "it finishes when the dialog is answered: " + Describe(press));
 
             var other = new FakeDialog { CanCancel = true };
             object closing = interactions.GetMethod("Start", Static).Invoke(null, new object[] { "use_gizmo", "For colonists", FakeAdapter(other), null, null });
@@ -1354,7 +1497,9 @@ internal static class Program
         SetAccess("full", AllGroups());
         try
         {
+            const string option = "  keep {0}. do not sell  ";
             var fake = new FakeDialog();
+            fake.Options[0][2] = "  (*Name)keep(/Name) {0}. do not sell  ";
             object dialog = interactions.GetMethod("Start", Static).Invoke(null, new object[] { "answer_letter", "A letter", FakeAdapter(fake), null, null });
             string id = Field<string>(dialog, "Id");
             int page = Field<int>(dialog, "Page");
@@ -1364,13 +1509,15 @@ internal static class Program
             string answer = "{\"page\":" + page + ",\"option\":\"1\",\"requestId\":\"log-1\"}";
             object first = send(answer);
             Check(status(first) == 200 && fake.Chosen.Count == 1, "the answer runs, though a listener of the log fails");
+            var answerData = Data(Json.Deserialize<Dictionary<string, object>>(Field<string>(first, "Body")));
+            Check((string)answerData["answered"] == option.Trim(), "the API still reports a plain, trimmed option");
             List<object> entries = LogEntries();
-            Check(entries.Count == 1 && Field<string>(entries[0], "Line") == "Answered \"Yes\" (A letter)" && Field<string>(entries[0], "Client") == "Claude Code 9e1c" && Field<string>(entries[0], "Tool") == "answer_dialog", "the answer is one entry with its client: " + string.Join(" | ", entries.Select(Describe).ToArray()));
+            Check(entries.Count == 1 && Field<string>(entries[0], "Line").Contains(option) && Field<string>(entries[0], "Line").Contains("A letter") && Field<string>(entries[0], "Client") == "Claude Code 9e1c" && Field<string>(entries[0], "Tool") == "answer_dialog", "the answer is one entry with its client: " + string.Join(" | ", entries.Select(Describe).ToArray()));
             send(answer);
             Check(LogEntries().Count == 1 && fake.Chosen.Count == 1, "its retry adds nothing");
             object stale = send("{\"page\":" + page + ",\"option\":\"2\"}");
             object refused = LogEntries().Last();
-            Check(status(stale) == 409 && Field<string>(refused, "Outcome") == "refused" && Field<string>(refused, "Line") == "Answer 'A letter'", "a refused answer is logged with what was asked: " + Describe(refused));
+            Check(status(stale) == 409 && Field<string>(refused, "Outcome") == "refused" && Field<string>(refused, "Line").Contains("A letter"), "a refused answer is logged with what was asked: " + Describe(refused));
             object read = mod.GetType("RiMCP.Bridge.BridgeRouter", true).GetMethod("Handle", Static).Invoke(null, new[] { Request("/v1/agent-log?limit=1") });
             var json = Json.Deserialize<Dictionary<string, object>>((string)read.GetType().GetField("Body").GetValue(read));
             Check(((ArrayList)json["entries"]).Count == 1 && (string)((Dictionary<string, object>)((ArrayList)json["entries"])[0])["outcome"] == "refused", "the log reads back newest first");
@@ -1383,8 +1530,52 @@ internal static class Program
         }
     }
 
+    private static void CheckNoteReceipts()
+    {
+        Game previousGame = Current.Game;
+        ProgramState previousState = Current.ProgramState;
+        FieldInfo settings = mod.GetType("RiMCP.RiMCPMod", true).GetField("Settings", Static);
+        object previousSettings = settings.GetValue(null);
+        object Send(string text) => Invoke("RiMCP.Command.NoteCommandService", "TellPlayer",
+            Request("/v1/notes", "POST", Json.Serialize(new { text, requestId = "note-spacing" })), null);
+        try
+        {
+            var game = (Game)FormatterServices.GetUninitializedObject(typeof(Game));
+            game.currentMapIndex = -1;
+            Current.Game = game;
+            Current.ProgramState = ProgramState.Playing;
+            object quiet = Activator.CreateInstance(settings.FieldType);
+            settings.FieldType.GetField("AgentMessages").SetValue(quiet, 0);
+            settings.SetValue(null, quiet);
+
+            const string text = " Status\n";
+            Check(Field<int>(Send(text), "StatusCode") == 200, "a note with surrounding whitespace is accepted");
+            Check(Field<int>(Send(text), "StatusCode") == 200, "the same note can be replayed");
+            ExpectCommandError(409, () => Send(text.Trim()));
+        }
+        finally
+        {
+            settings.SetValue(null, previousSettings);
+            Current.Game = previousGame;
+            Current.ProgramState = previousState;
+            Invoke("RiMCP.Command.CommandReceipts", "ForgetOtherGames");
+        }
+    }
+
     private static void CheckNotes()
     {
+        const string lengthKey = "RiMCP.AgentActivity.NoteLengthLimit";
+        LoadedLanguage previous = LanguageDatabase.activeLanguage;
+        object Send(string text, bool attention = false) =>
+            Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/notes", "POST", Json.Serialize(new { text, attention })));
+        void CheckTooLong(string text, int max, bool attention = false)
+        {
+            object response = Send(text, attention);
+            string body = Field<string>(response, "Body");
+            Check(Field<int>(response, "StatusCode") == 400 && body.Contains("is " + text.Length + " characters; at most " + max + "."),
+                "expected a length refusal with the active limit: " + body);
+        }
+
         Type limits = mod.GetType("RiMCP.Command.NoteLimits", true);
         Func<string, int, bool, DateTime, string> refusal = (load, day, attention, now) => (string)limits.GetMethod("Refusal", Static).Invoke(null, new object[] { load, day, attention, now });
         Action<string, int, bool, DateTime> use = (load, day, attention, now) => limits.GetMethod("Use", Static).Invoke(null, new object[] { load, day, attention, now });
@@ -1413,24 +1604,43 @@ internal static class Program
 
             object[] none = new object[0];
             LogCall("Begin", "tell_player", "Codex 3f2a");
-            LogCall("About", "Tell the player: \"Building a freezer\"", none);
-            LogCall("Note", "Building a freezer", false, none);
+            const string message = "  {0}. stay lowercase\r\nnext  ";
+            LogCall("Note", message, false, none);
             LogCall("End", 200, null, (bool?)true);
             object note = LogEntries().Last();
-            Check(Field<bool>(note, "Note") && Field<string>(note, "Line") == "\"Building a freezer\"" && Field<string>(note, "Text") == "Building a freezer", "a note is logged as the agent's words: " + Describe(note));
+            Check(Field<bool>(note, "Note") && Field<string>(note, "Line").Contains(message) && Field<string>(note, "Text") == message, "a note is logged as the agent's words: " + Describe(note));
             LogCall("Begin", "tell_player", "Codex 3f2a");
             LogCall("About", "Tell the player: \"Again\"", none);
             LogCall("End", 429, "One note every 10 seconds.", null);
             object limited = LogEntries().Last();
             Check(!Field<bool>(limited, "Note") && Field<string>(limited, "Outcome") == "refused", "a note over a limit is refused and shows nothing: " + Describe(limited));
 
-            object noGame = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/notes", "POST", "{\"text\":\"Hello\"}"));
-            Check((int)noGame.GetType().GetField("StatusCode").GetValue(noGame) == 409 && Field<string>(LogEntries().Last(), "Line") == "Tell the player: \"Hello\"", "a note needs a loaded game, and the refusal is logged with what was said");
-            object tooLong = Invoke("RiMCP.Bridge.BridgeRouter", "Handle", Request("/v1/notes", "POST", "{\"text\":\"" + new string('a', 281) + "\"}"));
-            Check((int)tooLong.GetType().GetField("StatusCode").GetValue(tooLong) == 400, "a note over 280 characters is refused");
+            LanguageDatabase.activeLanguage = LanguageDatabase.defaultLanguage;
+            object noGame = Send("Hello");
+            Check(Field<int>(noGame, "StatusCode") == 409 && Field<string>(LogEntries().Last(), "Line").Contains("Hello"), "a note needs a loaded game, and the refusal is logged with what was said");
+            Check(Field<int>(Send(new string('a', 280)), "StatusCode") == 409, "the English limit allows exactly 280 UTF-16 code units");
+            CheckTooLong(new string('a', 281), 280);
+
+            LoadedLanguage language = TestLanguage(typeof(LanguageWorker_Default));
+            LanguageDatabase.activeLanguage = language;
+            CheckTooLong(new string('a', 281), 280);
+            var entry = new LoadedLanguage.KeyedReplacement { key = lengthKey, value = "320" };
+            language.keyedReplacements[lengthKey] = entry;
+            Check(Field<int>(Send(new string('a', 320), attention: true), "StatusCode") == 409, "a letter can reach a configured limit above 280");
+            CheckTooLong(new string('a', 321), 320, attention: true);
+
+            entry.value = "1";
+            Check(Field<int>(Send("a"), "StatusCode") == 409, "one is a valid configured limit");
+            CheckTooLong("\U0001F600", 1);
+
+            entry.value = "0";
+            CheckTooLong(new string('a', 281), 280);
+            entry.value = "280.5";
+            CheckTooLong(new string('a', 281), 280);
         }
         finally
         {
+            LanguageDatabase.activeLanguage = previous;
             limits.GetMethod("Reset", Static).Invoke(null, null);
             LogCall("Reset");
         }

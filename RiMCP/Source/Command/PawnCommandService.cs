@@ -2,6 +2,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 using Verse.AI.Group;
 
@@ -22,7 +23,8 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolvePlayerControlledPawn(context, pawnId);
-            AgentLog.About((body.Drafted.Value ? "Draft " : "Undraft ") + AgentLog.Name(pawn), pawn);
+            string name = AgentLog.Name(pawn);
+            AgentLog.About((body.Drafted.Value ? Keys.PawnLog_DraftAttempt : Keys.PawnLog_UndraftAttempt).Text(name), pawn);
             if (pawn.drafter == null)
             {
                 throw new CommandException(409, "Pawn cannot be drafted.");
@@ -39,11 +41,11 @@ namespace RiMCP.Command
                     throw new CommandException(409, string.IsNullOrWhiteSpace(allowed.Reason) ? "Pawn cannot be drafted or undrafted right now." : allowed.Reason.StripTags());
                 }
                 pawn.drafter.Drafted = current;
-                AgentLog.Done((current ? "Drafted " : "Undrafted ") + AgentLog.Name(pawn), pawn);
+                AgentLog.Done((current ? Keys.PawnLog_DraftDone : Keys.PawnLog_UndraftDone).Text(name), pawn);
             }
             else
             {
-                AgentLog.NoChange(AgentLog.Name(pawn) + " was already " + (current ? "drafted" : "undrafted"), pawn);
+                AgentLog.NoChange((current ? Keys.PawnLog_DraftUnchanged : Keys.PawnLog_UndraftUnchanged).Text(name), pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
@@ -76,8 +78,11 @@ namespace RiMCP.Command
             }
 
             WorkTypeDef workType = CommandUtil.ResolveDef<WorkTypeDef>(workTypeDefName, "workTypeDefName", "Work type");
-            string work = AgentLog.Name(pawn) + "'s " + ReadUtil.DefLabel(workType);
-            AgentLog.About(body.Priority.Value == 0 ? "Turn off " + work : "Set " + work + " to " + body.Priority.Value, pawn);
+            string name = AgentLog.Name(pawn);
+            string work = workType.label ?? workType.defName;
+            AgentLog.About(body.Priority.Value == 0
+                ? Keys.PawnLog_WorkOffAttempt.Text(name, work)
+                : Keys.PawnLog_WorkPriorityAttempt.Text(name, work, body.Priority.Value), pawn);
             if (pawn.WorkTypeIsDisabled(workType))
             {
                 throw new CommandException(409, "Pawn cannot do this work type.");
@@ -108,11 +113,14 @@ namespace RiMCP.Command
             }
             if (changed)
             {
-                AgentLog.Done((current == 0 ? "Turned off " + work : "Set " + work + " to " + current) + (manualPrioritiesChanged ? " (the colony now uses manual priorities)" : ""), pawn);
+                string line = current == 0 ? Keys.PawnLog_WorkOffDone.Text(name, work) : Keys.PawnLog_WorkPriorityDone.Text(name, work, current);
+                AgentLog.Done(manualPrioritiesChanged ? Keys.PawnLog_ManualPriorities.Text(line) : line, pawn);
             }
             else
             {
-                AgentLog.NoChange(work + " was already " + (current == 0 ? "off" : current.ToString()), pawn);
+                AgentLog.NoChange(current == 0
+                    ? Keys.PawnLog_WorkOffUnchanged.Text(name, work)
+                    : Keys.PawnLog_WorkPriorityUnchanged.Text(name, work, current), pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(

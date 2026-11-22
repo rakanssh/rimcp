@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.ColonyLog.Research>Research {0}</RiMCP.ColonyLog.Research>
+  <RiMCP.ColonyLog.ResearchSet>Set research to {0}</RiMCP.ColonyLog.ResearchSet>
+  <RiMCP.ColonyLog.ResearchAlready>Already researching {0}</RiMCP.ColonyLog.ResearchAlready>
+  <RiMCP.ColonyLog.BillChange>Change the bill '{0}' at {1}</RiMCP.ColonyLog.BillChange>
+  <RiMCP.ColonyLog.BillChanged>Changed the bill '{0}' at {1}</RiMCP.ColonyLog.BillChanged>
+  <RiMCP.ColonyLog.BillAlready>The bill '{0}' at {1} was already so</RiMCP.ColonyLog.BillAlready>
+  <RiMCP.ColonyLog.BillAdd>Add a bill at {0}</RiMCP.ColonyLog.BillAdd>
+  <RiMCP.ColonyLog.BillAdded>Added the bill '{0}' at {1}</RiMCP.ColonyLog.BillAdded>
+  <RiMCP.ColonyLog.BillDelete>Delete the bill '{0}' at {1}</RiMCP.ColonyLog.BillDelete>
+  <RiMCP.ColonyLog.BillDeleted>Deleted the bill '{0}' at {1}</RiMCP.ColonyLog.BillDeleted>
+  <RiMCP.ColonyLog.DetailSeparator>, </RiMCP.ColonyLog.DetailSeparator>
+  <RiMCP.ColonyLog.ListSeparator>, </RiMCP.ColonyLog.ListSeparator>
+  <RiMCP.ColonyLog.BlueprintNamedOne>{0} {1} blueprint</RiMCP.ColonyLog.BlueprintNamedOne>
+  <RiMCP.ColonyLog.BlueprintNamedMany>{0} {1} blueprints</RiMCP.ColonyLog.BlueprintNamedMany>
+  <RiMCP.ColonyLog.BuildingOne>{0} building</RiMCP.ColonyLog.BuildingOne>
+  <RiMCP.ColonyLog.BuildingMany>{0} buildings</RiMCP.ColonyLog.BuildingMany>
+  <RiMCP.ColonyLog.BlueprintOne>{0} blueprint</RiMCP.ColonyLog.BlueprintOne>
+  <RiMCP.ColonyLog.BlueprintMany>{0} blueprints</RiMCP.ColonyLog.BlueprintMany>
+  <RiMCP.ColonyLog.BuildingNamed>{0} × {1}</RiMCP.ColonyLog.BuildingNamed>
+  <RiMCP.ColonyLog.BuildPlaceNamed>Place {0}</RiMCP.ColonyLog.BuildPlaceNamed>
+  <RiMCP.ColonyLog.BuildPlaceMany>Place buildings</RiMCP.ColonyLog.BuildPlaceMany>
+  <RiMCP.ColonyLog.BuildResult>Built {0}</RiMCP.ColonyLog.BuildResult>
+  <RiMCP.ColonyLog.PlaceResult>Placed {0}</RiMCP.ColonyLog.PlaceResult>
+  <RiMCP.ColonyLog.BuildBreakdown>{0} ({1})</RiMCP.ColonyLog.BuildBreakdown>
+  <RiMCP.ColonyLog.On>on</RiMCP.ColonyLog.On>
+  <RiMCP.ColonyLog.Off>off</RiMCP.ColonyLog.Off>
+  <RiMCP.ColonyLog.Change>Change {0}</RiMCP.ColonyLog.Change>
+  <RiMCP.ColonyLog.QuotedName>'{0}'</RiMCP.ColonyLog.QuotedName>
+  <RiMCP.ColonyLog.Create>Create a {0}</RiMCP.ColonyLog.Create>
+  <RiMCP.ColonyLog.AllowedArea>allowed area</RiMCP.ColonyLog.AllowedArea>
+  <RiMCP.ColonyLog.StorageChangeOf>Change the storage of {0}</RiMCP.ColonyLog.StorageChangeOf>
+  <RiMCP.ColonyLog.Delete>Delete {0}</RiMCP.ColonyLog.Delete>
+  <RiMCP.ColonyLog.Deleted>Deleted {0}</RiMCP.ColonyLog.Deleted>
+  <RiMCP.ColonyLog.CellOne>{0} cell</RiMCP.ColonyLog.CellOne>
+  <RiMCP.ColonyLog.CellMany>{0} cells</RiMCP.ColonyLog.CellMany>
+  <RiMCP.ColonyLog.Grow>grow {0}</RiMCP.ColonyLog.Grow>
+  <RiMCP.ColonyLog.Sowing>sowing {0}</RiMCP.ColonyLog.Sowing>
+  <RiMCP.ColonyLog.Cutting>cutting {0}</RiMCP.ColonyLog.Cutting>
+  <RiMCP.ColonyLog.GrowingSet>Set '{0}' to {1}</RiMCP.ColonyLog.GrowingSet>
+  <RiMCP.ColonyLog.GrowingAlready>'{0}' was already set so</RiMCP.ColonyLog.GrowingAlready>
+  <RiMCP.ColonyLog.CreateAllowedArea>Create an allowed area</RiMCP.ColonyLog.CreateAllowedArea>
+  <RiMCP.ColonyLog.HomeArea>the Home area</RiMCP.ColonyLog.HomeArea>
+  <RiMCP.ColonyLog.StockpileZone>stockpile zone</RiMCP.ColonyLog.StockpileZone>
+  <RiMCP.ColonyLog.GrowingZone>growing zone</RiMCP.ColonyLog.GrowingZone>
+  <RiMCP.ColonyLog.CellsAdded>added {0}</RiMCP.ColonyLog.CellsAdded>
+  <RiMCP.ColonyLog.CellsRemoved>removed {0}</RiMCP.ColonyLog.CellsRemoved>
+  <RiMCP.ColonyLog.CellsDisconnected>dropped {0} cut off from it</RiMCP.ColonyLog.CellsDisconnected>
+  <RiMCP.ColonyLog.Renamed>renamed it</RiMCP.ColonyLog.Renamed>
+  <RiMCP.ColonyLog.CreatedCells>Created {0} {1} with {2}</RiMCP.ColonyLog.CreatedCells>
+  <RiMCP.ColonyLog.ChangedCells>Changed {0}: {1}</RiMCP.ColonyLog.ChangedCells>
+  <RiMCP.ColonyLog.StoragePriority>priority {0}</RiMCP.ColonyLog.StoragePriority>
+  <RiMCP.ColonyLog.StorageAllowedAll>allowed everything</RiMCP.ColonyLog.StorageAllowedAll>
+  <RiMCP.ColonyLog.StorageDisallowedAll>disallowed everything</RiMCP.ColonyLog.StorageDisallowedAll>
+  <RiMCP.ColonyLog.StorageAllowed>allowed {0}</RiMCP.ColonyLog.StorageAllowed>
+  <RiMCP.ColonyLog.StorageDisallowed>disallowed {0}</RiMCP.ColonyLog.StorageDisallowed>
+  <RiMCP.ColonyLog.StorageChanged>Changed the storage: {0}</RiMCP.ColonyLog.StorageChanged>
+  <RiMCP.ColonyLog.StorageChange>Change the storage</RiMCP.ColonyLog.StorageChange>
+  <RiMCP.ColonyLog.DesignationThings>things</RiMCP.ColonyLog.DesignationThings>
+  <RiMCP.ColonyLog.Forbid>Forbid {0}</RiMCP.ColonyLog.Forbid>
+  <RiMCP.ColonyLog.Forbade>Forbade {0}</RiMCP.ColonyLog.Forbade>
+  <RiMCP.ColonyLog.Unforbid>Allow {0}</RiMCP.ColonyLog.Unforbid>
+  <RiMCP.ColonyLog.Unforbade>Allowed {0}</RiMCP.ColonyLog.Unforbade>
+  <RiMCP.ColonyLog.Cancel>Cancel the orders on {0}</RiMCP.ColonyLog.Cancel>
+  <RiMCP.ColonyLog.Cancelled>Cancelled the orders on {0}</RiMCP.ColonyLog.Cancelled>
+  <RiMCP.ColonyLog.Mark>Mark {0} for {1}</RiMCP.ColonyLog.Mark>
+  <RiMCP.ColonyLog.Marked>Marked {0} for {1}</RiMCP.ColonyLog.Marked>
+  <RiMCP.ColonyLog.CancelOrders>Cancel orders</RiMCP.ColonyLog.CancelOrders>
+  <RiMCP.ColonyLog.Purpose.haul>hauling</RiMCP.ColonyLog.Purpose.haul>
+  <RiMCP.ColonyLog.Purpose.cut>cutting</RiMCP.ColonyLog.Purpose.cut>
+  <RiMCP.ColonyLog.Purpose.harvest>harvesting</RiMCP.ColonyLog.Purpose.harvest>
+  <RiMCP.ColonyLog.Purpose.chopWood>chopping</RiMCP.ColonyLog.Purpose.chopWood>
+  <RiMCP.ColonyLog.Purpose.mine>mining</RiMCP.ColonyLog.Purpose.mine>
+  <RiMCP.ColonyLog.Purpose.deconstruct>deconstruction</RiMCP.ColonyLog.Purpose.deconstruct>
+</LanguageData>

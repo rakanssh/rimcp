@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.TimeLog.Paused>Paused the game</RiMCP.TimeLog.Paused>
+  <RiMCP.TimeLog.SpeedChanged>Set the speed to {0}</RiMCP.TimeLog.SpeedChanged>
+  <RiMCP.TimeLog.AlreadyPaused>The game was already paused</RiMCP.TimeLog.AlreadyPaused>
+  <RiMCP.TimeLog.SpeedUnchanged>The speed was already {0}</RiMCP.TimeLog.SpeedUnchanged>
+  <RiMCP.TimeLog.AdvanceStarted>Running time for {0}</RiMCP.TimeLog.AdvanceStarted>
+  <RiMCP.TimeLog.Normal>Normal</RiMCP.TimeLog.Normal>
+  <RiMCP.TimeLog.Fast>Fast</RiMCP.TimeLog.Fast>
+  <RiMCP.TimeLog.Superfast>Superfast</RiMCP.TimeLog.Superfast>
+  <RiMCP.TimeLog.Ultrafast>Ultrafast</RiMCP.TimeLog.Ultrafast>
+  <RiMCP.TimeLog.Error>error: {0}</RiMCP.TimeLog.Error>
+  <RiMCP.TimeLog.AdvanceCompleted>Advanced {0}</RiMCP.TimeLog.AdvanceCompleted>
+  <RiMCP.TimeLog.AdvanceStopped>Advanced {0}; stopped for {1}</RiMCP.TimeLog.AdvanceStopped>
+  <RiMCP.TimeLog.AdvanceInterrupted>Advanced {0}; {1}</RiMCP.TimeLog.AdvanceInterrupted>
+  <RiMCP.TimeLog.MinuteOne>1 minute</RiMCP.TimeLog.MinuteOne>
+  <RiMCP.TimeLog.MinuteMany>{0} minutes</RiMCP.TimeLog.MinuteMany>
+  <RiMCP.TimeLog.HourOne>1 hour</RiMCP.TimeLog.HourOne>
+  <RiMCP.TimeLog.HourMany>{0} hours</RiMCP.TimeLog.HourMany>
+  <RiMCP.TimeLog.Death>a death</RiMCP.TimeLog.Death>
+  <RiMCP.TimeLog.Downed>a colonist down</RiMCP.TimeLog.Downed>
+  <RiMCP.TimeLog.Injured>an injury</RiMCP.TimeLog.Injured>
+  <RiMCP.TimeLog.MentalBreak>a mental break</RiMCP.TimeLog.MentalBreak>
+  <RiMCP.TimeLog.Hostiles>hostiles</RiMCP.TimeLog.Hostiles>
+  <RiMCP.TimeLog.LowFood>low food</RiMCP.TimeLog.LowFood>
+  <RiMCP.TimeLog.ThreatLetter>a threat letter</RiMCP.TimeLog.ThreatLetter>
+  <RiMCP.TimeLog.Letter>a letter</RiMCP.TimeLog.Letter>
+  <RiMCP.TimeLog.GamePaused>the game was paused</RiMCP.TimeLog.GamePaused>
+  <RiMCP.TimeLog.GameSpeedChanged>the speed was changed</RiMCP.TimeLog.GameSpeedChanged>
+  <RiMCP.TimeLog.DialogWaiting>A dialog opened by {0} is waiting for an answer.</RiMCP.TimeLog.DialogWaiting>
+  <RiMCP.TimeLog.GameUnloaded>the game was unloaded</RiMCP.TimeLog.GameUnloaded>
+  <RiMCP.TimeLog.SetGameSpeed>{0}</RiMCP.TimeLog.SetGameSpeed>
+  <RiMCP.TimeLog.Interrupted>interrupted</RiMCP.TimeLog.Interrupted>
+  <RiMCP.TimeLog.Storyteller>storyteller {0}</RiMCP.TimeLog.Storyteller>
+  <RiMCP.TimeLog.Difficulty>difficulty {0}</RiMCP.TimeLog.Difficulty>
+  <RiMCP.TimeLog.Options>game options</RiMCP.TimeLog.Options>
+  <RiMCP.TimeLog.SettingsChanged>Changed {0}</RiMCP.TimeLog.SettingsChanged>
+  <RiMCP.TimeLog.SettingsUnchanged>The game settings were already so</RiMCP.TimeLog.SettingsUnchanged>
+  <RiMCP.TimeLog.RimMCPDisabled>RimMCP was disabled in its settings.</RiMCP.TimeLog.RimMCPDisabled>
+  <RiMCP.TimeLog.AdvanceDisabled>{0} was turned off in RimMCP settings.</RiMCP.TimeLog.AdvanceDisabled>
+  <RiMCP.TimeLog.TimeAccessDisabled>Time access was turned off in RimMCP settings.</RiMCP.TimeLog.TimeAccessDisabled>
+  <RiMCP.TimeLog.SavingBeforeReplacement>{0} ({1}) is saving before it replaces the game.</RiMCP.TimeLog.SavingBeforeReplacement>
+  <RiMCP.TimeLog.LoadingReplacement>{1} ({0}) is replacing the game.</RiMCP.TimeLog.LoadingReplacement>
+  <RiMCP.TimeLog.LeavingGame>{1} ({0}) is leaving the game.</RiMCP.TimeLog.LeavingGame>
+</LanguageData>

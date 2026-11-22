@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -143,7 +144,7 @@ namespace RiMCP.Command
             List<ThingDef> placedKinds = new List<ThingDef>();
             List<string> refusals = new List<string>();
             List<ThingDef> kinds = buildings.Select(building => building.Def).Distinct().ToList();
-            string asked = "Place " + (kinds.Count == 1 ? kinds[0].label : "buildings");
+            string asked = kinds.Count == 1 ? Keys.ColonyLog_BuildPlaceNamed.Text(kinds[0].label) : Keys.ColonyLog_BuildPlaceMany.Text();
             AgentLog.About(asked);
             for (int i = 0; i < buildings.Length; i++)
             {
@@ -205,10 +206,24 @@ namespace RiMCP.Command
             }
 
             bool built = placedThings.Count > 0 && placedThings.All(thing => BuildPlacement.StateOf(thing) == "built");
-            string made = kinds.Count == 1
-                ? AgentLog.Count(applied, kinds[0].label + (built ? "" : " blueprint"))
-                : AgentLog.Count(applied, built ? "building" : "blueprint") + (applied > 0 ? " (" + Kinds(placedKinds) + ")" : "");
-            AgentLog.Counted((built ? "Built " : "Placed ") + made, asked, applied, satisfied, rejectedCount, string.Join("; ", refusals.ToArray()), placedThings);
+            string made;
+            if (kinds.Count == 1)
+            {
+                made = built ? BuildingCount(applied, kinds[0])
+                    : (applied == 1 ? Keys.ColonyLog_BlueprintNamedOne : Keys.ColonyLog_BlueprintNamedMany).Text(applied, kinds[0].label);
+            }
+            else
+            {
+                TextKey countKey = built
+                    ? (applied == 1 ? Keys.ColonyLog_BuildingOne : Keys.ColonyLog_BuildingMany)
+                    : (applied == 1 ? Keys.ColonyLog_BlueprintOne : Keys.ColonyLog_BlueprintMany);
+                made = countKey.Text(applied);
+                if (applied > 0)
+                {
+                    made = Keys.ColonyLog_BuildBreakdown.Text(made, Kinds(placedKinds));
+                }
+            }
+            AgentLog.Counted(built ? Keys.ColonyLog_BuildResult.Text(made) : Keys.ColonyLog_PlaceResult.Text(made), asked, applied, satisfied, rejectedCount, string.Join(Keys.AgentLog_RefusalSeparator.Text(), refusals), placedThings);
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("applied", applied),
                 Dto.Field("alreadySatisfied", satisfied),
@@ -218,11 +233,16 @@ namespace RiMCP.Command
             return new CommandResult(applied > 0, data);
         }
 
-        // "3 beds, 1 door"
+        // For example, "3 × bed, 1 × door"
         private static string Kinds(List<ThingDef> defs)
         {
-            return string.Join(", ", defs.GroupBy(def => def).OrderByDescending(group => group.Count())
-                .Select(group => AgentLog.Count(group.Count(), group.Key.label, Find.ActiveLanguageWorker.Pluralize(group.Key.label, group.Count()))).ToArray());
+            return string.Join(Keys.ColonyLog_ListSeparator.Text(), defs.GroupBy(def => def).OrderByDescending(group => group.Count())
+                .Select(group => BuildingCount(group.Count(), group.Key)).ToArray());
+        }
+
+        private static string BuildingCount(int count, ThingDef def)
+        {
+            return Keys.ColonyLog_BuildingNamed.Text(count, def.label);
         }
 
         private static int Side(ReadRequest query, string field)

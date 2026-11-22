@@ -110,23 +110,6 @@ namespace RiMCP.Shared
                 default: return group;
             }
         }
-
-        public static string Description(string group)
-        {
-            switch (group)
-            {
-                case Observe: return "Read the colony, pawns, map, defs, and time status.";
-                case Diagnostics: return "Read loaded mods, the game log, and game options.";
-                case Time: return "Pause, set the speed, and advance time.";
-                case Administration: return "Change work priorities, assignments, policies, bills, research, and animal training.";
-                case Orders: return "Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.";
-                case PawnControl: return "Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.";
-                case Decisions: return "Answer letters and quest offers: who joins the colony, what comes to it, and which rewards.";
-                case GameSettings: return "Change the storyteller, difficulty, and global game options.";
-                case GameSetup: return "Save, load, and leave games, and set up new ones. It can abandon a colony or overwrite a save, so only Full control includes it.";
-                default: return "";
-            }
-        }
     }
 
     internal static class ToolManifest
@@ -239,7 +222,7 @@ namespace RiMCP.Shared
                 Get(ToolGroups.Observe, "ideoligion", "get_ideoligion", "Get full details for one ideoligion by id returned from list_ideoligions, including description and precepts.", "/v1/ideoligions/{id}", Required(Prop("id", Str("Ideoligion id returned by list_ideoligions.")))),
                 Get(ToolGroups.Observe, "quests", "list_quests", "Quests as the Quests tab lists them, hidden ones left out; tab picks available, active, or historical (with dismissed ones). An available quest shows canAccept (else reason and unmetRequirements), expiresInTicks, rewardChoices (each with index, value, and needsAccepter), and accepters: the colonists who can accept it. An accepted quest shows its accepter and the reward chosen. detail=normal adds the description and parts.", "/v1/quests", Input(Detail(), Limit(), Cursor(), Prop("tab",EnumString("Quests tab. Defaults to all three.", "available", "active", "historical"))), "tab"),
                 Post(ToolGroups.Decisions, "answer-letter", "answer_letter", "Answer a letter waiting (letterId) as its dialog does, by option and revision from get_events; refused if its options changed since. dismiss: true dismisses it where the game allows. Shown in game. If the answer leads to another question, dialogs has it for answer_dialog.", "/v1/letters/{letterId}/answer", AnswerLetterInput(), Mutation(false, true), Body("option", "revision", "dismiss", "requestId")),
-                Post(ToolGroups.Decisions, "tell-player", "tell_player", "Tell the player something in game, in your own words: a plan, a warning, or something to look at. It shows as a message labelled as yours; attention: true sends a letter instead, which pauses the game if the player's options say so. Up to 280 characters; one note every 10 seconds, and 3 letters per in-game day. The agent log shows notes apart from what agents did.", "/v1/notes", TellPlayerInput(), Mutation(false, false), Body("text", "about", "x", "z", "attention", "requestId")),
+                Post(ToolGroups.Decisions, "tell-player", "tell_player", "Tell the player something in game, in your own words: a plan, a warning, or something to look at. It shows as a message labelled as yours; attention: true sends a letter instead, which pauses the game if the player's options say so. The game language sets the length limit (default 280 characters). One note every 10 seconds and 3 letters per in-game day. The agent log shows notes apart from what agents did.", "/v1/notes", TellPlayerInput(), Mutation(false, false), Body("text", "about", "x", "z", "attention", "requestId")),
                 Post(ToolGroups.Decisions, "respond-to-quest", "respond_to_quest", "Accept a quest offer as the Quests tab does, or dismiss or restore a quest. An offer with rewardChoices is accepted for one (reward, its index), and one that needs an accepter takes accepter, one of its accepters in list_quests. If the game asks first, as before giving royal favor, dialogs has the question for answer_dialog. Shown in game.", "/v1/quests/{questId}/response", RespondToQuestInput(), Mutation(false, true), Body("action", "reward", "accepter", "requestId")),
                 Post(ToolGroups.Observe, "answer-dialog", "answer_dialog", "Answer a dialog an agent's call opened (interactionId) by page and option id, as clicking it does, under the same rules as the call that opened it; cancel: true closes it as Escape does, where allowed. Refused once that page is no longer showing: the player answered or closed it, or it moved on or changed, which makes a new page to read. Needs the tool that opened it to be on.", "/v1/interactions/{interactionId}/answer", AnswerDialogInput(), Mutation(false, true), Body("page", "option", "value", "cancel", "aimId", "aimX", "aimZ", "requestId")),
                 Post(ToolGroups.Administration, "assign-owner", "assign_owner", "Assign a pawn to a bed, throne, or other building with owners, or unassign one, with the Assign dialog's checks (who it takes, bed size and kind, ideoligion). Assigning to a full bed replaces an owner, as in game; unassigned lists who lost it.", "/v1/buildings/{buildingId}/owners", AssignOwnerInput(), Mutation(false, true), Body("mapId", "pawnId", "action", "requestId")),
@@ -560,7 +543,7 @@ namespace RiMCP.Shared
         private static Dictionary<string, object> TellPlayerInput()
         {
             Dictionary<string, object> props = new Dictionary<string, object>();
-            props["text"] = J(F("type", "string"), F("maxLength", 280), F("description", "What to say."));
+            props["text"] = Str("What to say.");
             props["about"] = StrArray("Ids of things the note is about, on the map shown; the player can jump to them.");
             props["x"] = Int("A cell the note is about, x.", 0, 1000);
             props["z"] = Int("A cell the note is about, z.", 0, 1000);

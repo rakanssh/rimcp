@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.TimeLog.Paused>暂停了游戏</RiMCP.TimeLog.Paused>
+  <RiMCP.TimeLog.SpeedChanged>将游戏速度设为{0}</RiMCP.TimeLog.SpeedChanged>
+  <RiMCP.TimeLog.AlreadyPaused>游戏已处于暂停状态</RiMCP.TimeLog.AlreadyPaused>
+  <RiMCP.TimeLog.SpeedUnchanged>游戏速度已是{0}</RiMCP.TimeLog.SpeedUnchanged>
+  <RiMCP.TimeLog.AdvanceStarted>正在将游戏时间推进 {0}</RiMCP.TimeLog.AdvanceStarted>
+  <RiMCP.TimeLog.Normal>正常</RiMCP.TimeLog.Normal>
+  <RiMCP.TimeLog.Fast>快速</RiMCP.TimeLog.Fast>
+  <RiMCP.TimeLog.Superfast>超快</RiMCP.TimeLog.Superfast>
+  <RiMCP.TimeLog.Ultrafast>极快</RiMCP.TimeLog.Ultrafast>
+  <RiMCP.TimeLog.Error>出错：{0}</RiMCP.TimeLog.Error>
+  <RiMCP.TimeLog.AdvanceCompleted>推进了 {0}</RiMCP.TimeLog.AdvanceCompleted>
+  <RiMCP.TimeLog.AdvanceStopped>推进了 {0}，因{1}停止</RiMCP.TimeLog.AdvanceStopped>
+  <RiMCP.TimeLog.AdvanceInterrupted>推进了 {0}，{1}</RiMCP.TimeLog.AdvanceInterrupted>
+  <RiMCP.TimeLog.MinuteOne>1 分钟</RiMCP.TimeLog.MinuteOne>
+  <RiMCP.TimeLog.MinuteMany>{0} 分钟</RiMCP.TimeLog.MinuteMany>
+  <RiMCP.TimeLog.HourOne>1 小时</RiMCP.TimeLog.HourOne>
+  <RiMCP.TimeLog.HourMany>{0} 小时</RiMCP.TimeLog.HourMany>
+  <RiMCP.TimeLog.Death>有人死亡</RiMCP.TimeLog.Death>
+  <RiMCP.TimeLog.Downed>有殖民者倒地</RiMCP.TimeLog.Downed>
+  <RiMCP.TimeLog.Injured>有人受伤</RiMCP.TimeLog.Injured>
+  <RiMCP.TimeLog.MentalBreak>有人精神崩溃</RiMCP.TimeLog.MentalBreak>
+  <RiMCP.TimeLog.Hostiles>出现敌对单位</RiMCP.TimeLog.Hostiles>
+  <RiMCP.TimeLog.LowFood>食物不足</RiMCP.TimeLog.LowFood>
+  <RiMCP.TimeLog.ThreatLetter>收到威胁信件</RiMCP.TimeLog.ThreatLetter>
+  <RiMCP.TimeLog.Letter>收到信件</RiMCP.TimeLog.Letter>
+  <RiMCP.TimeLog.GamePaused>游戏已暂停</RiMCP.TimeLog.GamePaused>
+  <RiMCP.TimeLog.GameSpeedChanged>游戏速度发生了变化</RiMCP.TimeLog.GameSpeedChanged>
+  <RiMCP.TimeLog.DialogWaiting>{0} 打开的对话框正在等待答复</RiMCP.TimeLog.DialogWaiting>
+  <RiMCP.TimeLog.GameUnloaded>已卸载当前游戏</RiMCP.TimeLog.GameUnloaded>
+  <RiMCP.TimeLog.SetGameSpeed>调用了 {0}</RiMCP.TimeLog.SetGameSpeed>
+  <RiMCP.TimeLog.Interrupted>运行中断</RiMCP.TimeLog.Interrupted>
+  <RiMCP.TimeLog.Storyteller>故事叙述者（{0}）</RiMCP.TimeLog.Storyteller>
+  <RiMCP.TimeLog.Difficulty>难度（{0}）</RiMCP.TimeLog.Difficulty>
+  <RiMCP.TimeLog.Options>游戏选项</RiMCP.TimeLog.Options>
+  <RiMCP.TimeLog.SettingsChanged>更改了{0}</RiMCP.TimeLog.SettingsChanged>
+  <RiMCP.TimeLog.SettingsUnchanged>游戏设置已符合要求</RiMCP.TimeLog.SettingsUnchanged>
+  <RiMCP.TimeLog.RimMCPDisabled>在 RimMCP 设置中停用了 RimMCP</RiMCP.TimeLog.RimMCPDisabled>
+  <RiMCP.TimeLog.AdvanceDisabled>在 RimMCP 设置中停用了 {0}</RiMCP.TimeLog.AdvanceDisabled>
+  <RiMCP.TimeLog.TimeAccessDisabled>在 RimMCP 设置中关闭了时间控制权限</RiMCP.TimeLog.TimeAccessDisabled>
+  <RiMCP.TimeLog.SavingBeforeReplacement>{0}（{1}）正在保存游戏，随后将替换当前游戏</RiMCP.TimeLog.SavingBeforeReplacement>
+  <RiMCP.TimeLog.LoadingReplacement>{1}（{0}）正在替换当前游戏</RiMCP.TimeLog.LoadingReplacement>
+  <RiMCP.TimeLog.LeavingGame>{1}（{0}）正在退出当前游戏</RiMCP.TimeLog.LeavingGame>
+</LanguageData>

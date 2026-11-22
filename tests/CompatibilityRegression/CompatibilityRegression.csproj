@@ -20,6 +20,9 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="System.Web.Extensions" />
+    <Content Include="../../RiMCP/Languages/English/Keyed/*.xml"
+             Link="Languages/English/Keyed/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="ValidateGameReferences" BeforeTargets="ResolveAssemblyReferences">
     <Error Condition="!Exists('$(RimWorldManagedPath)/Assembly-CSharp.dll')" Text="Set RimWorldManagedPath to retained RimWorld 1.6 managed assemblies." />

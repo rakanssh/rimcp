@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -21,11 +22,13 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolveSpawnedPawn(context, pawnId);
-            string animalOrder = action == "none" ? "Clear the orders on " + AgentLog.Name(pawn) : "Mark " + AgentLog.Name(pawn) + " to " + action;
-            AgentLog.About(animalOrder, pawn);
+            string name = AgentLog.Name(pawn);
+            DesignationDef target = DesignationForAction(action, out string designation);
+            AgentLog.About(designation == null
+                ? Keys.PawnLog_DesignationClearAttempt.Text(name)
+                : Keys.PawnLog_DesignationAttempt.Text(name, designation), pawn);
             CommandUtil.RequireAnimal(pawn);
 
-            DesignationDef target = DesignationForAction(action);
             ValidateDesignationAction(context.Map, pawn, action);
 
             List<DesignationDef> previous = CurrentAnimalDesignations(context.Map, pawn);
@@ -45,11 +48,15 @@ namespace RiMCP.Command
                     // Designator_Slaughter cancels a pending release to the wild.
                     context.Map.designationManager.TryRemoveDesignationOn(pawn, DesignationDefOf.ReleaseAnimalToWild);
                 }
-                AgentLog.Done(target == null ? "Cleared the orders on " + AgentLog.Name(pawn) : "Marked " + AgentLog.Name(pawn) + " to " + action, pawn);
+                AgentLog.Done(target == null
+                    ? Keys.PawnLog_DesignationClearDone.Text(name)
+                    : Keys.PawnLog_DesignationDone.Text(name, designation), pawn);
             }
             else
             {
-                AgentLog.NoChange(target == null ? AgentLog.Name(pawn) + " had no orders" : AgentLog.Name(pawn) + " was already marked to " + action, pawn);
+                AgentLog.NoChange(target == null
+                    ? Keys.PawnLog_DesignationClearUnchanged.Text(name)
+                    : Keys.PawnLog_DesignationUnchanged.Text(name, designation), pawn);
             }
 
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
@@ -71,7 +78,8 @@ namespace RiMCP.Command
             CommandUtil.RequireMap(context);
 
             Pawn pawn = CommandUtil.ResolveSpawnedPawn(context, pawnId);
-            AgentLog.About("Change " + AgentLog.Name(pawn) + "'s training", pawn);
+            string name = AgentLog.Name(pawn);
+            AgentLog.About(Keys.PawnLog_TrainingAttempt.Text(name), pawn);
             CommandUtil.RequireColonyAnimal(pawn);
             if (pawn.training == null)
             {
@@ -101,15 +109,15 @@ namespace RiMCP.Command
 
             List<string> trainingChanges = allTrainables
                 .Where(def => previousWanted[def.defName] != currentWanted[def.defName])
-                .Select(def => ReadUtil.DefLabel(def) + (currentWanted[def.defName] ? " on" : " off"))
+                .Select(def => Keys.PawnLog_TrainingState.Text(def.label ?? def.defName, (currentWanted[def.defName] ? Keys.PawnLog_On : Keys.PawnLog_Off).Text()))
                 .ToList();
             if (trainingChanges.Count > 0)
             {
-                AgentLog.Done("Set " + AgentLog.Name(pawn) + "'s training: " + string.Join(", ", trainingChanges.ToArray()), pawn);
+                AgentLog.Done(Keys.PawnLog_TrainingDone.Text(name, string.Join(Keys.PawnLog_TrainingListSeparator.Text(), trainingChanges.ToArray())), pawn);
             }
             else
             {
-                AgentLog.NoChange(AgentLog.Name(pawn) + "'s training was already set", pawn);
+                AgentLog.NoChange(Keys.PawnLog_TrainingUnchanged.Text(name), pawn);
             }
             return CommandEnvelope.Ok(context, changedTrainables.Length > 0, Dto.Obj(
                 Dto.Field("pawn", CommandUtil.PawnSummary(pawn)),
@@ -132,17 +140,21 @@ namespace RiMCP.Command
             return normalized;
         }
 
-        private static DesignationDef DesignationForAction(string action)
+        private static DesignationDef DesignationForAction(string action, out string label)
         {
             switch (action)
             {
                 case "hunt":
+                    label = Keys.PawnLog_Designation_hunt.Text();
                     return DesignationDefOf.Hunt;
                 case "tame":
+                    label = Keys.PawnLog_Designation_tame.Text();
                     return DesignationDefOf.Tame;
                 case "slaughter":
+                    label = Keys.PawnLog_Designation_slaughter.Text();
                     return DesignationDefOf.Slaughter;
                 default:
+                    label = null;
                     return null;
             }
         }
