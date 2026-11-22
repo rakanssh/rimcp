@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using RiMCP.Bridge;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -22,7 +23,7 @@ namespace RiMCP.Command
         }
 
         // settle runs once the press has run, even when it failed.
-        public static void Execute(Dictionary<string, object> data, ActionOrigin origin, string tool, string subject, Thing selected, Map map, LocalTargetInfo aim, Action press, Action settle = null, Interaction continuing = null)
+        public static void Execute(Dictionary<string, object> data, ActionOrigin origin, string tool, string subject, Thing selected, Map map, LocalTargetInfo aim, Action press, Action settle = null, Interaction continuing = null, string displaySubject = null)
         {
             Check(origin);
             List<Window> before = FollowUps.Snapshot();
@@ -62,7 +63,7 @@ namespace RiMCP.Command
                     settle();
                 }
             }
-            FollowUps.Report(data, tool, subject, FollowUps.OpenedSince(before), continuing, selected, origin);
+            FollowUps.Report(data, tool, subject, FollowUps.OpenedSince(before), continuing, selected, origin, displaySubject);
         }
 
         // The press's log entry, partly done when targeting it started was cancelled.
@@ -72,7 +73,7 @@ namespace RiMCP.Command
             Dictionary<string, object> targeting = data.TryGetValue("targeting", out value) ? value as Dictionary<string, object> : null;
             if (targeting != null && (targeting["targeting"] as string) == "cancelled")
             {
-                AgentLog.Partly(line + "; its targeting was cancelled", targeting["reason"] as string, targets);
+                AgentLog.Partly(Keys.AgentLog_TargetingCancelled.Text(line), targeting["reason"] as string, targets);
             }
             else
             {

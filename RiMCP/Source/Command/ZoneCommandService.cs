@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -60,7 +61,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "Zone " + body.ZoneId + " is a " + KindOf(zone) + " zone, not " + kind + ".");
                 }
                 kind = KindOf(zone);
-                AgentLog.About("Change '" + zone.label + "'", AgentLog.Cells(map, zone.Cells));
+                AgentLog.About(Keys.ColonyLog_Change.Text(Keys.ColonyLog_QuotedName.Text(zone.label)), AgentLog.Cells(map, zone.Cells));
             }
             else
             {
@@ -77,7 +78,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "A new zone has no cells to remove.");
                 }
                 key = RequestKey.For("set_zone", requestId, map, kind, body.Label, body.Add);
-                AgentLog.About("Create a " + kind + " zone", AgentLog.Cells(map, addCells));
+                AgentLog.About(Keys.ColonyLog_Create.Text(ZoneKindLabel(kind)), AgentLog.Cells(map, addCells));
             }
 
             return CommandReceipts.Once(context, key, () =>
@@ -164,7 +165,7 @@ namespace RiMCP.Command
                     stockpile.slotGroup.RemoveHaulDesignationOnStoredThings();
                 }
 
-                ReportCells(zone == null ? null : "'" + zone.label + "'", kind + " zone", created, added, removed, dropped, labelChanged,
+                ReportCells(zone == null ? null : Keys.ColonyLog_QuotedName.Text(zone.label), ZoneKindLabel(kind), created, added, removed, dropped, labelChanged,
                     zone == null ? AgentLog.Cells(map, addCells) : AgentLog.Cells(map, zone.Cells));
                 Dictionary<string, object> data = Dto.Obj(
                     Dto.Field("zone", zone == null || zone.Cells.Count == 0 ? null : SerializeZone(map, zone)),
@@ -198,7 +199,7 @@ namespace RiMCP.Command
                 }
                 parent = stockpile;
                 owner = SerializeZone(map, stockpile);
-                AgentLog.About("Change the storage of '" + stockpile.label + "'", AgentLog.Cells(map, stockpile.Cells));
+                AgentLog.About(Keys.ColonyLog_StorageChangeOf.Text(Keys.ColonyLog_QuotedName.Text(stockpile.label)), AgentLog.Cells(map, stockpile.Cells));
             }
             else
             {
@@ -210,7 +211,7 @@ namespace RiMCP.Command
                 }
                 parent = (IStoreSettingsParent)building;
                 owner = SummaryDto.ThingWithPosition(building);
-                AgentLog.About("Change the storage of " + AgentLog.Name(building), building);
+                AgentLog.About(Keys.ColonyLog_StorageChangeOf.Text(AgentLog.Name(building)), building);
             }
             if (body.AllowAll == true && body.DisallowAll == true)
             {
@@ -253,7 +254,7 @@ namespace RiMCP.Command
                 entryChanged |= ApplyEntry(settings.filter, limit, name, false, entries);
             }
 
-            ReportStorage(previous != settings.Priority ? settings.Priority.ToString() : null, body.AllowAll == true && bulkChanged, body.DisallowAll == true && bulkChanged, entries);
+            ReportStorage(previous != settings.Priority ? settings.Priority.Label() : null, body.AllowAll == true && bulkChanged, body.DisallowAll == true && bulkChanged, entries);
             return CommandEnvelope.Ok(context, previous != settings.Priority || bulkChanged || entryChanged, Dto.Obj(
                 Dto.Field("storage", owner),
                 Dto.Field("previousPriority", previous.ToString()),
@@ -385,7 +386,7 @@ namespace RiMCP.Command
             {
                 throw new CommandException(404, "Growing zone not found.");
             }
-            AgentLog.About("Change '" + zone.label + "'", AgentLog.Cells(map, zone.Cells));
+            AgentLog.About(Keys.ColonyLog_Change.Text(Keys.ColonyLog_QuotedName.Text(zone.label)), AgentLog.Cells(map, zone.Cells));
 
             ThingDef crop = null;
             if (!string.IsNullOrWhiteSpace(body.Plant))
@@ -423,23 +424,23 @@ namespace RiMCP.Command
             List<string> growing = new List<string>();
             if (crop != null && crop != previous)
             {
-                growing.Add("grow " + crop.label);
+                growing.Add(Keys.ColonyLog_Grow.Text(crop.label));
             }
             if (body.AllowSow.HasValue)
             {
-                growing.Add("sowing " + (zone.allowSow ? "on" : "off"));
+                growing.Add(Keys.ColonyLog_Sowing.Text((zone.allowSow ? Keys.ColonyLog_On : Keys.ColonyLog_Off).Text()));
             }
             if (body.AllowCut.HasValue)
             {
-                growing.Add("cutting " + (zone.allowCut ? "on" : "off"));
+                growing.Add(Keys.ColonyLog_Cutting.Text((zone.allowCut ? Keys.ColonyLog_On : Keys.ColonyLog_Off).Text()));
             }
             if (changed)
             {
-                AgentLog.Done("Set '" + zone.label + "' to " + string.Join(", ", growing.ToArray()), AgentLog.Cells(map, zone.Cells));
+                AgentLog.Done(Keys.ColonyLog_GrowingSet.Text(zone.label, string.Join(Keys.ColonyLog_DetailSeparator.Text(), growing.ToArray())), AgentLog.Cells(map, zone.Cells));
             }
             else
             {
-                AgentLog.NoChange("'" + zone.label + "' was already set so", AgentLog.Cells(map, zone.Cells));
+                AgentLog.NoChange(Keys.ColonyLog_GrowingAlready.Text(zone.label), AgentLog.Cells(map, zone.Cells));
             }
             return CommandEnvelope.Ok(context, changed, Dto.Obj(
                 Dto.Field("zone", SerializeZone(map, zone)),
@@ -502,7 +503,7 @@ namespace RiMCP.Command
                     throw new CommandException(400, "Field 'areaId' is required to delete an area or remove cells.");
                 }
                 key = RequestKey.For("set_area", requestId, map, label, body.Add);
-                AgentLog.About("Create an allowed area", AgentLog.Cells(map, addCells));
+                AgentLog.About(Keys.ColonyLog_CreateAllowedArea.Text(), AgentLog.Cells(map, addCells));
             }
             else
             {
@@ -511,7 +512,7 @@ namespace RiMCP.Command
                 {
                     throw new CommandException(409, "Only allowed areas can be renamed.");
                 }
-                AgentLog.About("Change " + AreaName(area), AgentLog.Cells(map, area.ActiveCells));
+                AgentLog.About(Keys.ColonyLog_Change.Text(AreaName(area)), AgentLog.Cells(map, area.ActiveCells));
             }
             return CommandReceipts.Once(context, key, () =>
             {
@@ -542,7 +543,7 @@ namespace RiMCP.Command
 
                 CellOutcomes added = SetCells(area, addCells, addOutside, true);
                 CellOutcomes removed = SetCells(area, removeCells, removeOutside, false);
-                ReportCells(AreaName(area), "allowed area", created, added, removed, 0, labelChanged && !created, AgentLog.Cells(map, area.ActiveCells));
+                ReportCells(AreaName(area), Keys.ColonyLog_AllowedArea.Text(), created, added, removed, 0, labelChanged && !created, AgentLog.Cells(map, area.ActiveCells));
                 Dictionary<string, object> data = Dto.Obj(
                     Dto.Field("area", SerializeArea(map, area)),
                     Dto.Field("created", created),
@@ -571,7 +572,7 @@ namespace RiMCP.Command
         private static CommandResult DeleteArea(Map map, string areaId)
         {
             Area area = FindArea(map, areaId);
-            AgentLog.About("Delete " + AreaName(area), AgentLog.Cells(map, area.ActiveCells));
+            AgentLog.About(Keys.ColonyLog_Delete.Text(AreaName(area)), AgentLog.Cells(map, area.ActiveCells));
             if (!(area is Area_Allowed))
             {
                 throw new CommandException(409, "Only allowed areas can be deleted.");
@@ -580,7 +581,7 @@ namespace RiMCP.Command
             List<AgentTarget> where = AgentLog.Cells(map, area.ActiveCells);
             string name = AreaName(area);
             area.Delete();
-            AgentLog.Done("Deleted " + name, where);
+            AgentLog.Done(Keys.ColonyLog_Deleted.Text(name), where);
             return new CommandResult(true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("area", deleted)));
         }
 
@@ -600,17 +601,27 @@ namespace RiMCP.Command
                 throw new CommandException(400, "Zone " + zoneId + " is a " + KindOf(zone) + " zone, not " + kind + ".");
             }
             List<AgentTarget> where = AgentLog.Cells(map, zone.Cells);
-            AgentLog.About("Delete '" + zone.label + "'", where);
+            AgentLog.About(Keys.ColonyLog_Delete.Text(Keys.ColonyLog_QuotedName.Text(zone.label)), where);
             object deleted = SerializeZone(map, zone);
             string name = zone.label;
             zone.Delete(false);
-            AgentLog.Done("Deleted '" + name + "'", where);
+            AgentLog.Done(Keys.ColonyLog_Deleted.Text(Keys.ColonyLog_QuotedName.Text(name)), where);
             return new CommandResult(true, Dto.Obj(Dto.Field("deleted", true), Dto.Field("zone", deleted)));
         }
 
         private static string AreaName(Area area)
         {
-            return area is Area_Home ? "the Home area" : "'" + area.Label + "'";
+            return area is Area_Home ? Keys.ColonyLog_HomeArea.Text() : Keys.ColonyLog_QuotedName.Text(area.Label);
+        }
+
+        private static string ZoneKindLabel(string kind)
+        {
+            return kind == "stockpile" ? Keys.ColonyLog_StockpileZone.Text() : Keys.ColonyLog_GrowingZone.Text();
+        }
+
+        private static string CellCount(int count)
+        {
+            return (count == 1 ? Keys.ColonyLog_CellOne : Keys.ColonyLog_CellMany).Text(count);
         }
 
         // name is how the zone or area is called, such as 'Stockpile 1' or the Home area; null when
@@ -620,24 +631,24 @@ namespace RiMCP.Command
             List<string> parts = new List<string>();
             if (added.Applied > 0)
             {
-                parts.Add("added " + AgentLog.Count(added.Applied, "cell"));
+                parts.Add(Keys.ColonyLog_CellsAdded.Text(CellCount(added.Applied)));
             }
             if (removed.Applied > 0)
             {
-                parts.Add("removed " + AgentLog.Count(removed.Applied, "cell"));
+                parts.Add(Keys.ColonyLog_CellsRemoved.Text(CellCount(removed.Applied)));
             }
             if (dropped > 0)
             {
-                parts.Add("dropped " + AgentLog.Count(dropped, "cell") + " cut off from it");
+                parts.Add(Keys.ColonyLog_CellsDisconnected.Text(CellCount(dropped)));
             }
             if (renamed)
             {
-                parts.Add("renamed it");
+                parts.Add(Keys.ColonyLog_Renamed.Text());
             }
             string done = created
-                ? "Created " + kind + " " + name + " with " + AgentLog.Count(added.Applied, "cell")
-                : "Changed " + name + ": " + string.Join(", ", parts.ToArray());
-            string asked = name == null ? "Create a " + kind : "Change " + name;
+                ? Keys.ColonyLog_CreatedCells.Text(kind, name, CellCount(added.Applied))
+                : Keys.ColonyLog_ChangedCells.Text(name ?? "", string.Join(Keys.ColonyLog_DetailSeparator.Text(), parts.ToArray()));
+            string asked = name == null ? Keys.ColonyLog_Create.Text(kind) : Keys.ColonyLog_Change.Text(name);
             int applied = (created ? 1 : 0) + (renamed ? 1 : 0) + added.Applied + removed.Applied;
             AgentLog.Counted(done, asked, applied, added.AlreadySatisfied + removed.AlreadySatisfied, added.RejectedCount, added.Reasons, where);
         }
@@ -649,27 +660,30 @@ namespace RiMCP.Command
             List<string> parts = new List<string>();
             if (priority != null)
             {
-                parts.Add("priority " + priority);
+                parts.Add(Keys.ColonyLog_StoragePriority.Text(priority));
             }
             if (allowedAll)
             {
-                parts.Add("allowed everything");
+                parts.Add(Keys.ColonyLog_StorageAllowedAll.Text());
             }
             if (disallowedAll)
             {
-                parts.Add("disallowed everything");
+                parts.Add(Keys.ColonyLog_StorageDisallowedAll.Text());
             }
             if (count("applied", true) > 0)
             {
-                parts.Add("allowed " + string.Join(", ", results.Where(entry => (string)entry["outcome"] == "applied" && (bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray()));
+                string allowed = string.Join(Keys.ColonyLog_ListSeparator.Text(), results.Where(entry => (string)entry["outcome"] == "applied" && (bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray());
+                parts.Add(Keys.ColonyLog_StorageAllowed.Text(allowed));
             }
             if (count("applied", false) > 0)
             {
-                parts.Add("disallowed " + string.Join(", ", results.Where(entry => (string)entry["outcome"] == "applied" && !(bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray()));
+                string disallowed = string.Join(Keys.ColonyLog_ListSeparator.Text(), results.Where(entry => (string)entry["outcome"] == "applied" && !(bool)entry["allow"]).Select(entry => (string)entry["name"]).ToArray());
+                parts.Add(Keys.ColonyLog_StorageDisallowed.Text(disallowed));
             }
             int rejected = results.Count(entry => (string)entry["outcome"] == "rejected");
-            string reasons = string.Join("; ", results.Where(entry => (string)entry["outcome"] == "rejected" && entry.ContainsKey("reason")).Select(entry => (string)entry["name"] + ": " + (string)entry["reason"]).Take(3).ToArray());
-            AgentLog.Counted("Changed the storage: " + string.Join(", ", parts.ToArray()), "Change the storage", parts.Count, results.Count(entry => (string)entry["outcome"] == "alreadySatisfied"), rejected, reasons);
+            string reasons = string.Join(Keys.AgentLog_RefusalSeparator.Text(), results.Where(entry => (string)entry["outcome"] == "rejected" && entry.ContainsKey("reason"))
+                .Take(3).Select(entry => Keys.AgentLog_NamedRefusal.Text((string)entry["name"], (string)entry["reason"])));
+            AgentLog.Counted(Keys.ColonyLog_StorageChanged.Text(string.Join(Keys.ColonyLog_DetailSeparator.Text(), parts.ToArray())), Keys.ColonyLog_StorageChange.Text(), parts.Count, results.Count(entry => (string)entry["outcome"] == "alreadySatisfied"), rejected, reasons);
         }
 
         private static CellOutcomes SetCells(Area area, List<IntVec3> cells, int outside, bool value)

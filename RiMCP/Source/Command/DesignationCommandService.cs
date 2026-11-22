@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -204,8 +205,9 @@ namespace RiMCP.Command
                 }
             }
 
-            string what = kind.Targets == ThingRequestGroup.Plant ? "plant" : kind.Targets == ThingRequestGroup.HaulableEver ? "item" : "thing";
-            AgentLog.Counted(Designated(kind.Name, AgentLog.Count(designated, what), true), Designated(kind.Name, considered.Count == 0 ? null : AgentLog.Count(considered, what), false), applied, satisfied, rejected, string.Join("; ", refusals.ToArray()), designated);
+            TextKey what = kind.Targets == ThingRequestGroup.Plant ? Keys.AgentLog_Count_plant
+                : kind.Targets == ThingRequestGroup.HaulableEver ? Keys.AgentLog_Count_item : Keys.AgentLog_Count_thing;
+            AgentLog.Counted(Designated(kind.Name, AgentLog.Count(designated, what), true), Designated(kind.Name, considered.Count == 0 ? null : AgentLog.Count(considered, what), false), applied, satisfied, rejected, string.Join(Keys.AgentLog_RefusalSeparator.Text(), refusals), designated);
             return CommandEnvelope.Ok(context, applied > 0, Dto.Obj(
                 Dto.Field("kind", kind.Name),
                 Dto.Field("applied", applied),
@@ -269,12 +271,14 @@ namespace RiMCP.Command
         // none were found.
         private static string Designated(string kind, string things, bool done)
         {
+            string target = things ?? Keys.ColonyLog_DesignationThings.Text();
             switch (kind)
             {
-                case "forbid": return (done ? "Forbade " : "Forbid ") + (things ?? "things");
-                case "unforbid": return (done ? "Allowed " : "Allow ") + (things ?? "things");
-                case "cancel": return things == null ? "Cancel orders" : (done ? "Cancelled" : "Cancel") + " the orders on " + things;
-                default: return (done ? "Marked " : "Mark ") + (things ?? "things") + " for " + Purpose(kind);
+                case "forbid": return (done ? Keys.ColonyLog_Forbade : Keys.ColonyLog_Forbid).Text(target);
+                case "unforbid": return (done ? Keys.ColonyLog_Unforbade : Keys.ColonyLog_Unforbid).Text(target);
+                case "cancel": return things == null ? Keys.ColonyLog_CancelOrders.Text()
+                    : (done ? Keys.ColonyLog_Cancelled : Keys.ColonyLog_Cancel).Text(things);
+                default: return (done ? Keys.ColonyLog_Marked : Keys.ColonyLog_Mark).Text(target, Purpose(kind));
             }
         }
 
@@ -282,12 +286,12 @@ namespace RiMCP.Command
         {
             switch (kind)
             {
-                case "haul": return "hauling";
-                case "cut": return "cutting";
-                case "harvest": return "harvesting";
-                case "chopWood": return "chopping";
-                case "mine": return "mining";
-                case "deconstruct": return "deconstruction";
+                case "haul": return Keys.ColonyLog_Purpose_haul.Text();
+                case "cut": return Keys.ColonyLog_Purpose_cut.Text();
+                case "harvest": return Keys.ColonyLog_Purpose_harvest.Text();
+                case "chopWood": return Keys.ColonyLog_Purpose_chopWood.Text();
+                case "mine": return Keys.ColonyLog_Purpose_mine.Text();
+                case "deconstruct": return Keys.ColonyLog_Purpose_deconstruct.Text();
                 default: return kind;
             }
         }

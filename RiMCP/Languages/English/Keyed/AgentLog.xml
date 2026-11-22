@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.AgentLog.MayHavePartlyRun>{0} It may have partly run.</RiMCP.AgentLog.MayHavePartlyRun>
+  <RiMCP.AgentLog.RejectedCount>{0} rejected.</RiMCP.AgentLog.RejectedCount>
+  <RiMCP.AgentLog.RejectedReasons>{0} rejected: {1}</RiMCP.AgentLog.RejectedReasons>
+  <RiMCP.AgentLog.PartlyRejected>{0}; {1} rejected</RiMCP.AgentLog.PartlyRejected>
+  <RiMCP.AgentLog.AlreadySo>{0}: already so</RiMCP.AgentLog.AlreadySo>
+  <RiMCP.AgentLog.NothingToDo>{0}: nothing to do</RiMCP.AgentLog.NothingToDo>
+  <RiMCP.AgentLog.Count.plant>{0} plants</RiMCP.AgentLog.Count.plant>
+  <RiMCP.AgentLog.Count.tree>{0} trees</RiMCP.AgentLog.Count.tree>
+  <RiMCP.AgentLog.Count.thing>{0} things</RiMCP.AgentLog.Count.thing>
+  <RiMCP.AgentLog.Count.item>{0} items</RiMCP.AgentLog.Count.item>
+  <RiMCP.AgentLog.QuotedMessage>"{0}"</RiMCP.AgentLog.QuotedMessage>
+  <RiMCP.AgentLog.AgentCall>An agent call</RiMCP.AgentLog.AgentCall>
+  <RiMCP.AgentLog.ToolCall>Agent call: {0}</RiMCP.AgentLog.ToolCall>
+  <RiMCP.AgentLog.TargetingCancelled>{0}; its targeting was cancelled</RiMCP.AgentLog.TargetingCancelled>
+  <RiMCP.AgentLog.TellPlayer>Tell the player: "{0}"</RiMCP.AgentLog.TellPlayer>
+  <RiMCP.AgentLog.DialogAnswered>Answered.</RiMCP.AgentLog.DialogAnswered>
+  <RiMCP.AgentLog.DialogCancelled>Cancelled.</RiMCP.AgentLog.DialogCancelled>
+  <RiMCP.AgentLog.DialogEnded>Another game was loaded, so the dialog no longer applies.</RiMCP.AgentLog.DialogEnded>
+  <RiMCP.AgentLog.DialogClosed>The dialog was closed before the agent answered it.</RiMCP.AgentLog.DialogClosed>
+  <RiMCP.AgentLog.DialogAnsweredByPlayer>The player answered the dialog.</RiMCP.AgentLog.DialogAnsweredByPlayer>
+  <RiMCP.AgentLog.DialogRevokedBridgeDisabled>RimMCP was disabled in its settings. The dialog is left to the player.</RiMCP.AgentLog.DialogRevokedBridgeDisabled>
+  <RiMCP.AgentLog.DialogRevokedToolDisabled>The tool that opened the dialog was turned off in RimMCP settings. The dialog is left to the player.</RiMCP.AgentLog.DialogRevokedToolDisabled>
+  <RiMCP.AgentLog.AnswerDialog>Answer '{0}'</RiMCP.AgentLog.AnswerDialog>
+  <RiMCP.AgentLog.ClosedDialog>Closed '{0}' without an answer</RiMCP.AgentLog.ClosedDialog>
+  <RiMCP.AgentLog.AnsweredDialog>Answered "{0}" ({1})</RiMCP.AgentLog.AnsweredDialog>
+  <RiMCP.AgentLog.DismissLetter>Dismiss the letter '{0}'</RiMCP.AgentLog.DismissLetter>
+  <RiMCP.AgentLog.AnswerLetter>Answer the letter '{0}'</RiMCP.AgentLog.AnswerLetter>
+  <RiMCP.AgentLog.DismissQuest>Dismiss the quest '{0}'</RiMCP.AgentLog.DismissQuest>
+  <RiMCP.AgentLog.RestoreQuest>Restore the quest '{0}'</RiMCP.AgentLog.RestoreQuest>
+  <RiMCP.AgentLog.AlreadyDismissed>The quest '{0}' was already dismissed</RiMCP.AgentLog.AlreadyDismissed>
+  <RiMCP.AgentLog.AlreadyRestored>The quest '{0}' was already in the Quests tab</RiMCP.AgentLog.AlreadyRestored>
+  <RiMCP.AgentLog.AcceptQuest>Accept the quest '{0}'</RiMCP.AgentLog.AcceptQuest>
+  <RiMCP.AgentLog.ConfirmQuest>Asked to confirm accepting the quest '{0}'</RiMCP.AgentLog.ConfirmQuest>
+  <RiMCP.AgentLog.StopOperation>Stop {0} ({1})</RiMCP.AgentLog.StopOperation>
+  <RiMCP.AgentLog.StoppedOperation>Stopped {0} ({1})</RiMCP.AgentLog.StoppedOperation>
+  <RiMCP.AgentLog.AlreadyFinished>{0} ({1}) had already finished</RiMCP.AgentLog.AlreadyFinished>
+  <RiMCP.AgentLog.UnnamedSave>a save</RiMCP.AgentLog.UnnamedSave>
+  <RiMCP.AgentLog.NamedSave>'{0}'</RiMCP.AgentLog.NamedSave>
+  <RiMCP.AgentLog.SaveAs>Save as {0}</RiMCP.AgentLog.SaveAs>
+  <RiMCP.AgentLog.SavedAs>Saved as {0}</RiMCP.AgentLog.SavedAs>
+  <RiMCP.AgentLog.SavingFirst>, saving first as '{0}'</RiMCP.AgentLog.SavingFirst>
+  <RiMCP.AgentLog.LoadSave>Load {0}{1}</RiMCP.AgentLog.LoadSave>
+  <RiMCP.AgentLog.LoadedSave>Loaded {0}{1}</RiMCP.AgentLog.LoadedSave>
+  <RiMCP.AgentLog.LeaveGame>Leave the game{0}</RiMCP.AgentLog.LeaveGame>
+  <RiMCP.AgentLog.LeftGame>Left the game{0}</RiMCP.AgentLog.LeftGame>
+  <RiMCP.AgentLog.ScenarioName> ({0})</RiMCP.AgentLog.ScenarioName>
+  <RiMCP.AgentLog.OpenSetup>Start new-game setup{0}</RiMCP.AgentLog.OpenSetup>
+  <RiMCP.AgentLog.OpenedSetup>Opened new-game setup{0}</RiMCP.AgentLog.OpenedSetup>
+  <RiMCP.AgentLog.PreviousSetup>Go back a setup screen</RiMCP.AgentLog.PreviousSetup>
+  <RiMCP.AgentLog.PreviousSetupDone>Went back a setup screen</RiMCP.AgentLog.PreviousSetupDone>
+  <RiMCP.AgentLog.CancelSetup>Cancel new-game setup</RiMCP.AgentLog.CancelSetup>
+  <RiMCP.AgentLog.CancelSetupDone>Cancelled new-game setup</RiMCP.AgentLog.CancelSetupDone>
+  <RiMCP.AgentLog.AnswerGame>Answer the game's question</RiMCP.AgentLog.AnswerGame>
+  <RiMCP.AgentLog.AnswerYes>Answered the game's question: yes</RiMCP.AgentLog.AnswerYes>
+  <RiMCP.AgentLog.AnswerNo>Answered the game's question: no</RiMCP.AgentLog.AnswerNo>
+  <RiMCP.AgentLog.SetIdeoligion>Set the ideoligion</RiMCP.AgentLog.SetIdeoligion>
+  <RiMCP.AgentLog.SetIdeoligionDone>Set the ideoligion</RiMCP.AgentLog.SetIdeoligionDone>
+  <RiMCP.AgentLog.EditIdeoligion>Edit the ideoligion</RiMCP.AgentLog.EditIdeoligion>
+  <RiMCP.AgentLog.EditIdeoligionDone>Edited the ideoligion</RiMCP.AgentLog.EditIdeoligionDone>
+  <RiMCP.AgentLog.SetColonists>Set the starting colonists</RiMCP.AgentLog.SetColonists>
+  <RiMCP.AgentLog.SetColonistsDone>Set the starting colonists</RiMCP.AgentLog.SetColonistsDone>
+  <RiMCP.AgentLog.StartColony>Start the colony</RiMCP.AgentLog.StartColony>
+  <RiMCP.AgentLog.StartColonyDone>Started the colony</RiMCP.AgentLog.StartColonyDone>
+  <RiMCP.AgentLog.GenerateWorld>Generate a world</RiMCP.AgentLog.GenerateWorld>
+  <RiMCP.AgentLog.GenerateWorldDone>Generated a world</RiMCP.AgentLog.GenerateWorldDone>
+  <RiMCP.AgentLog.ChooseSite>Choose the starting site</RiMCP.AgentLog.ChooseSite>
+  <RiMCP.AgentLog.ChooseSiteDone>Chose the starting site</RiMCP.AgentLog.ChooseSiteDone>
+  <RiMCP.AgentLog.SetStoryteller>Set the storyteller</RiMCP.AgentLog.SetStoryteller>
+  <RiMCP.AgentLog.SetStorytellerDone>Set the storyteller</RiMCP.AgentLog.SetStorytellerDone>
+  <RiMCP.AgentLog.SetStorytellerNamed>Set the storyteller: {0}</RiMCP.AgentLog.SetStorytellerNamed>
+  <RiMCP.AgentLog.CountNamed>{0} × {1}</RiMCP.AgentLog.CountNamed>
+  <RiMCP.AgentLog.CountStack>{0} x{1}</RiMCP.AgentLog.CountStack>
+  <RiMCP.AgentLog.RefusalSeparator>; </RiMCP.AgentLog.RefusalSeparator>
+  <RiMCP.AgentLog.NamedRefusal>{0}: {1}</RiMCP.AgentLog.NamedRefusal>
+</LanguageData>

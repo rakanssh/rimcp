@@ -70,9 +70,9 @@ namespace RiMCP.UI
         }
 
         // Longer text stays longer.
-        public static void Say(string who, string text, AgentEntry entry)
+        public static void Say(string who, DisplayText text, AgentEntry entry)
         {
-            Add(new Bubble { Who = who, Text = text, Entry = entry, Born = Time.realtimeSinceStartup, Life = Mathf.Clamp(5f + text.Length * 0.05f, 7f, 16f) });
+            Add(new Bubble { Who = who, Text = text, Entry = entry, Born = Time.realtimeSinceStartup, Life = Mathf.Clamp(5f + text.Value.Length * 0.05f, 7f, 16f) });
         }
 
         // A burst shows as one bubble that counts up.
@@ -88,7 +88,7 @@ namespace RiMCP.UI
             bubble.Count++;
             bubble.Entry = entry;
             bubble.Born = now;
-            bubble.Text = "Made " + AgentLog.Count(bubble.Count, "more change") + ". Click to open the agent log.";
+            bubble.Text = (bubble.Count == 1 ? Keys.AgentActivity_FoldedBubbleOne : Keys.AgentActivity_FoldedBubbleMany).Display(bubble.Count);
         }
 
         public static void Draw(Rect button)
@@ -163,7 +163,7 @@ namespace RiMCP.UI
                 Vector2 label = Text.CalcSize(pair.Key);
                 Rect tag = new Rect(tip.x + size * 0.55f, tip.y + size * 0.8f, label.x + 8f, label.y + 2f);
                 Widgets.DrawBoxSolid(tag, new Color(0.08f, 0.08f, 0.08f, 0.8f * alpha));
-                Widgets.Label(new Rect(tag.x + 4f, tag.y + 1f, label.x + 2f, label.y), pair.Key);
+                UiDisplay.Label(new Rect(tag.x + 4f, tag.y + 1f, label.x + 2f, label.y), DisplayText.Raw(pair.Key));
             }
         }
 
@@ -181,7 +181,7 @@ namespace RiMCP.UI
             {
                 Bubble bubble = bubbles[i];
                 Text.Font = GameFont.Small;
-                float textHeight = Text.CalcHeight(bubble.Text, BubbleWidth - 20f);
+                float textHeight = Text.CalcHeight(bubble.Text.Value, BubbleWidth - 20f);
                 Rect rect = new Rect(x, bottom - textHeight - 30f, BubbleWidth, textHeight + 30f);
                 if (rect.y < 80f)
                 {
@@ -205,20 +205,21 @@ namespace RiMCP.UI
             Widgets.DrawHighlightIfMouseover(rect);
 
             Text.Font = GameFont.Tiny;
-            Vector2 logSize = Text.CalcSize("Log");
+            DisplayText logLabel = Keys.AgentActivity_LogButton.Display();
+            Vector2 logSize = Text.CalcSize(logLabel.Value);
             Rect log = new Rect(rect.xMax - logSize.x - 10f, rect.y + 4f, logSize.x + 4f, 18f);
             GUI.color = new Color(color.r, color.g, color.b, alpha);
-            Widgets.Label(new Rect(rect.x + 10f, rect.y + 4f, log.x - rect.x - 14f, 18f), bubble.Who);
+            UiDisplay.Label(new Rect(rect.x + 10f, rect.y + 4f, log.x - rect.x - 14f, 18f), DisplayText.Raw(bubble.Who));
             GUI.color = new Color(0.8f, 0.8f, 0.8f, alpha * (Mouse.IsOver(log) ? 1f : 0.6f));
-            Widgets.Label(log, "Log");
+            UiDisplay.Label(log, logLabel);
 
             Text.Font = GameFont.Small;
             GUI.color = new Color(1f, 1f, 1f, alpha);
-            Widgets.Label(new Rect(rect.x + 10f, rect.y + 22f, rect.width - 20f, rect.height - 26f), bubble.Text);
+            UiDisplay.Label(new Rect(rect.x + 10f, rect.y + 22f, rect.width - 20f, rect.height - 26f), bubble.Text);
             GUI.color = Color.white;
 
             bool jump = !bubble.Fold && AgentLog.CanJump(bubble.Entry);
-            TooltipHandler.TipRegion(rect, (jump ? "Click to jump to it" : "Click to open the agent log") + "; right-click to dismiss.");
+            UiDisplay.Tip(rect, (jump ? Keys.AgentActivity_JumpTip : Keys.AgentActivity_LogTip).Display());
             if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && Mouse.IsOver(rect))
             {
                 bubble.Dismissed = true;
@@ -294,7 +295,7 @@ namespace RiMCP.UI
         private sealed class Bubble
         {
             public string Who;
-            public string Text;
+            public DisplayText Text;
             public AgentEntry Entry;
             public float Born;
             public float Life;

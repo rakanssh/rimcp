@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using RiMCP.Util;
 using UnityEngine;
 using Verse;
@@ -56,19 +57,22 @@ namespace RiMCP.Command
                 {
                     throw new CommandException(409, "'" + Label(entry) + "' is not one of the game's building toggles; press it with use_gizmo.");
                 }
-                string onOff = body.On.Value ? "on" : "off";
-                AgentLog.About("Turn " + Label(entry) + " " + onOff + " on " + AgentLog.Name(building), building);
+                string state = (body.On.Value ? Keys.PawnLog_On : Keys.PawnLog_Off).Text();
+                string name = AgentLog.Name(building);
+                string label = DisplayLabel(entry);
+                AgentLog.About(Keys.PawnLog_ToggleAttempt.Text(name, label, state), building);
                 Dictionary<string, object> data = Dto.Obj(Dto.Field("building", SummaryDto.Thing(building)), Dto.Field("gizmo", Label(entry)));
                 bool changed = false;
-                Press.Execute(data, entry.Origin, "set_building_toggle", Label(entry), building, context.Map, LocalTargetInfo.Invalid, () => changed = SetToggle((Command_Toggle)entry.Command, body.On.Value, data));
+                Press.Execute(data, entry.Origin, "set_building_toggle", Label(entry), building, context.Map, LocalTargetInfo.Invalid, () => changed = SetToggle((Command_Toggle)entry.Command, body.On.Value, data), displaySubject: label);
                 Pending(building, data);
                 if (changed)
                 {
-                    Press.Report(data, "Turned " + Label(entry) + " " + onOff + " on " + AgentLog.Name(building) + (data.ContainsKey("pending") ? " (waiting for a colonist to flick it)" : ""), building);
+                    string line = Keys.PawnLog_ToggleDone.Text(name, label, state);
+                    Press.Report(data, PendingLog(data, line), building);
                 }
                 else
                 {
-                    AgentLog.NoChange(Label(entry) + " on " + AgentLog.Name(building) + " was already " + onOff, building);
+                    AgentLog.NoChange(Keys.PawnLog_ToggleUnchanged.Text(name, label, state), building);
                 }
                 return new CommandResult(changed, data);
             });
@@ -95,7 +99,8 @@ namespace RiMCP.Command
             }
             LocalTargetInfo target = Targets.Parse(map, body.TargetId, body.X, body.Z, "target");
             LocalTargetInfo destination = Targets.Parse(map, null, body.DestinationX, body.DestinationZ, "destination");
-            string pressed = AgentLog.Name(thing) + ": " + Label(entry);
+            string displayLabel = DisplayLabel(entry);
+            string pressed = Keys.PawnLog_NamedAction.Text(AgentLog.Name(thing), displayLabel);
             AgentLog.About(pressed, thing, target);
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("thing", SummaryDto.Thing(thing)),
@@ -125,23 +130,25 @@ namespace RiMCP.Command
             {
                 press = () => command.ProcessInput(new Event());
             }
-            Press.Execute(data, entry.Origin, "use_gizmo", Label(entry), thing, map, aim, press);
+            Press.Execute(data, entry.Origin, "use_gizmo", Label(entry), thing, map, aim, press, displaySubject: displayLabel);
             Pending(thing, data);
             if (entry.Kind == "toggle" && standard)
             {
-                pressed += " " + (body.On.Value ? "on" : "off");
+                string state = (body.On.Value ? Keys.PawnLog_On : Keys.PawnLog_Off).Text();
+                pressed = Keys.PawnLog_GizmoToggle.Text(pressed, state);
             }
             else if (entry.Kind == "target" && standard)
             {
-                pressed += " at " + (target.HasThing ? AgentLog.Name(target.Thing) : "(" + target.Cell.x + ", " + target.Cell.z + ")");
+                string what = target.HasThing ? AgentLog.Name(target.Thing) : target.Cell.ToIntVec2.ToString();
+                pressed = Keys.PawnLog_GizmoTarget.Text(pressed, what);
             }
             if (changed)
             {
-                Press.Report(data, pressed + (data.ContainsKey("pending") ? " (waiting for a colonist to flick it)" : ""), thing, target);
+                Press.Report(data, PendingLog(data, pressed), thing, target);
             }
             else
             {
-                AgentLog.NoChange(pressed + ": already so", thing);
+                AgentLog.NoChange(Keys.PawnLog_GizmoUnchanged.Text(pressed), thing);
             }
             Pawn pawn = thing as Pawn;
             if (pawn != null)
@@ -215,6 +222,11 @@ namespace RiMCP.Command
                 data["note"] = "The game did not change it.";
             }
             return was != now;
+        }
+
+        private static string PendingLog(Dictionary<string, object> data, string line)
+        {
+            return data.ContainsKey("pending") ? Keys.PawnLog_GizmoPending.Text(line) : line;
         }
 
         // A power switch changes only when a colonist flicks it.
@@ -361,6 +373,11 @@ namespace RiMCP.Command
         private static string Label(GizmoEntry entry)
         {
             return (entry.Command.LabelCap ?? entry.Command.GetType().Name).StripTags();
+        }
+
+        private static string DisplayLabel(GizmoEntry entry)
+        {
+            return (entry.Command.Label ?? entry.Command.GetType().Name).StripTags();
         }
 
         private static void Refuse(string reason)

@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -17,7 +18,7 @@ namespace RiMCP.Command
         public static BridgeResponse SetIdeoligion(BridgeRequest request, RouteMatch route)
         {
             IdeoligionBody body = CommandUtil.ReadBody<IdeoligionBody>(request);
-            AgentLog.Expect("Set the ideoligion", "Set the ideoligion");
+            AgentLog.Expect(Keys.AgentLog_SetIdeoligion.Text(), Keys.AgentLog_SetIdeoligionDone.Text());
             if (string.Equals((body.Mode ?? "").Trim(), "saved", StringComparison.OrdinalIgnoreCase))
             {
                 return LoadSavedIdeoligion(request, body);
@@ -208,7 +209,7 @@ namespace RiMCP.Command
         public static BridgeResponse EditIdeoligion(BridgeRequest request, RouteMatch route)
         {
             EditIdeoBody body = CommandUtil.ReadBody<EditIdeoBody>(request);
-            AgentLog.Expect("Edit the ideoligion", "Edited the ideoligion");
+            AgentLog.Expect(Keys.AgentLog_EditIdeoligion.Text(), Keys.AgentLog_EditIdeoligionDone.Text());
             Page_ConfigureIdeo page = SetupController.Require<Page_ConfigureIdeo>(SetupController.CustomIdeoligion);
             SetupController.RequireRevision(body.ExpectedRevision);
             Window busy = Find.WindowStack.Windows.FirstOrDefault(window => !(window is Page) && window.absorbInputAroundWindow || window is FloatMenu);

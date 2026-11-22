@@ -20,7 +20,7 @@ namespace RiMCP.Command
             return stack == null ? new List<Window>() : stack.Windows.Where(window => !before.Contains(window)).ToList();
         }
 
-        public static void Report(Dictionary<string, object> data, string tool, string subject, IEnumerable<Window> opened, Interaction continuing = null, Thing selected = null, ActionOrigin origin = null)
+        public static void Report(Dictionary<string, object> data, string tool, string subject, IEnumerable<Window> opened, Interaction continuing = null, Thing selected = null, ActionOrigin origin = null, string displaySubject = null)
         {
             List<object> dialogs = new List<object>();
             if (continuing != null && continuing.State == Interaction.Open)
@@ -37,13 +37,14 @@ namespace RiMCP.Command
                     continue;
                 }
                 Interaction interaction = Interactions.Start(tool, subject, dialog, selected ?? (continuing == null ? null : continuing.Selected), origin ?? (continuing == null ? null : continuing.Origin));
+                interaction.DisplaySubject = displaySubject ?? continuing?.DisplaySubject;
                 AgentLog.WaitFor(interaction.Id);
                 dialogs.Add(Interactions.Describe(interaction));
             }
             if (dialogs.Count > 0)
             {
                 data["dialogs"] = dialogs.ToArray();
-                AdvanceRun ended = AdvanceRunner.EndForDialog("A dialog opened by " + tool + " is waiting for an answer.");
+                AdvanceRun ended = AdvanceRunner.EndForDialog(tool);
                 if (ended != null)
                 {
                     data["endedAdvance"] = TimeCommandService.SerializeRun(ended);

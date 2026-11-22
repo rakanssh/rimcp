@@ -27,12 +27,20 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Check generated localization files are up to date
+        run: |
+          dotnet run --project scripts/LocalizationCatalog -- RiMCP/Languages/English/Keyed RiMCP/Source/UI/TextKeys.g.cs
+          git diff --exit-code -- RiMCP/Source/UI/TextKeys.g.cs RiMCP/Languages/English/Keyed/ToolDescriptions.xml
+
       - name: Fetch RimWorld reference assemblies
         run: |
           package="$RUNNER_TEMP/rimworld-ref.nupkg"
           curl -sSfL -o "$package" "https://api.nuget.org/v3-flatcontainer/krafs.rimworld.ref/$RIMWORLD_REF_VERSION/krafs.rimworld.ref.$RIMWORLD_REF_VERSION.nupkg"
           echo "$RIMWORLD_REF_SHA256  $package" | sha256sum --check
           unzip -q "$package" 'ref/net472/*' -d "$RUNNER_TEMP/rimworld-ref"
+
+      - name: Check translations and UI entry points
+        run: dotnet run --project tests/Localization -- --rimworld-managed-path "$RUNNER_TEMP/rimworld-ref/ref/net472"
 
       - name: Build
         run: dotnet build RiMCP/Source/RiMCP.csproj -c Release -p:RimWorldManagedPath="$RUNNER_TEMP/rimworld-ref/ref/net472"

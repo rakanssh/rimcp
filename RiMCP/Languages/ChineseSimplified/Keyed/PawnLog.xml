@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.PawnLog.DraftAttempt>征召 {0}</RiMCP.PawnLog.DraftAttempt>
+  <RiMCP.PawnLog.UndraftAttempt>解除对 {0} 的征召</RiMCP.PawnLog.UndraftAttempt>
+  <RiMCP.PawnLog.DraftDone>已征召 {0}</RiMCP.PawnLog.DraftDone>
+  <RiMCP.PawnLog.UndraftDone>已解除对 {0} 的征召</RiMCP.PawnLog.UndraftDone>
+  <RiMCP.PawnLog.DraftUnchanged>{0} 已处于征召状态</RiMCP.PawnLog.DraftUnchanged>
+  <RiMCP.PawnLog.UndraftUnchanged>{0} 已处于未征召状态</RiMCP.PawnLog.UndraftUnchanged>
+  <RiMCP.PawnLog.WorkOffAttempt>关闭 {0} 的{1}工作</RiMCP.PawnLog.WorkOffAttempt>
+  <RiMCP.PawnLog.WorkPriorityAttempt>将 {0} 的{1}工作优先级设为 {2}</RiMCP.PawnLog.WorkPriorityAttempt>
+  <RiMCP.PawnLog.WorkOffDone>已关闭 {0} 的{1}工作</RiMCP.PawnLog.WorkOffDone>
+  <RiMCP.PawnLog.WorkPriorityDone>已将 {0} 的{1}工作优先级设为 {2}</RiMCP.PawnLog.WorkPriorityDone>
+  <RiMCP.PawnLog.ManualPriorities>{0}（殖民地已启用手动优先级）</RiMCP.PawnLog.ManualPriorities>
+  <RiMCP.PawnLog.WorkOffUnchanged>{0} 的{1}工作已关闭</RiMCP.PawnLog.WorkOffUnchanged>
+  <RiMCP.PawnLog.WorkPriorityUnchanged>{0} 的{1}工作优先级已经是 {2}</RiMCP.PawnLog.WorkPriorityUnchanged>
+  <RiMCP.PawnLog.OrderAttempt>命令 {0} {1}</RiMCP.PawnLog.OrderAttempt>
+  <RiMCP.PawnLog.OrderDone>已命令 {0} {1}</RiMCP.PawnLog.OrderDone>
+  <RiMCP.PawnLog.OrderUnchanged>{0} 已满足指令：{1}</RiMCP.PawnLog.OrderUnchanged>
+  <RiMCP.PawnLog.OrderTarget>{0} {1}</RiMCP.PawnLog.OrderTarget>
+  <RiMCP.PawnLog.OrderQueued>{0}（已加入队列）</RiMCP.PawnLog.OrderQueued>
+  <RiMCP.PawnLog.Order.equip>装备</RiMCP.PawnLog.Order.equip>
+  <RiMCP.PawnLog.Order.wear>穿戴</RiMCP.PawnLog.Order.wear>
+  <RiMCP.PawnLog.Order.move>移动至</RiMCP.PawnLog.Order.move>
+  <RiMCP.PawnLog.Order.attack>攻击</RiMCP.PawnLog.Order.attack>
+  <RiMCP.PawnLog.Order.rescue>救援</RiMCP.PawnLog.Order.rescue>
+  <RiMCP.PawnLog.Order.tend>治疗</RiMCP.PawnLog.Order.tend>
+  <RiMCP.PawnLog.ScheduleAttempt>更改 {0} 的日程</RiMCP.PawnLog.ScheduleAttempt>
+  <RiMCP.PawnLog.ScheduleDoneOne>已调整 {0} 日程中的 1 个小时</RiMCP.PawnLog.ScheduleDoneOne>
+  <RiMCP.PawnLog.ScheduleDoneMany>已调整 {0} 日程中的 {1} 个小时</RiMCP.PawnLog.ScheduleDoneMany>
+  <RiMCP.PawnLog.ScheduleUnchanged>{0} 的日程已符合要求</RiMCP.PawnLog.ScheduleUnchanged>
+  <RiMCP.PawnLog.AssignmentAttempt>更改 {0} 的{1}</RiMCP.PawnLog.AssignmentAttempt>
+  <RiMCP.PawnLog.AssignmentDone>已将 {0} 的{1}设为“{2}”</RiMCP.PawnLog.AssignmentDone>
+  <RiMCP.PawnLog.AssignmentUnchanged>{0} 的{1}已经是“{2}”</RiMCP.PawnLog.AssignmentUnchanged>
+  <RiMCP.PawnLog.Policy.apparel>着装政策</RiMCP.PawnLog.Policy.apparel>
+  <RiMCP.PawnLog.Policy.food>饮食政策</RiMCP.PawnLog.Policy.food>
+  <RiMCP.PawnLog.Policy.drug>药物政策</RiMCP.PawnLog.Policy.drug>
+  <RiMCP.PawnLog.Policy.reading>阅读政策</RiMCP.PawnLog.Policy.reading>
+  <RiMCP.PawnLog.MedicalCare>医疗护理</RiMCP.PawnLog.MedicalCare>
+  <RiMCP.PawnLog.SelfTend>自我治疗</RiMCP.PawnLog.SelfTend>
+  <RiMCP.PawnLog.HostilityResponse>遇敌反应</RiMCP.PawnLog.HostilityResponse>
+  <RiMCP.PawnLog.AllowedArea>允许区域</RiMCP.PawnLog.AllowedArea>
+  <RiMCP.PawnLog.CarryMedicine>药品携带量</RiMCP.PawnLog.CarryMedicine>
+  <RiMCP.PawnLog.PrisonerInteraction>囚犯互动方式</RiMCP.PawnLog.PrisonerInteraction>
+  <RiMCP.PawnLog.On>开启</RiMCP.PawnLog.On>
+  <RiMCP.PawnLog.Off>关闭</RiMCP.PawnLog.Off>
+  <RiMCP.PawnLog.None>无</RiMCP.PawnLog.None>
+  <RiMCP.PawnLog.Unrestricted>无限制</RiMCP.PawnLog.Unrestricted>
+  <RiMCP.PawnLog.CountedMedicine>{0} 份{1}</RiMCP.PawnLog.CountedMedicine>
+  <RiMCP.PawnLog.Designation.hunt>狩猎</RiMCP.PawnLog.Designation.hunt>
+  <RiMCP.PawnLog.Designation.tame>驯服</RiMCP.PawnLog.Designation.tame>
+  <RiMCP.PawnLog.Designation.slaughter>屠宰</RiMCP.PawnLog.Designation.slaughter>
+  <RiMCP.PawnLog.DesignationAttempt>将 {0} 标记为{1}目标</RiMCP.PawnLog.DesignationAttempt>
+  <RiMCP.PawnLog.DesignationDone>已将 {0} 标记为{1}目标</RiMCP.PawnLog.DesignationDone>
+  <RiMCP.PawnLog.DesignationUnchanged>{0} 已标记为{1}目标</RiMCP.PawnLog.DesignationUnchanged>
+  <RiMCP.PawnLog.DesignationClearAttempt>清除对 {0} 的指令</RiMCP.PawnLog.DesignationClearAttempt>
+  <RiMCP.PawnLog.DesignationClearDone>已清除对 {0} 的指令</RiMCP.PawnLog.DesignationClearDone>
+  <RiMCP.PawnLog.DesignationClearUnchanged>{0} 没有待执行的指令</RiMCP.PawnLog.DesignationClearUnchanged>
+  <RiMCP.PawnLog.TrainingAttempt>更改 {0} 的训练项目</RiMCP.PawnLog.TrainingAttempt>
+  <RiMCP.PawnLog.TrainingState>{0}：{1}</RiMCP.PawnLog.TrainingState>
+  <RiMCP.PawnLog.TrainingDone>已调整 {0} 的训练项目：{1}</RiMCP.PawnLog.TrainingDone>
+  <RiMCP.PawnLog.TrainingUnchanged>{0} 的训练项目已符合要求</RiMCP.PawnLog.TrainingUnchanged>
+  <RiMCP.PawnLog.OwnerAssignAttempt>将 {1} 分配给 {0}</RiMCP.PawnLog.OwnerAssignAttempt>
+  <RiMCP.PawnLog.OwnerUnassignAttempt>取消为 {0} 分配的 {1}</RiMCP.PawnLog.OwnerUnassignAttempt>
+  <RiMCP.PawnLog.OwnerAssignDone>已将 {1} 分配给 {0}</RiMCP.PawnLog.OwnerAssignDone>
+  <RiMCP.PawnLog.OwnerUnassignDone>已取消为 {0} 分配的 {1}</RiMCP.PawnLog.OwnerUnassignDone>
+  <RiMCP.PawnLog.OwnerAssignUnchanged>{1} 已分配给 {0}</RiMCP.PawnLog.OwnerAssignUnchanged>
+  <RiMCP.PawnLog.OwnerUnassignUnchanged>{1} 原本就未分配给 {0}</RiMCP.PawnLog.OwnerUnassignUnchanged>
+  <RiMCP.PawnLog.NamedAction>{0}：{1}</RiMCP.PawnLog.NamedAction>
+  <RiMCP.PawnLog.ToggleAttempt>{2} {0} 的“{1}”</RiMCP.PawnLog.ToggleAttempt>
+  <RiMCP.PawnLog.ToggleDone>已{2} {0} 的“{1}”</RiMCP.PawnLog.ToggleDone>
+  <RiMCP.PawnLog.ToggleUnchanged>{0} 的“{1}”已经是{2}状态</RiMCP.PawnLog.ToggleUnchanged>
+  <RiMCP.PawnLog.GizmoTarget>{0}，目标为 {1}</RiMCP.PawnLog.GizmoTarget>
+  <RiMCP.PawnLog.GizmoToggle>{0}（{1}）</RiMCP.PawnLog.GizmoToggle>
+  <RiMCP.PawnLog.GizmoPending>{0}（等待殖民者操作开关）</RiMCP.PawnLog.GizmoPending>
+  <RiMCP.PawnLog.GizmoUnchanged>{0}（已是所需状态）</RiMCP.PawnLog.GizmoUnchanged>
+  <RiMCP.PawnLog.TrainingListSeparator>、</RiMCP.PawnLog.TrainingListSeparator>
+</LanguageData>

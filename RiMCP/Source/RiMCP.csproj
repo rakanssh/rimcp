@@ -13,6 +13,10 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
+  <Target Name="GenerateToolDescriptions" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../../scripts/LocalizationCatalog&quot; --configuration $(Configuration) -- &quot;$(MSBuildProjectDirectory)/../Languages/English/Keyed&quot;" />
+  </Target>
+
   <Target Name="ReadModVersion" BeforeTargets="GetAssemblyVersion">
     <XmlPeek XmlInputPath="$(MSBuildProjectDirectory)/../About/About.xml" Query="/ModMetaData/modVersion/text()">
       <Output TaskParameter="Result" PropertyName="Version" />

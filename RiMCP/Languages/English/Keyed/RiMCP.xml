@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.RunningOne>Running · {0} client · last request {1}</RiMCP.RunningOne>
+  <RiMCP.RunningMany>Running · {0} clients · last request {1}</RiMCP.RunningMany>
+  <RiMCP.ToolsEnabled>{0} of {1} tools on. Agents see only the tools that are on, so the list they load stays short.</RiMCP.ToolsEnabled>
+  <RiMCP.MatchingOne>{0} matching tool</RiMCP.MatchingOne>
+  <RiMCP.MatchingMany>{0} matching tools</RiMCP.MatchingMany>
+  <RiMCP.ConnectedOne>Connected: {0} agent, last request {1}.</RiMCP.ConnectedOne>
+  <RiMCP.ConnectedMany>Connected: {0} agents, last request {1}.</RiMCP.ConnectedMany>
+  <RiMCP.LocalAddress>Local address: {0}</RiMCP.LocalAddress>
+  <RiMCP.ConfigFolder>RimWorld config folder: {0}</RiMCP.ConfigFolder>
+  <RiMCP.AgentsOff>Agents are off</RiMCP.AgentsOff>
+  <RiMCP.NotRunning>Not running; see Activity</RiMCP.NotRunning>
+  <RiMCP.AgentsOn>Agents on</RiMCP.AgentsOn>
+  <RiMCP.MasterTip>The master switch. Off stops the bridge, so no agent can read or change anything, and a running advance or operation stops. Your access choices are kept.</RiMCP.MasterTip>
+  <RiMCP.AccessLevel>Access level</RiMCP.AccessLevel>
+  <RiMCP.OffAccessTip>Agents are off. Nothing runs until you turn them back on; these choices apply then.</RiMCP.OffAccessTip>
+  <RiMCP.Search>Search</RiMCP.Search>
+  <RiMCP.Clear>Clear</RiMCP.Clear>
+  <RiMCP.AllOn>All on</RiMCP.AllOn>
+  <RiMCP.AllOff>All off</RiMCP.AllOff>
+  <RiMCP.Destructive>can undo player work</RiMCP.Destructive>
+  <RiMCP.OffConnection>Agents are off. Turn on Agents on, above, to connect one.</RiMCP.OffConnection>
+  <RiMCP.NotRunningConnection>RimMCP isn't running; the Activity tab shows why.</RiMCP.NotRunningConnection>
+  <RiMCP.Waiting>Waiting for an agent to connect.</RiMCP.Waiting>
+  <RiMCP.StepOne>1. Copy the MCP config.</RiMCP.StepOne>
+  <RiMCP.CopyConfig>Copy MCP config</RiMCP.CopyConfig>
+  <RiMCP.ConfigCopied>RimMCP config copied.</RiMCP.ConfigCopied>
+  <RiMCP.StepTwo>2. Add it to your agent's MCP servers, or paste it into the agent's chat and ask it to add it.</RiMCP.StepTwo>
+  <RiMCP.StepThree>3. The agent shows as connected here, and its tools follow the Access tab.</RiMCP.StepThree>
+  <RiMCP.ConfigPrivacy>The config includes the token, so keep it private. Agents connect through the RimMCP helper, which it starts.</RiMCP.ConfigPrivacy>
+  <RiMCP.Advanced>Advanced</RiMCP.Advanced>
+  <RiMCP.RegenerateToken>Regenerate token</RiMCP.RegenerateToken>
+  <RiMCP.TokenRegenerated>RimMCP token regenerated. Copy MCP config again.</RiMCP.TokenRegenerated>
+  <RiMCP.NewConfigRequired>Connected agents need the new config afterwards.</RiMCP.NewConfigRequired>
+  <RiMCP.ToolCalls>Tool calls</RiMCP.ToolCalls>
+  <RiMCP.RecentRequests>Recent requests</RiMCP.RecentRequests>
+  <RiMCP.NoCalls>No tool calls since RimWorld started.</RiMCP.NoCalls>
+  <RiMCP.UnattendedSetup>Unattended game setup</RiMCP.UnattendedSetup>
+  <RiMCP.UnattendedTip>Lets agents answer the game's questions while setting up a new game, and start the colony without asking you.</RiMCP.UnattendedTip>
+  <RiMCP.UnattendedOff>Off: you approve the start of a new colony and answer the game's questions on screen.</RiMCP.UnattendedOff>
+  <RiMCP.ModActions>Mods' menu options and buttons</RiMCP.ModActions>
+  <RiMCP.ModActionsTip>Lets agents use the right-click options and buttons that mods add. RimMCP cannot check them before they run: they run as your click would, and a target is checked against the mod's own rules before it is given.</RiMCP.ModActionsTip>
+  <RiMCP.ModActionsOff>Off: agents use only the game's own options and buttons, each checked before it runs.</RiMCP.ModActionsOff>
+  <RiMCP.QuickButton>RimMCP button in game</RiMCP.QuickButton>
+  <RiMCP.QuickButtonTip>The button on the bottom bar that shows whether agents are on and working, and pauses them or changes the access level in a click.</RiMCP.QuickButtonTip>
+  <RiMCP.QuickButtonHelp>Shows whether agents are on and working; click it to pause them or change the access level.</RiMCP.QuickButtonHelp>
+  <RiMCP.Multiplayer>During a Multiplayer session, agents can read but never change the game or control time.</RiMCP.Multiplayer>
+  <RiMCP.AccessCurrent>Access: {0} (current)</RiMCP.AccessCurrent>
+  <RiMCP.AccessChoice>Access: {0}</RiMCP.AccessChoice>
+  <RiMCP.PauseAgents>Pause agents</RiMCP.PauseAgents>
+  <RiMCP.ResumeAgents>Resume agents</RiMCP.ResumeAgents>
+  <RiMCP.OpenSettings>RimMCP settings...</RiMCP.OpenSettings>
+  <RiMCP.PausedStatus>RimMCP: agents are paused. Click to resume them.</RiMCP.PausedStatus>
+  <RiMCP.StoppedStatus>RimMCP: the bridge is not running; see RimMCP settings.</RiMCP.StoppedStatus>
+  <RiMCP.QuickStatus>RimMCP: {0}. {1}
+{2}, last request {3}.</RiMCP.QuickStatus>
+  <RiMCP.AgentWorking>An agent is working.</RiMCP.AgentWorking>
+  <RiMCP.AgentsIdle>Agents are idle.</RiMCP.AgentsIdle>
+  <RiMCP.ClientOne>{0} client</RiMCP.ClientOne>
+  <RiMCP.ClientMany>{0} clients</RiMCP.ClientMany>
+  <RiMCP.Never>never</RiMCP.Never>
+  <RiMCP.JustNow>just now</RiMCP.JustNow>
+  <RiMCP.SecondsAgo>{0}s ago</RiMCP.SecondsAgo>
+  <RiMCP.StartColony>Start colony</RiMCP.StartColony>
+  <RiMCP.NotYet>Not yet</RiMCP.NotYet>
+  <RiMCP.StartTitle>RimMCP is ready to start this colony</RiMCP.StartTitle>
+  <RiMCP.SetupScenario>Scenario: {0}</RiMCP.SetupScenario>
+  <RiMCP.SetupStoryteller>Storyteller: {0}</RiMCP.SetupStoryteller>
+  <RiMCP.SetupSite>Site: tile {0}{1}, map {2}</RiMCP.SetupSite>
+  <RiMCP.SetupColonists>Colonists: {0}</RiMCP.SetupColonists>
+  <RiMCP.HeldSave>RimMCP saved the colony as '{0}' and is loading '{1}'. The colony is held as saved until you answer.</RiMCP.HeldSave>
+  <RiMCP.ConfirmationEnded>The operation has ended, so its question no longer applies.</RiMCP.ConfirmationEnded>
+  <RiMCP.ConfirmationStopping>The operation is stopping, so its question no longer applies.</RiMCP.ConfirmationStopping>
+  <RiMCP.ConfirmationSetupChanged>The setup changed while the game was asking, so the question was withdrawn.</RiMCP.ConfirmationSetupChanged>
+  <RiMCP.ConfirmationSaveChanged>The save '{0}' changed while the game was asking, so the question was withdrawn.</RiMCP.ConfirmationSaveChanged>
+  <RiMCP.LetterDismissed>dismissed the letter '{0}'.</RiMCP.LetterDismissed>
+  <RiMCP.LetterChosen>chose "{0}" for '{1}'.</RiMCP.LetterChosen>
+  <RiMCP.QuestDismissed>dismissed the quest '{0}'.</RiMCP.QuestDismissed>
+  <RiMCP.QuestRestored>restored the quest '{0}'.</RiMCP.QuestRestored>
+  <RiMCP.QuestAccepted>accepted the quest '{0}'.</RiMCP.QuestAccepted>
+  <RiMCP.QuestAcceptedBy>accepted the quest '{0}' with {1}.</RiMCP.QuestAcceptedBy>
+  <RiMCP.SetupStorytellerCommitment>Storyteller: {0} (commitment mode)</RiMCP.SetupStorytellerCommitment>
+  <RiMCP.Group.observe.Label>Observe</RiMCP.Group.observe.Label>
+  <RiMCP.Group.observe.Description>Read the colony, pawns, map, defs, and time status.</RiMCP.Group.observe.Description>
+  <RiMCP.Group.diagnostics.Label>Diagnostics</RiMCP.Group.diagnostics.Label>
+  <RiMCP.Group.diagnostics.Description>Read loaded mods, the game log, and game options.</RiMCP.Group.diagnostics.Description>
+  <RiMCP.Group.time.Label>Time</RiMCP.Group.time.Label>
+  <RiMCP.Group.time.Description>Pause, set the speed, and advance time.</RiMCP.Group.time.Description>
+  <RiMCP.Group.administration.Label>Administration</RiMCP.Group.administration.Label>
+  <RiMCP.Group.administration.Description>Change work priorities, assignments, policies, bills, research, and animal training.</RiMCP.Group.administration.Description>
+  <RiMCP.Group.orders.Label>Orders</RiMCP.Group.orders.Label>
+  <RiMCP.Group.orders.Description>Map orders: forbid, haul, cut, harvest, mine, deconstruct, and cancel; animal designations; and blueprints.</RiMCP.Group.orders.Description>
+  <RiMCP.Group.pawnControl.Label>Pawn control</RiMCP.Group.pawnControl.Label>
+  <RiMCP.Group.pawnControl.Description>Draft pawns and give them direct orders: equip, wear, move, attack, rescue, and tend.</RiMCP.Group.pawnControl.Description>
+  <RiMCP.Group.decisions.Label>Decisions</RiMCP.Group.decisions.Label>
+  <RiMCP.Group.decisions.Description>Answer letters and quest offers, and send the player notes or letters.</RiMCP.Group.decisions.Description>
+  <RiMCP.Group.gameSettings.Label>Game settings</RiMCP.Group.gameSettings.Label>
+  <RiMCP.Group.gameSettings.Description>Change the storyteller, difficulty, and global game options.</RiMCP.Group.gameSettings.Description>
+  <RiMCP.Group.gameSetup.Label>Game setup</RiMCP.Group.gameSetup.Label>
+  <RiMCP.Group.gameSetup.Description>Save, load, and leave games, and set up new ones. It can abandon a colony or overwrite a save, so only Full control includes it.</RiMCP.Group.gameSetup.Description>
+  <RiMCP.Preset.full.Label>Full control</RiMCP.Preset.full.Label>
+  <RiMCP.Preset.full.Description>Every tool, including game settings, and saving, loading, and setting up games.</RiMCP.Preset.full.Description>
+  <RiMCP.Preset.control.Label>Control</RiMCP.Preset.control.Label>
+  <RiMCP.Preset.control.Description>Everything except game settings and game setup.</RiMCP.Preset.control.Description>
+  <RiMCP.Preset.administration.Label>Administration</RiMCP.Preset.administration.Label>
+  <RiMCP.Preset.administration.Description>Reads, colony settings, and time, so an agent can check its changes by advancing time. No direct orders.</RiMCP.Preset.administration.Description>
+  <RiMCP.Preset.readOnly.Label>Read only</RiMCP.Preset.readOnly.Label>
+  <RiMCP.Preset.readOnly.Description>Reads only. Agents can't change anything.</RiMCP.Preset.readOnly.Description>
+  <RiMCP.Tab.Connection>Connection</RiMCP.Tab.Connection>
+  <RiMCP.Tab.Access>Access</RiMCP.Tab.Access>
+  <RiMCP.Tab.Activity>Activity</RiMCP.Tab.Activity>
+  <RiMCP.Tab.Safety>Safety</RiMCP.Tab.Safety>
+  <RiMCP.Preset.custom.Label>Custom</RiMCP.Preset.custom.Label>
+  <RiMCP.Preset.custom.Description>Your own choice of groups and tools. Tools added in later versions follow their group.</RiMCP.Preset.custom.Description>
+  <RiMCP.GroupToolCount>{0}/{1}</RiMCP.GroupToolCount>
+  <RiMCP.ToolTooltip>{0}
+
+{1}</RiMCP.ToolTooltip>
+  <RiMCP.SetupSiteBiome>, {0}</RiMCP.SetupSiteBiome>
+  <RiMCP.SetupStorytellerDetails>{0}, {1}</RiMCP.SetupStorytellerDetails>
+</LanguageData>

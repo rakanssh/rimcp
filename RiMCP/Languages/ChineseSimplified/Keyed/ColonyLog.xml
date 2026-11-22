@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.ColonyLog.Research>研究{0}</RiMCP.ColonyLog.Research>
+  <RiMCP.ColonyLog.ResearchSet>已将研究项目设为{0}</RiMCP.ColonyLog.ResearchSet>
+  <RiMCP.ColonyLog.ResearchAlready>已在研究{0}</RiMCP.ColonyLog.ResearchAlready>
+  <RiMCP.ColonyLog.BillChange>修改{1}上的工作清单“{0}”</RiMCP.ColonyLog.BillChange>
+  <RiMCP.ColonyLog.BillChanged>已修改{1}上的工作清单“{0}”</RiMCP.ColonyLog.BillChanged>
+  <RiMCP.ColonyLog.BillAlready>{1}上的工作清单“{0}”已采用该设置</RiMCP.ColonyLog.BillAlready>
+  <RiMCP.ColonyLog.BillAdd>在{0}上添加工作清单</RiMCP.ColonyLog.BillAdd>
+  <RiMCP.ColonyLog.BillAdded>已在{1}上添加工作清单“{0}”</RiMCP.ColonyLog.BillAdded>
+  <RiMCP.ColonyLog.BillDelete>删除{1}上的工作清单“{0}”</RiMCP.ColonyLog.BillDelete>
+  <RiMCP.ColonyLog.BillDeleted>已删除{1}上的工作清单“{0}”</RiMCP.ColonyLog.BillDeleted>
+  <RiMCP.ColonyLog.DetailSeparator>，</RiMCP.ColonyLog.DetailSeparator>
+  <RiMCP.ColonyLog.ListSeparator>、</RiMCP.ColonyLog.ListSeparator>
+  <RiMCP.ColonyLog.BlueprintNamedOne>{0} 张{1}蓝图</RiMCP.ColonyLog.BlueprintNamedOne>
+  <RiMCP.ColonyLog.BlueprintNamedMany>{0} 张{1}蓝图</RiMCP.ColonyLog.BlueprintNamedMany>
+  <RiMCP.ColonyLog.BuildingOne>{0} 座建筑</RiMCP.ColonyLog.BuildingOne>
+  <RiMCP.ColonyLog.BuildingMany>{0} 座建筑</RiMCP.ColonyLog.BuildingMany>
+  <RiMCP.ColonyLog.BlueprintOne>{0} 张蓝图</RiMCP.ColonyLog.BlueprintOne>
+  <RiMCP.ColonyLog.BlueprintMany>{0} 张蓝图</RiMCP.ColonyLog.BlueprintMany>
+  <RiMCP.ColonyLog.BuildingNamed>{0} 座{1}</RiMCP.ColonyLog.BuildingNamed>
+  <RiMCP.ColonyLog.BuildPlaceNamed>放置{0}</RiMCP.ColonyLog.BuildPlaceNamed>
+  <RiMCP.ColonyLog.BuildPlaceMany>放置建筑</RiMCP.ColonyLog.BuildPlaceMany>
+  <RiMCP.ColonyLog.BuildResult>已建成{0}</RiMCP.ColonyLog.BuildResult>
+  <RiMCP.ColonyLog.PlaceResult>已放置{0}</RiMCP.ColonyLog.PlaceResult>
+  <RiMCP.ColonyLog.BuildBreakdown>{0}（{1}）</RiMCP.ColonyLog.BuildBreakdown>
+  <RiMCP.ColonyLog.On>开启</RiMCP.ColonyLog.On>
+  <RiMCP.ColonyLog.Off>关闭</RiMCP.ColonyLog.Off>
+  <RiMCP.ColonyLog.Change>修改{0}</RiMCP.ColonyLog.Change>
+  <RiMCP.ColonyLog.QuotedName>“{0}”</RiMCP.ColonyLog.QuotedName>
+  <RiMCP.ColonyLog.Create>创建{0}</RiMCP.ColonyLog.Create>
+  <RiMCP.ColonyLog.AllowedArea>允许区域</RiMCP.ColonyLog.AllowedArea>
+  <RiMCP.ColonyLog.StorageChangeOf>修改{0}的储存设置</RiMCP.ColonyLog.StorageChangeOf>
+  <RiMCP.ColonyLog.Delete>删除{0}</RiMCP.ColonyLog.Delete>
+  <RiMCP.ColonyLog.Deleted>已删除{0}</RiMCP.ColonyLog.Deleted>
+  <RiMCP.ColonyLog.CellOne>{0} 格</RiMCP.ColonyLog.CellOne>
+  <RiMCP.ColonyLog.CellMany>{0} 格</RiMCP.ColonyLog.CellMany>
+  <RiMCP.ColonyLog.Grow>种植{0}</RiMCP.ColonyLog.Grow>
+  <RiMCP.ColonyLog.Sowing>{0}播种</RiMCP.ColonyLog.Sowing>
+  <RiMCP.ColonyLog.Cutting>{0}清除植物</RiMCP.ColonyLog.Cutting>
+  <RiMCP.ColonyLog.GrowingSet>已设置“{0}”：{1}</RiMCP.ColonyLog.GrowingSet>
+  <RiMCP.ColonyLog.GrowingAlready>“{0}”已采用该设置</RiMCP.ColonyLog.GrowingAlready>
+  <RiMCP.ColonyLog.CreateAllowedArea>创建允许区域</RiMCP.ColonyLog.CreateAllowedArea>
+  <RiMCP.ColonyLog.HomeArea>家园区域</RiMCP.ColonyLog.HomeArea>
+  <RiMCP.ColonyLog.StockpileZone>储存区</RiMCP.ColonyLog.StockpileZone>
+  <RiMCP.ColonyLog.GrowingZone>种植区</RiMCP.ColonyLog.GrowingZone>
+  <RiMCP.ColonyLog.CellsAdded>已添加 {0}</RiMCP.ColonyLog.CellsAdded>
+  <RiMCP.ColonyLog.CellsRemoved>已移除 {0}</RiMCP.ColonyLog.CellsRemoved>
+  <RiMCP.ColonyLog.CellsDisconnected>已舍弃断开的 {0}</RiMCP.ColonyLog.CellsDisconnected>
+  <RiMCP.ColonyLog.Renamed>已重命名</RiMCP.ColonyLog.Renamed>
+  <RiMCP.ColonyLog.CreatedCells>已创建{0}{1}，占 {2}</RiMCP.ColonyLog.CreatedCells>
+  <RiMCP.ColonyLog.ChangedCells>已修改{0}：{1}</RiMCP.ColonyLog.ChangedCells>
+  <RiMCP.ColonyLog.StoragePriority>优先级设为{0}</RiMCP.ColonyLog.StoragePriority>
+  <RiMCP.ColonyLog.StorageAllowedAll>允许所有物品</RiMCP.ColonyLog.StorageAllowedAll>
+  <RiMCP.ColonyLog.StorageDisallowedAll>不允许任何物品</RiMCP.ColonyLog.StorageDisallowedAll>
+  <RiMCP.ColonyLog.StorageAllowed>允许{0}</RiMCP.ColonyLog.StorageAllowed>
+  <RiMCP.ColonyLog.StorageDisallowed>不允许{0}</RiMCP.ColonyLog.StorageDisallowed>
+  <RiMCP.ColonyLog.StorageChanged>已修改储存设置：{0}</RiMCP.ColonyLog.StorageChanged>
+  <RiMCP.ColonyLog.StorageChange>修改储存设置</RiMCP.ColonyLog.StorageChange>
+  <RiMCP.ColonyLog.DesignationThings>物件</RiMCP.ColonyLog.DesignationThings>
+  <RiMCP.ColonyLog.Forbid>禁止取用{0}</RiMCP.ColonyLog.Forbid>
+  <RiMCP.ColonyLog.Forbade>已禁止取用{0}</RiMCP.ColonyLog.Forbade>
+  <RiMCP.ColonyLog.Unforbid>允许取用{0}</RiMCP.ColonyLog.Unforbid>
+  <RiMCP.ColonyLog.Unforbade>已允许取用{0}</RiMCP.ColonyLog.Unforbade>
+  <RiMCP.ColonyLog.Cancel>取消{0}上的命令</RiMCP.ColonyLog.Cancel>
+  <RiMCP.ColonyLog.Cancelled>已取消{0}上的命令</RiMCP.ColonyLog.Cancelled>
+  <RiMCP.ColonyLog.Mark>标记{0}以便{1}</RiMCP.ColonyLog.Mark>
+  <RiMCP.ColonyLog.Marked>已标记{0}以便{1}</RiMCP.ColonyLog.Marked>
+  <RiMCP.ColonyLog.CancelOrders>取消命令</RiMCP.ColonyLog.CancelOrders>
+  <RiMCP.ColonyLog.Purpose.haul>搬运</RiMCP.ColonyLog.Purpose.haul>
+  <RiMCP.ColonyLog.Purpose.cut>清除</RiMCP.ColonyLog.Purpose.cut>
+  <RiMCP.ColonyLog.Purpose.harvest>收获</RiMCP.ColonyLog.Purpose.harvest>
+  <RiMCP.ColonyLog.Purpose.chopWood>砍伐</RiMCP.ColonyLog.Purpose.chopWood>
+  <RiMCP.ColonyLog.Purpose.mine>采掘</RiMCP.ColonyLog.Purpose.mine>
+  <RiMCP.ColonyLog.Purpose.deconstruct>拆除</RiMCP.ColonyLog.Purpose.deconstruct>
+</LanguageData>

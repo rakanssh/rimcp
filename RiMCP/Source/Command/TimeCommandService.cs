@@ -6,6 +6,7 @@ using System.Runtime.Serialization;
 using RimWorld;
 using RiMCP.Bridge;
 using RiMCP.Read;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -43,11 +44,13 @@ namespace RiMCP.Command
             AdvanceRun ended = AdvanceRunner.Interrupt("set_game_speed");
             if (previous != speed)
             {
-                AgentLog.Done(speed == TimeSpeed.Paused ? "Paused the game" : "Set the speed to " + speed);
+                AgentLog.Done(speed == TimeSpeed.Paused ? Keys.TimeLog_Paused.Text()
+                    : Keys.TimeLog_SpeedChanged.Text(SpeedLabel(speed)));
             }
             else
             {
-                AgentLog.NoChange(speed == TimeSpeed.Paused ? "The game was already paused" : "The speed was already " + speed);
+                AgentLog.NoChange(speed == TimeSpeed.Paused ? Keys.TimeLog_AlreadyPaused.Text()
+                    : Keys.TimeLog_SpeedUnchanged.Text(SpeedLabel(speed)));
             }
             Dictionary<string, object> data = Dto.Obj(
                 Dto.Field("previousSpeed", previous.ToString()),
@@ -90,7 +93,7 @@ namespace RiMCP.Command
             AdvanceRun run = AdvanceRunner.Start(hours, speed, stopOn, body.RequestId, out created);
             if (created)
             {
-                AgentLog.Done("Running time for " + AdvanceRun.Duration((int)Math.Ceiling(hours * GenDate.TicksPerHour)));
+                AgentLog.Done(Keys.TimeLog_AdvanceStarted.Text(AdvanceRun.Duration((int)Math.Ceiling(hours * GenDate.TicksPerHour))));
                 AgentLog.WaitFor(AdvanceRun.LogKey(run.Id));
             }
             else
@@ -207,6 +210,18 @@ namespace RiMCP.Command
                 throw new CommandException(409, "No game is loaded.");
             }
             return Find.TickManager;
+        }
+
+        private static string SpeedLabel(TimeSpeed speed)
+        {
+            switch (speed)
+            {
+                case TimeSpeed.Normal: return Keys.TimeLog_Normal.Text();
+                case TimeSpeed.Fast: return Keys.TimeLog_Fast.Text();
+                case TimeSpeed.Superfast: return Keys.TimeLog_Superfast.Text();
+                case TimeSpeed.Ultrafast: return Keys.TimeLog_Ultrafast.Text();
+                default: return speed.ToString();
+            }
         }
 
         private static TimeSpeed ParseSpeed(string value, bool allowPaused)

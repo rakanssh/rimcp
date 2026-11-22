@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <RiMCP.AgentActivity.ShowChanges>Show agent changes in game:</RiMCP.AgentActivity.ShowChanges>
+  <RiMCP.AgentActivity.ShowWhere>Show where agents act</RiMCP.AgentActivity.ShowWhere>
+  <RiMCP.AgentActivity.ShowWhereTip>An agent cursor glides to where an agent just changed something, and a short pulse marks it on the map.</RiMCP.AgentActivity.ShowWhereTip>
+  <RiMCP.AgentActivity.ModeOff>Off</RiMCP.AgentActivity.ModeOff>
+  <RiMCP.AgentActivity.ModeEveryChange>Every change</RiMCP.AgentActivity.ModeEveryChange>
+  <RiMCP.AgentActivity.ModeDecisionsAndNotes>Decisions and notes</RiMCP.AgentActivity.ModeDecisionsAndNotes>
+  <RiMCP.AgentActivity.LogTitle>Agent log</RiMCP.AgentActivity.LogTitle>
+  <RiMCP.AgentActivity.LogEmpty>Nothing yet: changes agents make this session show here, newest first.</RiMCP.AgentActivity.LogEmpty>
+  <RiMCP.AgentActivity.MainMenu>At the main menu</RiMCP.AgentActivity.MainMenu>
+  <RiMCP.AgentActivity.EarlierGame>In an earlier game</RiMCP.AgentActivity.EarlierGame>
+  <RiMCP.AgentActivity.SaidLetter>said (letter)</RiMCP.AgentActivity.SaidLetter>
+  <RiMCP.AgentActivity.Said>said</RiMCP.AgentActivity.Said>
+  <RiMCP.AgentActivity.Pending>in progress</RiMCP.AgentActivity.Pending>
+  <RiMCP.AgentActivity.Done>done</RiMCP.AgentActivity.Done>
+  <RiMCP.AgentActivity.PartlyDone>partly done</RiMCP.AgentActivity.PartlyDone>
+  <RiMCP.AgentActivity.NoChange>no change</RiMCP.AgentActivity.NoChange>
+  <RiMCP.AgentActivity.Refused>refused</RiMCP.AgentActivity.Refused>
+  <RiMCP.AgentActivity.Failed>failed</RiMCP.AgentActivity.Failed>
+  <RiMCP.AgentActivity.Cancelled>cancelled</RiMCP.AgentActivity.Cancelled>
+  <RiMCP.AgentActivity.QuickStatusEntry>- {0} ({1})</RiMCP.AgentActivity.QuickStatusEntry>
+  <RiMCP.AgentActivity.UnnamedAgent>An agent</RiMCP.AgentActivity.UnnamedAgent>
+  <RiMCP.AgentActivity.LetterTitle>Agent message</RiMCP.AgentActivity.LetterTitle>
+  <RiMCP.AgentActivity.LetterBody>Message from {0}:
+
+{1}</RiMCP.AgentActivity.LetterBody>
+  <RiMCP.AgentActivity.SpeechMessage>{0} says: {1}</RiMCP.AgentActivity.SpeechMessage>
+  <RiMCP.AgentActivity.ActionMessage>{0}: {1}</RiMCP.AgentActivity.ActionMessage>
+  <RiMCP.AgentActivity.PartlyDoneMessage>{0} (partly)</RiMCP.AgentActivity.PartlyDoneMessage>
+  <RiMCP.AgentActivity.FailedMessage>{0} (failed)</RiMCP.AgentActivity.FailedMessage>
+  <RiMCP.AgentActivity.FoldedMessageOne>made {0} more change; the agent log lists them</RiMCP.AgentActivity.FoldedMessageOne>
+  <RiMCP.AgentActivity.FoldedMessageMany>made {0} more changes; the agent log lists them</RiMCP.AgentActivity.FoldedMessageMany>
+  <RiMCP.AgentActivity.FoldedBubbleOne>Made {0} more change. Click to open the agent log.</RiMCP.AgentActivity.FoldedBubbleOne>
+  <RiMCP.AgentActivity.FoldedBubbleMany>Made {0} more changes. Click to open the agent log.</RiMCP.AgentActivity.FoldedBubbleMany>
+  <RiMCP.AgentActivity.LogButton>Log</RiMCP.AgentActivity.LogButton>
+  <RiMCP.AgentActivity.JumpTip>Click to jump to it; right-click to dismiss.</RiMCP.AgentActivity.JumpTip>
+  <RiMCP.AgentActivity.LogTip>Click to open the agent log; right-click to dismiss.</RiMCP.AgentActivity.LogTip>
+  <RiMCP.AgentActivity.LogDetailLimit>120</RiMCP.AgentActivity.LogDetailLimit>
+  <RiMCP.AgentActivity.NoteLengthLimit>280</RiMCP.AgentActivity.NoteLengthLimit>
+  <RiMCP.AgentActivity.LogMetaClient>{0} · {1}</RiMCP.AgentActivity.LogMetaClient>
+  <RiMCP.AgentActivity.LogMetaDetail>{0} · {1}</RiMCP.AgentActivity.LogMetaDetail>
+  <RiMCP.AgentActivity.LogMetaClientDetail>{0} · {1} · {2}</RiMCP.AgentActivity.LogMetaClientDetail>
+  <RiMCP.AgentActivity.QuickStatusWithEntries>{0}
+{1}</RiMCP.AgentActivity.QuickStatusWithEntries>
+</LanguageData>

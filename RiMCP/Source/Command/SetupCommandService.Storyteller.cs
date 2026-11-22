@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -17,7 +18,9 @@ namespace RiMCP.Command
         public static BridgeResponse SetStoryteller(BridgeRequest request, RouteMatch route)
         {
             StorytellerBody body = CommandUtil.ReadBody<StorytellerBody>(request);
-            AgentLog.Expect("Set the storyteller", "Set the storyteller" + (string.IsNullOrWhiteSpace(body.Storyteller) ? "" : ": " + body.Storyteller.Trim()));
+            AgentLog.Expect(Keys.AgentLog_SetStoryteller.Text(), string.IsNullOrWhiteSpace(body.Storyteller)
+                ? Keys.AgentLog_SetStorytellerDone.Text()
+                : Keys.AgentLog_SetStorytellerNamed.Text(body.Storyteller));
             Page_SelectStoryteller page = SetupController.Require<Page_SelectStoryteller>(SetupController.Storyteller);
             SetupController.RequireRevision(body.ExpectedRevision);
             StorytellerDef storyteller = DefDatabase<StorytellerDef>.AllDefs.FirstOrDefault(def => def.listVisible && string.Equals(def.defName, (body.Storyteller ?? "").Trim(), StringComparison.OrdinalIgnoreCase));

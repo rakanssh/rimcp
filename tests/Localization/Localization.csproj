@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Use the parser and runtime shipped together in the installed SDK -->
+    <TargetFramework>net$(BundledNETCoreAppTargetFrameworkVersion)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CodeAnalysis" HintPath="$(RoslynTargetsPath)/bincore/Microsoft.CodeAnalysis.dll" />
+    <Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(RoslynTargetsPath)/bincore/Microsoft.CodeAnalysis.CSharp.dll" />
+    <Compile Include="../../Shared/ToolManifest.cs" Link="ToolManifest.cs" />
+  </ItemGroup>
+</Project>

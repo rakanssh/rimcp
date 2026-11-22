@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using RiMCP.Bridge;
 using RiMCP.Read;
 using RiMCP.Shared;
+using RiMCP.UI;
 using Verse;
 
 namespace RiMCP.Command
@@ -19,7 +20,7 @@ namespace RiMCP.Command
         public static BridgeResponse SetStartingPawns(BridgeRequest request, RouteMatch route)
         {
             PawnsBody body = CommandUtil.ReadBody<PawnsBody>(request);
-            AgentLog.Expect("Set the starting colonists", "Set the starting colonists");
+            AgentLog.Expect(Keys.AgentLog_SetColonists.Text(), Keys.AgentLog_SetColonistsDone.Text());
             string requestId = CommandUtil.ValidateRequestId(body.RequestId);
             return SessionCommandService.Begin(request, "set_starting_pawns", requestId, () =>
             {
